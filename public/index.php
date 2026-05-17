@@ -46,8 +46,8 @@ define('SESSION_TIMEOUT', 1800); // 30 minutes
 
 $page = $_GET['page'] ?? (is_logged_in() ? 'researchers' : 'login');
 
-$publicPages  = ['login', 'register', 'forgot', 'reset', 'verify', 'unsubscribe'];
-$allowedPages = ['login', 'register', 'forgot', 'reset', 'verify', 'unsubscribe', 'logout',
+$publicPages  = ['login', 'register', 'auth', 'forgot', 'reset', 'verify', 'unsubscribe'];
+$allowedPages = ['login', 'register', 'auth', 'forgot', 'reset', 'verify', 'unsubscribe', 'logout',
                  'researchers', 'funding', 'funders', 'matching', 'search', 'institutions',
                  'messages', 'admin', 'api', 'profile', 'account'];
 
