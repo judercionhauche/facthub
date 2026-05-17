@@ -108,12 +108,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /* ── Render ────────────────────────────────────────────────────────── */
+$flash = get_flash();
 ?>
 
 <?php if ($mode === 'add'): ?>
 <div style="max-width: 500px; margin: 40px auto; padding: 0 20px;">
     <h1 style="text-align: center; font-size: 28px; color: #1a3d2a; margin-bottom: 10px;">Register as Funder</h1>
     <p style="text-align: center; color: #9aaba4; margin-bottom: 40px;">Post funding opportunities and discover researchers working on your priority topics.</p>
+
+    <?php if ($flash): ?>
+    <div style="background: <?= $flash['type'] === 'error' ? '#fee2e2' : '#dcfce7' ?>; border: 1px solid <?= $flash['type'] === 'error' ? '#fca5a5' : '#86efac' ?>; color: <?= $flash['type'] === 'error' ? '#b54646' : '#15803d' ?>; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px; font-size: 14px;">
+        <?= h($flash['message']) ?>
+    </div>
+    <?php endif; ?>
 
     <form method="POST" style="background: #ffffff; border: 1px solid #dde6dd; border-radius: 10px; padding: 30px;">
         <input type="hidden" name="action" value="save">
