@@ -15,8 +15,8 @@ if (is_logged_in()) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="<?= h(csrf_token()) ?>">
     <title>FACT Alliance Hub</title>
-    <link rel="stylesheet" href="/fact_hub2/public/assets/style.css">
-    <script defer src="/fact_hub2/public/assets/app.js"></script>
+    <link rel="stylesheet" href="assets/style.css">
+    <script defer src="assets/app.js"></script>
     <script>
     /* Auto-inject CSRF token into every form on the page */
     document.addEventListener('DOMContentLoaded', function () {
@@ -37,7 +37,7 @@ if (is_logged_in()) {
     <header class="topbar">
         <div class="topbar-inner">
             <div class="brand-wrap">
-                <img src="/fact_hub2/public/assets/fact-alliance-logo.png" alt="FACT Alliance" class="brand-logo">
+                <img src="assets/fact-alliance-logo.png" alt="FACT Alliance" class="brand-logo">
             </div>
             <?php if (is_logged_in()): ?>
             <nav class="topnav">
