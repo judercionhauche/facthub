@@ -48,7 +48,7 @@ $page = $_GET['page'] ?? (is_logged_in() ? 'researchers' : 'login');
 
 $publicPages  = ['login', 'register', 'forgot', 'reset', 'verify', 'unsubscribe'];
 $allowedPages = ['login', 'register', 'forgot', 'reset', 'verify', 'unsubscribe', 'logout',
-                 'researchers', 'funding', 'matching', 'search', 'institutions',
+                 'researchers', 'funding', 'funders', 'matching', 'search', 'institutions',
                  'messages', 'admin', 'api', 'profile', 'account'];
 
 // Inactivity timeout — kick idle sessions after SESSION_TIMEOUT seconds
