@@ -33,7 +33,12 @@ foreach ($lines as $line) {
         if ($conn->query($query)) {
             echo "    ✓ OK\n";
         } else {
-            echo "    ✗ Error: " . $conn->error . "\n";
+            // Ignore duplicate column/index errors (schema may already be initialized)
+            if (strpos($conn->error, 'Duplicate') !== false || strpos($conn->error, 'already exists') !== false) {
+                echo "    ✓ OK (already exists)\n";
+            } else {
+                echo "    ✗ Error: " . $conn->error . "\n";
+            }
         }
         $count++;
         $query = "";
