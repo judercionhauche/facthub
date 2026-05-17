@@ -3,8 +3,6 @@
 $mode = ($_GET['mode'] ?? $_POST['mode'] ?? '');
 $isRegistering = ($mode === 'add' && !is_logged_in());
 
-error_log("[Funders Debug] mode=$mode, is_logged_in=" . (is_logged_in() ? 'true' : 'false') . ", isRegistering=" . ($isRegistering ? 'true' : 'false'));
-
 if (!$isRegistering) {
     require_login();
 }
