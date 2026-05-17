@@ -34,14 +34,18 @@ foreach ($lines as $line) {
         $shortQuery = substr($query, 0, 70);
         echo "[$count] $shortQuery...\n";
 
-        if ($conn->query($query)) {
-            echo "    ✓ OK\n";
-        } else {
-            // Ignore duplicate column/index errors (schema may already be initialized)
-            if (strpos($conn->error, 'Duplicate') !== false || strpos($conn->error, 'already exists') !== false) {
-                echo "    ✓ OK (already exists)\n";
+        try {
+            if ($conn->query($query)) {
+                echo "    ✓ OK\n";
             } else {
                 echo "    ✗ Error: " . $conn->error . "\n";
+            }
+        } catch (Exception $e) {
+            // Ignore duplicate column/index errors (schema may already be initialized)
+            if (strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'already exists') !== false) {
+                echo "    ✓ OK (already exists)\n";
+            } else {
+                echo "    ✗ Error: " . $e->getMessage() . "\n";
             }
         }
         $count++;
