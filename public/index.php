@@ -23,7 +23,12 @@ ini_set('display_startup_errors', '0');
 error_reporting(E_ALL);          // still log everything, just don't display it
 ini_set('log_errors', '1');
 
-require_once __DIR__ . '/../config/database.php';
+$dbConfig = require_once __DIR__ . '/../config/database.php';
+$conn = new mysqli($dbConfig['db_host'], $dbConfig['db_user'], $dbConfig['db_pass'], $dbConfig['db_name']);
+if ($conn->connect_error) {
+    die('Database connection failed: ' . $conn->connect_error);
+}
+
 require_once __DIR__ . '/../app/core/helpers.php';
 require_once __DIR__ . '/../app/core/mailer.php';
 require_once __DIR__ . '/../app/services/RateLimiter.php';
