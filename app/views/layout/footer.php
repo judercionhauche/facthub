@@ -2,7 +2,7 @@
     </div>
     <footer class="footer">
         <div class="footer-inner">
-            <img src="/fact_hub2/public/assets/jwafs-logo.svg" alt="J-WAFS" class="footer-logo">
+            <img src="assets/jwafs-logo.svg" alt="J-WAFS" class="footer-logo">
             <div>
                 <div class="footer-title">Abdul Latif Jameel Water & Food Systems Lab</div>
                 <div class="footer-text">Massachusetts Institute of Technology · 77 Massachusetts Avenue, E38-325 · Cambridge, MA 02139</div>
