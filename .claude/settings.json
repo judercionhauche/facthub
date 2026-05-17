@@ -1,0 +1,44 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//tmp/**)",
+      "Bash(curl -v 'http://localhost/fact_hub2/public/index.php?page=researchers&mode=add')",
+      "Bash(curl -v 'http://localhost/fact_hub2/public/index.php?page=register')",
+      "Bash(mysql -h localhost -u root fact_hub2 -e \"SELECT id, email, status, role, created_at FROM users WHERE email='testuser@example.com' ORDER BY created_at DESC LIMIT 1;\")",
+      "Bash(cat > *)",
+      "Bash(chmod +x /tmp/test_curl.sh)",
+      "Bash(/tmp/test_curl.sh)",
+      "Bash(curl -s -b /tmp/cookies.txt 'http://localhost/fact_hub2/public/index.php?page=researchers')",
+      "Bash(/Applications/XAMPP/bin/php)",
+      "Bash(find /Applications/XAMPP -name \"*error*.log\" -type f 2>/dev/null | head -10)",
+      "Read(//Applications/XAMPP/**)",
+      "Bash(sed -i \"s/status = \\\\\"active\\\\\"/status = 'active'/g\" /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/app/views/admin/index.php)",
+      "Bash(sed -i \"s/entity_type = \\\\\"researcher\\\\\"/entity_type = 'researcher'/g\" /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/app/views/admin/index.php)",
+      "Bash(sed -i \"s/status = \\\\\"inactive\\\\\"/status = 'inactive'/g\" /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/app/views/admin/index.php)",
+      "Bash(sed -i \"s/status = \\\\\"deleted\\\\\"/status = 'deleted'/g\" /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/app/views/admin/index.php)",
+      "Bash(php -r ' *)",
+      "Read(//var/log/apache2/**)",
+      "Read(//var/log/**)",
+      "Bash(php -l /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/app/views/admin/index.php)",
+      "Bash(grep -A 3 '$statusStmt = $conn->prepare' app/views/admin/index.php)",
+      "Bash(sed -n '22p' app/views/admin/index.php)",
+      "Bash(sed -n '212p' app/views/admin/index.php)",
+      "Bash(sed -n '251p' app/views/admin/index.php)",
+      "Bash(grep \"'\\);$\")",
+      "Bash(sed -n '278,278p' app/views/admin/index.php)",
+      "Bash(sed -n '300,300p' app/views/admin/index.php)",
+      "Bash(curl -s http://localhost/fact_hub2/public/index.php?page=profile -o /dev/null -w \"HTTP %{http_code}\\\\n\")",
+      "Bash(curl -s \"http://localhost/fact_hub2/public/index.php?page=profile\" -o /dev/null -w \"HTTP %{http_code}\\\\n\")",
+      "Bash(curl -s \"http://localhost/fact_hub2/public/index.php?page=admin\" -o /dev/null -w \"Admin: HTTP %{http_code}\\\\n\")",
+      "Bash(curl -s \"http://localhost/fact_hub2/public/index.php?page=funding\" -o /dev/null -w \"Funding: HTTP %{http_code}\\\\n\")",
+      "Bash(curl -s \"http://localhost/fact_hub2/public/index.php?page=researchers\" -o /dev/null -w \"Researchers: HTTP %{http_code}\\\\n\")",
+      "Bash(git init *)",
+      "Bash(git config *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
+    ]
+  }
+}

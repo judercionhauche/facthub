@@ -1,0 +1,28 @@
+# Configuration & Secrets
+config/mail.php
+config/database.php
+.env
+.env.local
+
+# Build & Dependencies
+node_modules/
+vendor/
+composer.lock
+package-lock.json
+
+# Logs & Temp Files
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Session & Cache
+sessions/
+cache/
+tmp/

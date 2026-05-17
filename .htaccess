@@ -1,0 +1,20 @@
+# Disable directory listing
+Options -Indexes
+
+# Block direct access to sensitive file types
+<FilesMatch "\.(sql|log|sh|txt|md|json)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Block hidden files/dirs (.env, .git, .claude, .DS_Store)
+<FilesMatch "^\.">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Block direct access to app/ and config/ source directories
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(app|config)(\/.*)?$ - [F,L]
+</IfModule>
