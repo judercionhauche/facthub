@@ -158,5 +158,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     <p class="muted small" style="text-align:right;margin-top:4px"><a href="index.php?page=forgot">Forgot password?</a></p>
     <hr style="border:none;border-top:1px solid var(--line);margin:18px 0">
-    <p class="muted small" style="text-align:center">New to FACT Hub? <a href="index.php?page=researchers&mode=add"><strong>Register as a Researcher →</strong></a></p>
+    <p class="muted small" style="text-align:center">New to FACT Hub? <a href="index.php?page=register"><strong>Register as a Researcher →</strong></a></p>
 </div>
