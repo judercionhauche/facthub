@@ -123,11 +123,13 @@ if ($page === 'api') {
     exit;
 }
 
-// Allow researcher registration (mode=add) without login
+// Allow researcher/funder registration (mode=add) without login
 $isResearcherRegistration = ($page === 'researchers' &&
     (($_GET['mode'] === 'add' || $_POST['mode'] === 'add') && !is_logged_in()));
+$isFunderRegistration = ($page === 'funders' &&
+    (($_GET['mode'] === 'add' || $_POST['mode'] === 'add') && !is_logged_in()));
 
-if (!in_array($page, $publicPages, true) && !is_logged_in() && !$isResearcherRegistration) {
+if (!in_array($page, $publicPages, true) && !is_logged_in() && !$isResearcherRegistration && !$isFunderRegistration) {
     // Preserve intended destination so we can redirect back after login
     $_SESSION['login_return'] = http_build_query($_GET);
     redirect_to('login');
