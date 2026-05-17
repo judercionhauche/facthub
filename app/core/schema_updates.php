@@ -25,7 +25,7 @@ function apply_security_schema_updates(mysqli $conn): void {
     $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='password_resets' AND COLUMN_NAME='used_at' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
     if (!$result || $result->num_rows === 0) {
         @$conn->query("ALTER TABLE password_resets ADD COLUMN used_at DATETIME DEFAULT NULL AFTER expires_at");
-        @$conn->query("ALTER TABLE password_resets ADD INDEX IF NOT EXISTS idx_used_at (used_at)");
+        @$conn->query("ALTER TABLE password_resets ADD INDEX idx_used_at (used_at)");
     }
 
     // Create unsubscribe_tokens table if it doesn't exist
@@ -44,16 +44,16 @@ function apply_security_schema_updates(mysqli $conn): void {
     // Add idempotency_key to job_queue if it doesn't exist
     $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='job_queue' AND COLUMN_NAME='idempotency_key' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
     if (!$result || $result->num_rows === 0) {
-        @$conn->query("ALTER TABLE job_queue ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(64) UNIQUE DEFAULT NULL");
+        @$conn->query("ALTER TABLE job_queue ADD COLUMN idempotency_key VARCHAR(64) UNIQUE DEFAULT NULL");
     }
 
     // Ensure audit_log has all necessary indexes (skip if table doesn't exist)
     $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='audit_log' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
     if ($result && $result->num_rows > 0) {
-        @$conn->query("ALTER TABLE audit_log ADD INDEX IF NOT EXISTS idx_actor (actor_email)");
-        @$conn->query("ALTER TABLE audit_log ADD INDEX IF NOT EXISTS idx_action (action)");
-        @$conn->query("ALTER TABLE audit_log ADD INDEX IF NOT EXISTS idx_time (created_at)");
-        @$conn->query("ALTER TABLE audit_log ADD INDEX IF NOT EXISTS idx_email (target_email)");
+        @$conn->query("ALTER TABLE audit_log ADD INDEX idx_actor (actor_email)");
+        @$conn->query("ALTER TABLE audit_log ADD INDEX idx_action (action)");
+        @$conn->query("ALTER TABLE audit_log ADD INDEX idx_time (created_at)");
+        @$conn->query("ALTER TABLE audit_log ADD INDEX idx_email (target_email)");
     }
 
     // ════════════════════════════════════════════════════════════════
