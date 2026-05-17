@@ -9,7 +9,11 @@ if (empty($_GET['confirm'])) {
     die('Add ?confirm=1 to run schema updates');
 }
 
-require_once __DIR__ . '/config/database.php';
+$cfg = require_once __DIR__ . '/config/database.php';
+$conn = new mysqli($cfg['db_host'], $cfg['db_user'], $cfg['db_pass'], $cfg['db_name']);
+if ($conn->connect_error) {
+    die('Connection failed: ' . $conn->connect_error);
+}
 
 $sql = file_get_contents(__DIR__ . '/SECURITY_FIXES_SQL.sql');
 $lines = explode("\n", $sql);
