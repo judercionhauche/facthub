@@ -332,15 +332,28 @@ if ($viewId > 0) foreach ($researchers as $r) if ((int)$r['id'] === $viewId) $vi
 // Top funding matches for viewing panel
 $topFundingMatches = [];
 if ($viewing) {
-    $tfStmt = $conn->prepare(
+    // Try with deleted_at column first, fall back if it doesn't exist
+    $tfStmt = @$conn->prepare(
         'SELECT ms.score_ai, ms.score_keyword, ms.explanation,
                 fc.id, fc.title, fc.funder, fc.deadline, fc.status
          FROM match_scores ms JOIN funding_calls fc ON fc.id = ms.funding_call_id
          WHERE ms.researcher_id = ? AND fc.deleted_at IS NULL
          ORDER BY COALESCE(ms.score_ai, ms.score_keyword) DESC LIMIT 5'
     );
-    $tfStmt->bind_param('i', $viewing['id']); $tfStmt->execute();
-    $topFundingMatches = $tfStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    if (!$tfStmt) {
+        // Fallback if deleted_at column doesn't exist
+        $tfStmt = $conn->prepare(
+            'SELECT ms.score_ai, ms.score_keyword, ms.explanation,
+                    fc.id, fc.title, fc.funder, fc.deadline, fc.status
+             FROM match_scores ms JOIN funding_calls fc ON fc.id = ms.funding_call_id
+             WHERE ms.researcher_id = ?
+             ORDER BY COALESCE(ms.score_ai, ms.score_keyword) DESC LIMIT 5'
+        );
+    }
+    if ($tfStmt) {
+        $tfStmt->bind_param('i', $viewing['id']); $tfStmt->execute();
+        $topFundingMatches = $tfStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    }
 }
 
 // Load researcher AI summary for viewing panel
@@ -358,21 +371,45 @@ if ($viewing) {
 $myMatches    = [];
 $myResearcher = null;
 if (!is_admin()) {
-    $meStmt = $conn->prepare("SELECT id FROM researchers WHERE LOWER(email) = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1");
-    $meEmail = strtolower($currentUser['email']);
-    $meStmt->bind_param('s', $meEmail); $meStmt->execute();
-    $meRow = $meStmt->get_result()->fetch_assoc();
-    if ($meRow) {
-        $myResearcher = $meRow;
-        $myStmt = $conn->prepare(
-            'SELECT ms.score_ai, ms.score_keyword, ms.explanation,
-                    fc.id, fc.title, fc.funder, fc.deadline, fc.status
-             FROM match_scores ms JOIN funding_calls fc ON fc.id = ms.funding_call_id
-             WHERE ms.researcher_id = ? AND fc.deleted_at IS NULL
-             ORDER BY COALESCE(ms.score_ai, ms.score_keyword) DESC LIMIT 3'
-        );
-        $myStmt->bind_param('i', $meRow['id']); $myStmt->execute();
-        $myMatches = $myStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    // Try with deleted_at column first, fall back if it doesn't exist
+    $meStmt = @$conn->prepare("SELECT id FROM researchers WHERE LOWER(email) = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1");
+    if (!$meStmt) {
+        // Fallback if deleted_at column doesn't exist
+        $meStmt = $conn->prepare("SELECT id FROM researchers WHERE LOWER(email) = ? AND status = 'active' LIMIT 1");
+    }
+    if (!$meStmt) {
+        // Further fallback if status column doesn't exist
+        $meStmt = $conn->prepare("SELECT id FROM researchers WHERE LOWER(email) = ? LIMIT 1");
+    }
+    if ($meStmt) {
+        $meEmail = strtolower($currentUser['email']);
+        $meStmt->bind_param('s', $meEmail); $meStmt->execute();
+        $meRow = $meStmt->get_result()->fetch_assoc();
+        if ($meRow) {
+            $myResearcher = $meRow;
+            // Try with deleted_at column first, fall back if it doesn't exist
+            $myStmt = @$conn->prepare(
+                'SELECT ms.score_ai, ms.score_keyword, ms.explanation,
+                        fc.id, fc.title, fc.funder, fc.deadline, fc.status
+                 FROM match_scores ms JOIN funding_calls fc ON fc.id = ms.funding_call_id
+                 WHERE ms.researcher_id = ? AND fc.deleted_at IS NULL
+                 ORDER BY COALESCE(ms.score_ai, ms.score_keyword) DESC LIMIT 3'
+            );
+            if (!$myStmt) {
+                // Fallback if deleted_at column doesn't exist
+                $myStmt = $conn->prepare(
+                    'SELECT ms.score_ai, ms.score_keyword, ms.explanation,
+                            fc.id, fc.title, fc.funder, fc.deadline, fc.status
+                     FROM match_scores ms JOIN funding_calls fc ON fc.id = ms.funding_call_id
+                     WHERE ms.researcher_id = ?
+                     ORDER BY COALESCE(ms.score_ai, ms.score_keyword) DESC LIMIT 3'
+                );
+            }
+            if ($myStmt) {
+                $myStmt->bind_param('i', $meRow['id']); $myStmt->execute();
+                $myMatches = $myStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            }
+        }
     }
 }
 ?>
