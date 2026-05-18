@@ -306,8 +306,19 @@ if ($editId > 0 && !is_admin()) {
 
 $topicTags   = get_all_tags($conn, 'topic');
 $researchers = [];
-$res = $conn->query("SELECT * FROM researchers WHERE status = 'active' AND deleted_at IS NULL ORDER BY first_name ASC, last_name ASC");
-while ($row = $res->fetch_assoc()) $researchers[] = $row;
+// Try with deleted_at column first, fall back if it doesn't exist
+$res = @$conn->query("SELECT * FROM researchers WHERE status = 'active' AND deleted_at IS NULL ORDER BY first_name ASC, last_name ASC");
+if (!$res) {
+    // Fallback if deleted_at column doesn't exist yet
+    $res = @$conn->query("SELECT * FROM researchers WHERE status = 'active' ORDER BY first_name ASC, last_name ASC");
+}
+if (!$res) {
+    // Further fallback if status column doesn't exist
+    $res = @$conn->query("SELECT * FROM researchers ORDER BY first_name ASC, last_name ASC");
+}
+if ($res) {
+    while ($row = $res->fetch_assoc()) $researchers[] = $row;
+}
 
 // Unique non-empty institutions (sorted)
 $institutions = array_values(array_unique(array_filter(array_map(fn($r) => trim($r['institution'] ?? ''), $researchers))));

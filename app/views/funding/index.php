@@ -183,8 +183,15 @@ $viewId = (int)($_GET['view'] ?? 0);
 $topicTags = get_all_tags($conn, 'topic');
 $geoTags   = get_all_tags($conn, 'geography');
 $fundingCalls = [];
-$res = $conn->query('SELECT * FROM funding_calls WHERE deleted_at IS NULL ORDER BY created_at DESC');
-while ($row = $res->fetch_assoc()) $fundingCalls[] = $row;
+// Try with deleted_at column first, fall back if it doesn't exist
+$res = @$conn->query('SELECT * FROM funding_calls WHERE deleted_at IS NULL ORDER BY created_at DESC');
+if (!$res) {
+    // Fallback if deleted_at column doesn't exist yet
+    $res = @$conn->query('SELECT * FROM funding_calls ORDER BY created_at DESC');
+}
+if ($res) {
+    while ($row = $res->fetch_assoc()) $fundingCalls[] = $row;
+}
 
 $filtered = array_values(array_filter($fundingCalls, function($fc) use ($search, $topicFilters, $geoFilters, $statusFilter) {
     $q = strtolower($search);
