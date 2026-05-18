@@ -298,7 +298,7 @@ foreach ($geoFilters as $g) { if (isset($SYNONYMS[$g])) { $expandedGeos = array_
 $allSearchTerms = array_unique(array_merge($expandedTopics, $expandedGeos, $keywords, $synonyms));
 
 // Step 4: Fetch candidates
-$fcCandidates = ($filterType !== 'researcher' && $filterType !== 'institution' && !empty($allSearchTerms)) ? fetchCandidates($conn, 'funding_calls', $allSearchTerms, $filterStatus, 'title,funder,description,topics,geography') : [];
+$fcCandidates = ($filterType !== 'researcher' && $filterType !== 'institution' && !empty($allSearchTerms)) ? fetchCandidates($conn, 'funding_calls', $allSearchTerms, $filterStatus, 'title,description,topics,geography') : [];
 $rCandidates = ($filterType !== 'funding' && $filterType !== 'institution' && !empty($allSearchTerms)) ? fetchCandidates($conn, 'researchers', $allSearchTerms, '', 'first_name,last_name,institution,bio,topics,geography') : [];
 $funderCandidates = ($filterType !== 'researcher' && $filterType !== 'funding' && !empty($allSearchTerms)) ? fetchCandidates($conn, 'funders', $allSearchTerms, '', 'first_name,last_name,organization,bio,topics,geography') : [];
 
@@ -363,7 +363,7 @@ if (count($fcResults) <= 1 && !empty($topicFilters)) {
     if (!empty($pivotTopics)) {
         foreach (array_slice($pivotTopics, 0, 2) as $pivotTopic) {
             $pivotTerms = array_merge([$pivotTopic], (array_values(array_slice(parse_tags($pivotTopic), 0, 3))));
-            $pivotCandidates = fetchCandidates($conn, 'funding_calls', $pivotTerms, $filterStatus, 'title,funder,description,topics,geography');
+            $pivotCandidates = fetchCandidates($conn, 'funding_calls', $pivotTerms, $filterStatus, 'title,description,topics,geography');
 
             foreach ($pivotCandidates as $fc) {
                 $s = scoreFC($fc, [$pivotTopic], $geoFilters, [], [$pivotTopic], $expandedGeos, []);
