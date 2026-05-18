@@ -164,18 +164,28 @@ function fetchCandidates(mysqli $conn, string $table, array $allTerms, string $s
     $ftQuery = implode(' ', array_filter(array_map(fn($t) => preg_replace('/[^a-zA-Z0-9\-]/', ' ', $t), $allTerms)));
     $ftQuery = trim(preg_replace('/\s+/', ' ', $ftQuery));
     $results = [];
+
+    // Try FULLTEXT first, fall back to LIKE if it fails
     if ($ftQuery) {
-        $sql = "SELECT *, MATCH({$ftField}) AGAINST (? IN NATURAL LANGUAGE MODE) AS ft_relevance FROM {$table} WHERE MATCH({$ftField}) AGAINST (? IN NATURAL LANGUAGE MODE)";
-        $params = [$ftQuery, $ftQuery];
-        $types = 'ss';
-        if ($statusFilter) { $sql .= ' AND status = ?'; $params[] = $statusFilter; $types .= 's'; }
-        $sql .= ' LIMIT 60';
-        $stmt = @$conn->prepare($sql);
-        if ($stmt) {
-            $stmt->bind_param($types, ...$params);
-            if (@$stmt->execute()) { $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC); }
+        try {
+            $sql = "SELECT *, MATCH({$ftField}) AGAINST (? IN NATURAL LANGUAGE MODE) AS ft_relevance FROM {$table} WHERE MATCH({$ftField}) AGAINST (? IN NATURAL LANGUAGE MODE)";
+            $params = [$ftQuery, $ftQuery];
+            $types = 'ss';
+            if ($statusFilter) { $sql .= ' AND status = ?'; $params[] = $statusFilter; $types .= 's'; }
+            $sql .= ' LIMIT 60';
+            $stmt = $conn->prepare($sql);
+            if ($stmt) {
+                $stmt->bind_param($types, ...$params);
+                $stmt->execute();
+                $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            }
+        } catch (Exception $e) {
+            // FULLTEXT index not available, will fall back to LIKE below
+            $results = [];
         }
     }
+
+    // Fallback to LIKE search if FULLTEXT failed or returned nothing
     if (empty($results)) {
         $orClauses = []; $params = []; $types = '';
         $cols = explode(',', $ftField);
