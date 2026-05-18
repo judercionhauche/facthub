@@ -10,6 +10,10 @@ function csrf_token(): string {
     return $_SESSION['csrf_token'];
 }
 
+function csrf_input(): string {
+    return '<input type="hidden" name="_csrf" value="' . h(csrf_token()) . '">';
+}
+
 function verify_csrf(): bool {
     // Accept token from POST body or custom AJAX header
     $token = $_POST['_csrf'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
