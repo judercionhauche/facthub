@@ -137,7 +137,10 @@
       "Bash(curl -s \"http://localhost/fact_hub2/public/index.php?page=researchers&mode=add\")",
       "Bash(/Applications/XAMPP/xamppfiles/bin/mysql -e \"SELECT 1\")",
       "Bash(/Applications/XAMPP/xamppfiles/bin/mysql -e \"USE fact_hub2; SELECT id, email, role, status FROM users WHERE email='localtest9@example.com';\")",
-      "Bash(/Applications/XAMPP/xamppfiles/bin/php -r ' *)"
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php -r ' *)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php /tmp/fresh_registration.php)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php /tmp/verify_data.php)",
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php /tmp/count.php)"
     ],
     "additionalDirectories": [
       "/tmp"
