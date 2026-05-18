@@ -47,6 +47,22 @@ function apply_security_schema_updates(mysqli $conn): void {
         @$conn->query("ALTER TABLE job_queue ADD COLUMN idempotency_key VARCHAR(64) UNIQUE DEFAULT NULL");
     }
 
+    // Add job_queue worker columns if they don't exist
+    $jobQueueCols = [
+        'status' => "VARCHAR(20) DEFAULT 'pending'",
+        'locked_at' => 'TIMESTAMP NULL DEFAULT NULL',
+        'locked_by' => 'VARCHAR(255) NULL DEFAULT NULL',
+        'attempts' => 'INT DEFAULT 0',
+        'max_attempts' => 'INT DEFAULT 3',
+        'run_after' => 'TIMESTAMP NULL DEFAULT NULL'
+    ];
+    foreach ($jobQueueCols as $col => $type) {
+        $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='job_queue' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("ALTER TABLE job_queue ADD COLUMN $col $type");
+        }
+    }
+
     // Ensure audit_log has all necessary indexes (skip if table doesn't exist)
     $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='audit_log' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
     if ($result && $result->num_rows > 0) {
