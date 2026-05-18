@@ -941,7 +941,7 @@ function selectRecipient(type, email, name) {
             return;
         }
 
-        fetch('search_recipients.php?q=' + encodeURIComponent(query), {
+        fetch('<?= h(dirname($_SERVER['REQUEST_URI'])) ?>/search_recipients.php?q=' + encodeURIComponent(query), {
             credentials: 'same-origin'
         })
             .then(r => r.json())
