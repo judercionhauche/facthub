@@ -473,6 +473,13 @@ function apply_security_schema_updates(mysqli $conn): void {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
     }
+
+    // Add funding_call_id and funding_call_title to messages table
+    $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='messages' AND COLUMN_NAME='funding_call_id' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("ALTER TABLE messages ADD COLUMN funding_call_id INT DEFAULT 0");
+        @$conn->query("ALTER TABLE messages ADD COLUMN funding_call_title VARCHAR(255) DEFAULT NULL");
+    }
 }
 
 ?>
