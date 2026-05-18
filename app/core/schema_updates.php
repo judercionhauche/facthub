@@ -385,6 +385,24 @@ function apply_security_schema_updates(mysqli $conn): void {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
     }
+
+    // search_sessions table for conversational AI search
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='search_sessions' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS search_sessions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                session_key VARCHAR(64) NOT NULL,
+                user_id INT NOT NULL,
+                turns JSON DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_session_key (session_key),
+                INDEX idx_user_id (user_id),
+                UNIQUE KEY unique_session (session_key, user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
 }
 
 ?>
