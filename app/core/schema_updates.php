@@ -138,6 +138,14 @@ function apply_security_schema_updates(mysqli $conn): void {
         @$conn->query("ALTER TABLE funders ADD COLUMN status ENUM('active','inactive','deleted') NOT NULL DEFAULT 'active' AFTER user_id");
     }
 
+    // Add organization profile columns to funders if missing
+    foreach (['organization_name' => 'VARCHAR(255)', 'contact_name' => 'VARCHAR(255)', 'department' => 'VARCHAR(255)'] as $col => $type) {
+        $res = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='funders' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$res || $res->num_rows === 0) {
+            @$conn->query("ALTER TABLE funders ADD COLUMN $col $type NULL DEFAULT NULL");
+        }
+    }
+
     foreach (['deleted_at', 'deactivated_at', 'restored_at'] as $col) {
         $res = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='funders' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
         if (!$res || $res->num_rows === 0) {
