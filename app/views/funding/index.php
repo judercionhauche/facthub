@@ -2,6 +2,13 @@
 require_login();
 $user = current_user();
 
+// Ownership check — admins can manage any funding call, funders only their own
+$canManage = function(array $fc) use ($user): bool {
+    if (is_admin()) return true;
+    if (is_funder() && $fc['added_by_email'] === $user['email']) return true;
+    return false;
+};
+
 // Role guard for write operations — only admin or funder may add/edit/delete funding calls
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $postAction = $_POST['action'] ?? '';
@@ -31,6 +38,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ensure_tags($conn, $topics, 'topic');
         ensure_tags($conn, $geography, 'geography');
         if ($id > 0) {
+            if (!is_admin()) {
+                $own = $conn->prepare('SELECT added_by_email FROM funding_calls WHERE id = ? LIMIT 1');
+                $own->bind_param('i', $id); $own->execute();
+                $ownRow = $own->get_result()->fetch_assoc();
+                if (!$ownRow || $ownRow['added_by_email'] !== $user['email']) {
+                    set_flash('error', 'You can only edit your own funding calls.');
+                    redirect_to('funding');
+                }
+            }
             $stmt = $conn->prepare('UPDATE funding_calls SET title=?, funder=?, deadline=?, status=?, description=?, topics=?, geography=?, amount=?, url=? WHERE id=?');
             $stmt->bind_param('sssssssssi', $title, $funder, $deadline, $status, $description, $topics, $geography, $amount, $url, $id);
             $stmt->execute();
@@ -115,9 +131,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             set_flash('error', 'Invalid funding call ID.');
             redirect_to('funding');
         }
+        if (!is_admin()) {
+            $fcq = $conn->prepare('SELECT added_by_email FROM funding_calls WHERE id = ? LIMIT 1');
+            $fcq->bind_param('i', $id); $fcq->execute();
+            $fcRow = $fcq->get_result()->fetch_assoc();
+            if (!$fcRow || $fcRow['added_by_email'] !== $user['email']) {
+                set_flash('error', 'You do not have permission to delete this funding call.');
+                redirect_to('funding');
+            }
+        }
         try {
             // Soft delete funding call
-            $deletedBy = $currentUser['email'];
+            $deletedBy = $user['email'];
             $stmt = $conn->prepare('UPDATE funding_calls SET deleted_at = NOW(), deleted_by = ? WHERE id = ?');
             if (!$stmt) throw new Exception('Prepare failed: ' . $conn->error);
             $stmt->bind_param('si', $deletedBy, $id);
@@ -388,7 +413,7 @@ $hasFilters = $search !== '' || !empty($topicFilters) || !empty($geoFilters) || 
     });
     </script>
 </div>
-<?php if ($mode==='add' || $editing): ?>
+<?php if ((is_admin() || is_funder()) && ($mode==='add' || $editing)): ?>
 <div class="panel modalish"><h2><?= $editing?'Edit Funding Call':'Add Funding Call' ?></h2><form method="post" class="form-grid two"><input type="hidden" name="action" value="save"><input type="hidden" name="id" value="<?= h($editing['id'] ?? '') ?>"><div class="span-2"><label>Title *</label><input name="title" value="<?= h($editing['title'] ?? '') ?>" required></div><div><label>Funder</label><input name="funder" value="<?= h($editing['funder'] ?? '') ?>"></div><div><label>Deadline</label><input type="date" name="deadline" value="<?= h($editing['deadline'] ?? '') ?>"></div><div><label>Status</label><select name="status"><option value="">-- status --</option><?php foreach(['open','rolling','closed','upcoming'] as $st): ?><option value="<?= $st ?>" <?= ($editing['status'] ?? '')===$st?'selected':'' ?>><?= ucfirst($st) ?></option><?php endforeach; ?></select></div><div><label>Amount</label><input name="amount" value="<?= h($editing['amount'] ?? '') ?>"></div><div class="span-2"><label>Description</label><textarea name="description"><?= h($editing['description'] ?? '') ?></textarea></div><div class="span-2"><label>External URL</label><input name="url" value="<?= h($editing['url'] ?? '') ?>"></div><div><label>Topics (comma-separated)</label><input name="topics" value="<?= h($editing['topics'] ?? '') ?>"></div><div><label>Geography (comma-separated)</label><input name="geography" value="<?= h($editing['geography'] ?? '') ?>"></div><div class="span-2 actions-row"><button class="primary-btn" type="submit">Save</button><a class="ghost-btn" href="index.php?page=funding">Cancel</a></div></form></div>
 <?php endif; ?>
 <?php if ($viewing): ?>
@@ -404,7 +429,7 @@ $hasFilters = $search !== '' || !empty($topicFilters) || !empty($geoFilters) || 
     <?php if (!$filtered): ?><div class="empty-state panel">No funding calls found.</div><?php endif; ?>
     <?php foreach ($filtered as $fc): ?>
     <div class="panel list-card">
-        <div class="card-row"><div class="card-main"><div class="title-line"><h3><?= h($fc['title']) ?></h3><span class="badge <?= status_class($fc['status']) ?>"><?= h($fc['status'] ?: 'n/a') ?></span></div><div class="muted">Funder: <?= h($fc['funder']) ?><?php if($fc['deadline']): ?> · Deadline: <?= h(format_deadline($fc['deadline'])) ?><?php endif; ?><?php if($fc['amount']): ?> · <?= h($fc['amount']) ?><?php endif; ?></div><div class="mini-label">Topics:</div><div class="tag-row"><?php foreach(array_slice(parse_tags($fc['topics']),0,4) as $tag): ?><span class="tag topic-tag"><?= h($tag) ?></span><?php endforeach; ?></div><div class="mini-label">Geography:</div><div class="tag-row"><?php foreach(array_slice(parse_tags($fc['geography']),0,3) as $tag): ?><span class="tag geo-tag"><?= h($tag) ?></span><?php endforeach; ?></div></div><div class="card-actions wrap-actions"><form method="post"><input type="hidden" name="action" value="save_opportunity"><input type="hidden" name="funding_call_id" value="<?= (int)$fc['id'] ?>"><input type="hidden" name="funding_call_title" value="<?= h($fc['title']) ?>"><button class="ghost-btn" type="submit"><?= isset($savedMap[$fc['id']]) ? 'Unsave' : 'Save' ?></button></form><a class="ghost-btn" href="index.php?page=funding&view=<?= (int)$fc['id'] ?>">View</a><a class="ghost-btn" href="index.php?page=funding&edit=<?= (int)$fc['id'] ?>">Edit</a><form method="post" onsubmit="return confirm('Delete funding call?');"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$fc['id'] ?>"><button class="danger-btn" type="submit">Delete</button></form></div></div>
+        <div class="card-row"><div class="card-main"><div class="title-line"><h3><?= h($fc['title']) ?></h3><span class="badge <?= status_class($fc['status']) ?>"><?= h($fc['status'] ?: 'n/a') ?></span></div><div class="muted">Funder: <?= h($fc['funder']) ?><?php if($fc['deadline']): ?> · Deadline: <?= h(format_deadline($fc['deadline'])) ?><?php endif; ?><?php if($fc['amount']): ?> · <?= h($fc['amount']) ?><?php endif; ?></div><div class="mini-label">Topics:</div><div class="tag-row"><?php foreach(array_slice(parse_tags($fc['topics']),0,4) as $tag): ?><span class="tag topic-tag"><?= h($tag) ?></span><?php endforeach; ?></div><div class="mini-label">Geography:</div><div class="tag-row"><?php foreach(array_slice(parse_tags($fc['geography']),0,3) as $tag): ?><span class="tag geo-tag"><?= h($tag) ?></span><?php endforeach; ?></div></div><div class="card-actions wrap-actions"><form method="post"><input type="hidden" name="action" value="save_opportunity"><input type="hidden" name="funding_call_id" value="<?= (int)$fc['id'] ?>"><input type="hidden" name="funding_call_title" value="<?= h($fc['title']) ?>"><button class="ghost-btn" type="submit"><?= isset($savedMap[$fc['id']]) ? 'Unsave' : 'Save' ?></button></form><a class="ghost-btn" href="index.php?page=funding&view=<?= (int)$fc['id'] ?>">View</a><?php if ($canManage($fc)): ?><a class="ghost-btn" href="index.php?page=funding&edit=<?= (int)$fc['id'] ?>">Edit</a><form method="post" onsubmit="return confirm('Delete funding call?');"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$fc['id'] ?>"><button class="danger-btn" type="submit">Delete</button></form><?php endif; ?></div></div>
         <details class="share-box"><summary>Share with network</summary><form method="post" class="inline-form"><input type="hidden" name="action" value="share"><input type="hidden" name="funding_call_id" value="<?= (int)$fc['id'] ?>"><input type="hidden" name="funding_call_title" value="<?= h($fc['title']) ?>"><textarea name="share_body">I wanted to share this funding opportunity with the network:
 
 Title: <?= h($fc['title']) ?>

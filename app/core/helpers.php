@@ -42,6 +42,10 @@ function is_admin() {
     return ($_SESSION['user_role'] ?? '') === 'admin';
 }
 
+function is_funder() {
+    return ($_SESSION['user_role'] ?? '') === 'funder';
+}
+
 function require_admin() {
     if (!is_admin()) {
         set_flash('error', 'You do not have permission to do that.');
