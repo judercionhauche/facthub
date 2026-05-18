@@ -61,7 +61,7 @@ while ($running) {
     // Unlock stale jobs
     $conn->query(
         "UPDATE job_queue SET status='pending', locked_at=NULL, locked_by=NULL
-         WHERE status='running'
+         WHERE status='processing'
          AND locked_at < DATE_SUB(NOW(), INTERVAL " . LOCK_TIMEOUT_MINUTES . " MINUTE)"
     );
 
@@ -103,7 +103,7 @@ while ($running) {
     $lockedAt = date('Y-m-d H:i:s');
     $lockerId = WORKER_ID;
     $conn->query(
-        "UPDATE job_queue SET status='running', locked_at='{$lockedAt}', locked_by='" .
+        "UPDATE job_queue SET status='processing', locked_at='{$lockedAt}', locked_by='" .
         $conn->real_escape_string($lockerId) . "', attempts=attempts+1
          WHERE id IN ({$idList})"
     );
