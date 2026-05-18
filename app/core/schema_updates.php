@@ -325,6 +325,15 @@ function apply_security_schema_updates(mysqli $conn): void {
                 UNIQUE KEY unique_tag (name, tag_type)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+    } else {
+        // If tags table exists but is missing tag_type column, add it
+        $hasTagType = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='tags' AND COLUMN_NAME='tag_type' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$hasTagType || $hasTagType->num_rows === 0) {
+            @$conn->query("ALTER TABLE tags ADD COLUMN tag_type VARCHAR(50) NOT NULL DEFAULT 'topic'");
+            @$conn->query("ALTER TABLE tags ADD INDEX idx_type (tag_type)");
+            // Try to create unique constraint, ignore if it fails (might not be compatible with existing data)
+            @$conn->query("ALTER TABLE tags ADD UNIQUE KEY unique_tag (name, tag_type)");
+        }
     }
 
     // api_usage table
