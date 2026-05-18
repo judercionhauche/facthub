@@ -46,6 +46,18 @@ if (function_exists('pcntl_signal')) {
 echo "[" . date('Y-m-d H:i:s') . "] Worker started (PID " . getmypid() . ")" . PHP_EOL;
 
 while ($running) {
+    // Reconnect if connection was lost
+    if (!$conn->ping()) {
+        $conn = new mysqli($dbConfig['db_host'], $dbConfig['db_user'], $dbConfig['db_pass'], $dbConfig['db_name']);
+        if ($conn->connect_error) {
+            echo "[" . date('Y-m-d H:i:s') . "] Database reconnection failed: " . $conn->connect_error . PHP_EOL;
+            sleep(5);
+            continue;
+        }
+        $conn->set_charset('utf8mb4');
+        echo "[" . date('Y-m-d H:i:s') . "] Database reconnected" . PHP_EOL;
+    }
+
     // Unlock stale jobs
     $conn->query(
         "UPDATE job_queue SET status='pending', locked_at=NULL, locked_by=NULL
