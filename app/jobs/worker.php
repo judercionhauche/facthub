@@ -66,27 +66,36 @@ while ($running) {
     );
 
     // Claim next batch atomically
-    $conn->begin_transaction();
-    $claim = $conn->prepare(
-        "SELECT id FROM job_queue
-         WHERE status = 'pending'
-           AND attempts < max_attempts
-           AND run_after <= NOW()
-         ORDER BY id ASC
-         LIMIT " . BATCH_SIZE . "
-         FOR UPDATE"
-    );
-    $claim->execute();
-    $ids = [];
-    $result = $claim->get_result();
-    while ($row = $result->fetch_assoc()) {
-        $ids[] = (int)$row['id'];
-    }
+    try {
+        $conn->begin_transaction();
+        $claim = $conn->prepare(
+            "SELECT id FROM job_queue
+             WHERE status = 'pending'
+               AND attempts < max_attempts
+               AND (run_after IS NULL OR run_after <= NOW())
+             ORDER BY id ASC
+             LIMIT " . BATCH_SIZE . "
+             FOR UPDATE"
+        );
+        $claim->execute();
+        $ids = [];
+        $result = $claim->get_result();
+        while ($row = $result->fetch_assoc()) {
+            $ids[] = (int)$row['id'];
+        }
 
-    if (empty($ids)) {
-        $conn->commit();
+        if (empty($ids)) {
+            $conn->commit();
+            echo "[" . date('Y-m-d H:i:s') . "] No pending jobs" . PHP_EOL;
+            sleep(5);
+            if (function_exists('pcntl_signal_dispatch')) pcntl_signal_dispatch();
+            continue;
+        }
+        echo "[" . date('Y-m-d H:i:s') . "] Found " . count($ids) . " job(s)" . PHP_EOL;
+    } catch (Exception $e) {
+        echo "[" . date('Y-m-d H:i:s') . "] Transaction error: " . $e->getMessage() . PHP_EOL;
+        $conn->rollback();
         sleep(5);
-        if (function_exists('pcntl_signal_dispatch')) pcntl_signal_dispatch();
         continue;
     }
 
