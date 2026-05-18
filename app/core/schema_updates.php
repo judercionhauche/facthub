@@ -297,17 +297,37 @@ function apply_security_schema_updates(mysqli $conn): void {
         @$conn->query("
             CREATE TABLE IF NOT EXISTS api_usage (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT NOT NULL,
-                endpoint VARCHAR(255) NOT NULL,
-                method VARCHAR(10) NOT NULL,
+                model VARCHAR(100),
+                purpose VARCHAR(100),
+                user_id INT,
+                endpoint VARCHAR(255),
+                method VARCHAR(10),
+                token_input INT DEFAULT 0,
+                token_output INT DEFAULT 0,
                 tokens_used INT DEFAULT 0,
                 cost_usd DECIMAL(10,4) DEFAULT 0,
+                duration_ms INT DEFAULT 0,
+                status VARCHAR(50),
+                error_code VARCHAR(100),
+                triggered_by VARCHAR(255),
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_user (user_id),
                 INDEX idx_endpoint (endpoint),
-                INDEX idx_created (created_at)
+                INDEX idx_created (created_at),
+                INDEX idx_model (model)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+    } else {
+        // Add missing columns if they don't exist
+        $cols = ['model' => 'VARCHAR(100)', 'purpose' => 'VARCHAR(100)', 'token_input' => 'INT DEFAULT 0',
+                 'token_output' => 'INT DEFAULT 0', 'duration_ms' => 'INT DEFAULT 0', 'status' => 'VARCHAR(50)',
+                 'error_code' => 'VARCHAR(100)', 'triggered_by' => 'VARCHAR(255)'];
+        foreach ($cols as $col => $type) {
+            $check = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='api_usage' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$check || $check->num_rows === 0) {
+                @$conn->query("ALTER TABLE api_usage ADD COLUMN $col $type");
+            }
+        }
     }
 
     // api_balances table
