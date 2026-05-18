@@ -124,6 +124,15 @@ function apply_security_schema_updates(mysqli $conn): void {
         }
     }
 
+    // Add notify_matches and profile columns to researchers if missing
+    $researchersProfileCols = ['notify_matches' => 'TINYINT DEFAULT 1', 'focus_area' => 'VARCHAR(255)', 'focus_area_detail' => 'VARCHAR(255)', 'co_advising' => 'TINYINT DEFAULT 0', 'co_advising_details' => 'VARCHAR(255)'];
+    foreach ($researchersProfileCols as $col => $type) {
+        $res = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='researchers' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$res || $res->num_rows === 0) {
+            @$conn->query("ALTER TABLE researchers ADD COLUMN $col $type DEFAULT NULL");
+        }
+    }
+
     // Backfill user_id for researchers (by email join)
     @$conn->query("UPDATE researchers r JOIN users u ON u.email = r.email SET r.user_id = u.id WHERE r.user_id IS NULL");
 
@@ -176,15 +185,12 @@ function apply_security_schema_updates(mysqli $conn): void {
         @$conn->query("ALTER TABLE audit_log ADD COLUMN reason VARCHAR(500) NULL DEFAULT NULL");
     }
 
-    // Add soft delete columns to funding_calls
-    foreach (['deleted_at', 'deleted_by'] as $col) {
+    // Ensure funding_calls has all required columns
+    $fundingCallsCols = ['funder' => 'VARCHAR(255)', 'deleted_at' => 'TIMESTAMP NULL', 'deleted_by' => 'VARCHAR(150)'];
+    foreach ($fundingCallsCols as $col => $type) {
         $res = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='funding_calls' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
         if (!$res || $res->num_rows === 0) {
-            if ($col === 'deleted_by') {
-                @$conn->query("ALTER TABLE funding_calls ADD COLUMN $col VARCHAR(150) NULL DEFAULT NULL");
-            } else {
-                @$conn->query("ALTER TABLE funding_calls ADD COLUMN $col TIMESTAMP NULL DEFAULT NULL");
-            }
+            @$conn->query("ALTER TABLE funding_calls ADD COLUMN $col $type DEFAULT NULL");
         }
     }
 
@@ -227,6 +233,8 @@ function apply_security_schema_updates(mysqli $conn): void {
                 score_ai DECIMAL(5,2) DEFAULT NULL,
                 score_keyword INT DEFAULT 0,
                 explanation VARCHAR(1000) DEFAULT NULL,
+                model_used VARCHAR(100) DEFAULT NULL,
+                computed_at TIMESTAMP NULL DEFAULT NULL,
                 notified_at TIMESTAMP NULL DEFAULT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -236,6 +244,14 @@ function apply_security_schema_updates(mysqli $conn): void {
                 UNIQUE KEY unique_match (funding_call_id, researcher_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+    } else {
+        // Add missing columns if they don't exist
+        foreach (['model_used' => 'VARCHAR(100)', 'computed_at' => 'TIMESTAMP NULL'] as $col => $type) {
+            $check = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='match_scores' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$check || $check->num_rows === 0) {
+                @$conn->query("ALTER TABLE match_scores ADD COLUMN $col $type DEFAULT NULL");
+            }
+        }
     }
 
     // ai_summaries table
@@ -249,12 +265,22 @@ function apply_security_schema_updates(mysqli $conn): void {
                 summary LONGTEXT NOT NULL,
                 model_used VARCHAR(100) DEFAULT NULL,
                 prompt_hash VARCHAR(64) DEFAULT NULL,
+                token_input INT DEFAULT 0,
+                token_output INT DEFAULT 0,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX idx_entity (entity_type, entity_id),
                 UNIQUE KEY unique_entity (entity_type, entity_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+    } else {
+        // Add missing token columns if they don't exist
+        foreach (['token_input' => 'INT DEFAULT 0', 'token_output' => 'INT DEFAULT 0'] as $col => $type) {
+            $check = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='ai_summaries' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$check || $check->num_rows === 0) {
+                @$conn->query("ALTER TABLE ai_summaries ADD COLUMN $col $type");
+            }
+        }
     }
 
     // email_verifications table
