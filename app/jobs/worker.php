@@ -268,7 +268,7 @@ function dispatch_job(mysqli $conn, array $job): void {
 }
 
 function mark_job_done(mysqli $conn, int $id): void {
-    $conn->query("UPDATE job_queue SET status='done', locked_at=NULL, updated_at=NOW() WHERE id={$id}");
+    $conn->query("UPDATE job_queue SET status='completed', locked_at=NULL, updated_at=NOW() WHERE id={$id}");
 }
 
 function mark_job_failed(mysqli $conn, int $id, string $error, int $attempts, int $maxAttempts): void {
