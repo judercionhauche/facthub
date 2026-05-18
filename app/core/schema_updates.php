@@ -49,12 +49,13 @@ function apply_security_schema_updates(mysqli $conn): void {
 
     // Add job_queue worker columns if they don't exist
     $jobQueueCols = [
-        'status' => "VARCHAR(20) DEFAULT 'pending'",
+        'status' => "ENUM('pending','processing','completed','failed') DEFAULT 'pending'",
         'locked_at' => 'TIMESTAMP NULL DEFAULT NULL',
         'locked_by' => 'VARCHAR(255) NULL DEFAULT NULL',
         'attempts' => 'INT DEFAULT 0',
         'max_attempts' => 'INT DEFAULT 3',
-        'run_after' => 'TIMESTAMP NULL DEFAULT NULL'
+        'run_after' => 'TIMESTAMP NULL DEFAULT NULL',
+        'last_error' => 'TEXT NULL DEFAULT NULL'
     ];
     foreach ($jobQueueCols as $col => $type) {
         $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='job_queue' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
