@@ -127,11 +127,11 @@ function audit(mysqli $conn, string $action, array $ctx = []): void {
     $ip     = $_SERVER['REMOTE_ADDR'] ?? null;
 
     $stmt = $conn->prepare(
-        'INSERT INTO audit_log (actor_email, actor_role, action, target_type, target_id, target_email, detail, ip)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO audit_log (actor_email, action, target_type, target_id, target_email, detail, ip)
+         VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
-    $stmt->bind_param('ssssisss', $actor, $role, $action, $tType, $tId, $tEmail, $detail, $ip);
-    $stmt->execute();
+    $stmt->bind_param('ssissss', $actor, $action, $tType, $tId, $tEmail, $detail, $ip);
+    @$stmt->execute();
 }
 
 function get_all_tags($conn, $type) {

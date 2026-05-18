@@ -48,7 +48,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         error_log("[LOGIN] User unverified, redirecting to verify");
                         redirect_to('verify', ['e' => $userRow['email']]);
                     }
-                    if (in_array($userRow['status'], ['inactive', 'deleted'], true) || $userRow['deleted_at'] !== null) {
+                    if (in_array($userRow['status'], ['inactive', 'deleted'], true) || ($userRow['deleted_at'] ?? null) !== null) {
                         error_log("[LOGIN] User deactivated/deleted");
                         $login_error = 'This account has been deactivated. Please contact your administrator.';
                     } else {
