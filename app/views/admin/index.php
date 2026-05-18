@@ -1,8 +1,11 @@
 <?php
 require_admin();
 
-$mailCfg = require __DIR__ . '/../../config/mail.php';
-$appUrl  = rtrim($mailCfg['app_url'] ?? 'http://localhost/fact_hub2/public', '/');
+$mailCfg = @include __DIR__ . '/../../config/mail.php';
+if (!is_array($mailCfg)) {
+    $mailCfg = ['app_url' => 'http://localhost/facthub/public'];
+}
+$appUrl  = rtrim($mailCfg['app_url'] ?? 'http://localhost/facthub/public', '/');
 
 $adminUser   = current_user();
 $adminSection = in_array($_GET['section'] ?? '', ['dashboard','users','researchers','funders','audit','api_usage','jobs'])

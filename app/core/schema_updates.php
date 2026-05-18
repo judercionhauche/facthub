@@ -193,6 +193,25 @@ function apply_security_schema_updates(mysqli $conn): void {
         @$conn->query("ALTER TABLE funding_calls ADD INDEX idx_deleted_at (deleted_at)");
     }
 
+    // Create saved_opportunities table if it doesn't exist
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='saved_opportunities' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS saved_opportunities (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                researcher_email VARCHAR(255) NOT NULL,
+                researcher_name VARCHAR(255),
+                funding_call_id INT NOT NULL,
+                funding_call_title VARCHAR(255),
+                notes TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_researcher_email (researcher_email),
+                INDEX idx_funding_call_id (funding_call_id),
+                UNIQUE KEY uq_researcher_funding (researcher_email, funding_call_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
     // ════════════════════════════════════════════════════════════════
     // AI & Matching System Tables
     // ════════════════════════════════════════════════════════════════
