@@ -415,6 +415,7 @@ async function submitQuery(query) {
     try {
         const response = await fetch('chat_search.php', {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('input[name="_csrf"]').value
