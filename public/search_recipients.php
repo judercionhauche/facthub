@@ -5,21 +5,13 @@
  * Returns JSON: [{email, name, role}, ...]
  */
 
-// Initialize session before requiring helpers
-if (PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path'     => '/',
-        'secure'   => false,
-        'httponly' => true,
-        'samesite' => 'Strict',
-    ]);
-    session_start();
-}
-
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../app/core/session_manager.php';
 require_once __DIR__ . '/../app/core/helpers.php';
 require_once __DIR__ . '/../app/services/RateLimiter.php';
+
+// Initialize session before authentication checks
+init_session();
 
 header('Content-Type: application/json');
 

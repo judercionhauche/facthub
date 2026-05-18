@@ -22,21 +22,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-// Initialize session before requiring helpers
-if (PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path'     => '/',
-        'secure'   => false,
-        'httponly' => true,
-        'samesite' => 'Strict',
-    ]);
-    session_start();
-}
-
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../app/core/session_manager.php';
 require_once __DIR__ . '/../app/core/helpers.php';
 require_once __DIR__ . '/../app/services/ClaudeService.php';
+
+// Initialize session before authentication checks
+init_session();
 
 function sseEvent(array $data): void {
     echo 'data: ' . json_encode($data) . "\n\n";
@@ -45,12 +37,12 @@ function sseEvent(array $data): void {
 }
 
 // Session + CSRF check
-if (!is_logged_in()) {
+if (!is_user_logged_in()) {
     sseEvent(['t' => 'error', 'msg' => 'Unauthorized']);
     exit;
 }
 
-if (!verify_csrf()) {
+if (!is_csrf_valid()) {
     sseEvent(['t' => 'error', 'msg' => 'CSRF token invalid']);
     exit;
 }

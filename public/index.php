@@ -30,19 +30,11 @@ if ($conn->connect_error) {
 }
 $conn->set_charset('utf8mb4');
 
-// Initialize sessions in HTTP context (not CLI)
-if (PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path'     => '/',
-        'secure'   => false,
-        'httponly' => true,
-        'samesite' => 'Strict',
-    ]);
-    session_start();
-}
-
+require_once __DIR__ . '/../app/core/session_manager.php';
 require_once __DIR__ . '/../app/core/helpers.php';
+
+// Initialize sessions in HTTP context (not CLI)
+init_session();
 require_once __DIR__ . '/../app/core/mailer.php';
 require_once __DIR__ . '/../app/services/RateLimiter.php';
 require_once __DIR__ . '/../app/core/schema_updates.php';
@@ -66,37 +58,22 @@ $allowedPages = ['login', 'register', 'auth', 'forgot', 'reset', 'verify', 'unsu
 
 // Inactivity timeout — kick idle sessions after SESSION_TIMEOUT seconds
 if (is_logged_in()) {
-    if (isset($_SESSION['last_activity']) && (time() - $_SESSION['last_activity']) > SESSION_TIMEOUT) {
-        session_unset();
-        session_destroy();
-        session_start();
-        session_regenerate_id(true);
-        set_flash('error', 'Your session expired. Please log in again.');
+    if (is_session_inactive(SESSION_TIMEOUT)) {
+        expire_session('Your session expired. Please log in again.');
         header('Location: index.php?page=login');
         ob_end_clean();
         exit;
     }
-    $_SESSION['last_activity'] = time();
+    update_last_activity();
 }
 
 // Account Lifecycle — Live status check (catches admin deactivation/deletion of active sessions)
 if (is_logged_in()) {
-    $uid = (int)$_SESSION['user_id'];
-    $tok = $_SESSION['session_token'] ?? null;
-    $sq  = $conn->prepare('SELECT status, deleted_at, session_token FROM users WHERE id = ? LIMIT 1');
-    $sq->bind_param('i', $uid);
-    $sq->execute();
-    $sv = $sq->get_result()->fetch_assoc();
-    $valid = $sv
-        && $sv['status'] === 'active'
-        && $sv['deleted_at'] === null
-        && ($tok === null || $sv['session_token'] === $tok);
-    if (!$valid) {
-        session_unset(); session_destroy();
-        session_start(); session_regenerate_id(true);
-        set_flash('error', 'Your account access has been changed. Please contact an administrator.');
+    if (!check_session_validity($conn)) {
+        expire_session('Your account access has been changed. Please contact an administrator.');
         header('Location: index.php?page=login');
-        ob_end_clean(); exit;
+        ob_end_clean();
+        exit;
     }
 }
 
@@ -159,11 +136,7 @@ if (!in_array($page, $publicPages, true)) {
 }
 
 if ($page === 'logout') {
-    $oldCookieParams = session_get_cookie_params();
-    session_unset();
-    session_destroy();
-    // Expire the session cookie in the browser
-    setcookie(session_name(), '', time() - 3600, $oldCookieParams['path']);
+    secure_logout();
     header('Cache-Control: no-store, no-cache, must-revalidate');
     header('Location: index.php?page=login');
     ob_end_clean();
@@ -172,12 +145,9 @@ if ($page === 'logout') {
 
 // ── CSRF validation — every POST must carry a valid token ──────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if ($page === 'login') {
-        error_log("[LOGIN POST] Page is login, publicPages check: " . (in_array($page, $publicPages, true) ? 'YES' : 'NO'));
-    }
     // Skip CSRF check for public pages (login, register, etc.) — users don't have sessions yet
     if (!in_array($page, $publicPages, true)) {
-        if (!verify_csrf()) {
+        if (!is_csrf_valid()) {
             if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
                 header('Content-Type: application/json', true, 403);
                 echo json_encode(['error' => 'csrf_invalid']);
