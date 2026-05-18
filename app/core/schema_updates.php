@@ -186,12 +186,22 @@ function apply_security_schema_updates(mysqli $conn): void {
     }
 
     // Ensure funding_calls has all required columns
-    $fundingCallsCols = ['funder' => 'VARCHAR(255)', 'deleted_at' => 'TIMESTAMP NULL', 'deleted_by' => 'VARCHAR(150)'];
+    $fundingCallsCols = ['funder' => 'VARCHAR(255) DEFAULT NULL', 'deleted_at' => 'TIMESTAMP NULL DEFAULT NULL', 'deleted_by' => 'VARCHAR(150) DEFAULT NULL'];
     foreach ($fundingCallsCols as $col => $type) {
         $res = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='funding_calls' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
         if (!$res || $res->num_rows === 0) {
-            @$conn->query("ALTER TABLE funding_calls ADD COLUMN $col $type DEFAULT NULL");
+            $alterSql = "ALTER TABLE funding_calls ADD COLUMN `$col` $type";
+            $result = @$conn->query($alterSql);
+            if (!$result && $conn->error) {
+                error_log("[Schema] Failed to add $col to funding_calls: " . $conn->error);
+            }
         }
+    }
+
+    // Add FULLTEXT index for search if not present
+    $ftCheck = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='funding_calls' AND INDEX_NAME='ft_funding_search' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$ftCheck || $ftCheck->num_rows === 0) {
+        @$conn->query("ALTER TABLE funding_calls ADD FULLTEXT INDEX ft_funding_search (title, description, topics, geography)");
     }
 
     $idxCheck = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='funding_calls' AND INDEX_NAME='idx_deleted_at' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
@@ -347,7 +357,8 @@ function apply_security_schema_updates(mysqli $conn): void {
         // Add missing columns if they don't exist
         $cols = ['model' => 'VARCHAR(100) DEFAULT NULL', 'purpose' => 'VARCHAR(100) DEFAULT NULL', 'token_input' => 'INT DEFAULT 0',
                  'token_output' => 'INT DEFAULT 0', 'duration_ms' => 'INT DEFAULT 0', 'status' => 'VARCHAR(50) DEFAULT NULL',
-                 'error_code' => 'VARCHAR(100) DEFAULT NULL', 'triggered_by' => 'VARCHAR(255) DEFAULT NULL'];
+                 'error_code' => 'VARCHAR(100) DEFAULT NULL', 'triggered_by' => 'VARCHAR(255) DEFAULT NULL', 'endpoint' => 'VARCHAR(255) DEFAULT NULL',
+                 'method' => 'VARCHAR(10) DEFAULT NULL'];
         foreach ($cols as $col => $type) {
             $check = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='api_usage' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
             if (!$check || $check->num_rows === 0) {
@@ -356,6 +367,8 @@ function apply_security_schema_updates(mysqli $conn): void {
         }
         // Modify user_id to allow NULL if it doesn't already
         @$conn->query("ALTER TABLE api_usage MODIFY COLUMN user_id INT DEFAULT NULL");
+        // CRITICAL: Ensure endpoint has a default value to prevent "doesn't have a default value" errors
+        @$conn->query("ALTER TABLE api_usage MODIFY COLUMN endpoint VARCHAR(255) DEFAULT NULL");
     }
 
     // api_balances table
