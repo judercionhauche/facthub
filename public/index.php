@@ -159,6 +159,9 @@ if ($page === 'logout') {
 
 // ── CSRF validation — every POST must carry a valid token ──────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if ($page === 'login') {
+        error_log("[LOGIN POST] Page is login, publicPages check: " . (in_array($page, $publicPages, true) ? 'YES' : 'NO'));
+    }
     // Skip CSRF check for public pages (login, register, etc.) — users don't have sessions yet
     if (!in_array($page, $publicPages, true)) {
         if (!verify_csrf()) {
@@ -177,6 +180,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $flash = get_flash();
+if ($page === 'login') {
+    error_log("[LOGIN POST] About to include login view");
+}
 include __DIR__ . '/../app/views/layout/header.php';
 include __DIR__ . '/../app/views/' . $page . '/index.php';
 include __DIR__ . '/../app/views/layout/footer.php';
