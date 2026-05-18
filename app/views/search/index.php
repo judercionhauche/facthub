@@ -413,7 +413,7 @@ async function submitQuery(query) {
     bubbleContent.appendChild(cursor);
 
     try {
-        const response = await fetch('/fact_hub2/public/chat_search.php', {
+        const response = await fetch('chat_search.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
