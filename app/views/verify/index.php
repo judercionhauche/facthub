@@ -11,7 +11,7 @@ if (isset($_GET['token'])) {
     $q->bind_param('s', $token); $q->execute();
     $ev = $q->get_result()->fetch_assoc();
 
-    if (!$ev || $ev['used_at'] !== null) {
+    if (!$ev || $ev['verified_at'] !== null) {
         $state = 'invalid';
     } elseif (strtotime($ev['expires_at']) < time()) {
         $prefillEmail = $ev['email'];
@@ -23,8 +23,8 @@ if (isset($_GET['token'])) {
         $upd = $conn->prepare("UPDATE users SET status = 'active' WHERE email = ? AND status = 'unverified'");
         $upd->bind_param('s', $ev['email']); $upd->execute();
         $now = date('Y-m-d H:i:s');
-        $mu  = $conn->prepare('UPDATE email_verifications SET used_at = ? WHERE token = ?');
-        $mu->bind_param('ss', $now, $token); $mu->execute();
+        $mu  = $conn->prepare('UPDATE email_verifications SET verified_at = NOW() WHERE token = ?');
+        $mu->bind_param('s', $token); $mu->execute();
         set_flash('success', 'Your account has been verified. You can now sign in.');
         redirect_to('login');
     }
