@@ -36,8 +36,16 @@ function sseEvent(array $data): void {
     flush();
 }
 
+// Debug logging
+error_log('[chat_search] Session status: ' . session_status());
+error_log('[chat_search] Session ID: ' . (session_id() ?: 'NONE'));
+error_log('[chat_search] $_SESSION keys: ' . implode(',', array_keys($_SESSION)));
+error_log('[chat_search] user_id: ' . ($_SESSION['user_id'] ?? 'NOT SET'));
+error_log('[chat_search] is_user_logged_in(): ' . (is_user_logged_in() ? 'TRUE' : 'FALSE'));
+
 // Session + CSRF check
 if (!is_user_logged_in()) {
+    error_log('[chat_search] Authorization failed - user not logged in');
     sseEvent(['t' => 'error', 'msg' => 'Unauthorized']);
     exit;
 }
