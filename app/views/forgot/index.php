@@ -49,8 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $ins->execute();
 
                     // Send email
-                    $mailCfg = require __DIR__ . '/../../../config/mail.php';
-                    $appUrl = rtrim($mailCfg['app_url'] ?? 'http://localhost/fact_hub2/public', '/');
+                    @$mailCfg = require __DIR__ . '/../../../config/mail.php';
+                    if (!is_array($mailCfg)) $mailCfg = [];
+                    $appUrl = rtrim($mailCfg['app_url'] ?? ('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')), '/');
                     $resetUrl = $appUrl . '/index.php?page=reset&token=' . urlencode($token);
 
                     $html = mail_tpl_password_reset($resetUrl, $user['name']);

@@ -154,8 +154,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 generate_researcher_summary($conn, $newResearcherId);
 
                 // Send verification email
-                $mailCfg = require __DIR__ . '/../../config/mail.php';
-                $appUrl = rtrim($mailCfg['app_url'] ?? 'http://localhost/fact_hub2/public', '/');
+                @$mailCfg = require __DIR__ . '/../../config/mail.php';
+                if (!is_array($mailCfg)) $mailCfg = [];
+                $appUrl = rtrim($mailCfg['app_url'] ?? ('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')), '/');
                 $verifyUrl = $appUrl . '/index.php?page=verify&token=' . urlencode($token);
                 send_notification_email($email, 'Verify your FACT Alliance Hub account',
                     mail_tpl_verify_email($verifyUrl, $first));

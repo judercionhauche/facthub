@@ -48,8 +48,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $notifiedCount = 0;
 
             if (!empty($fcTopics) || !empty($fcGeo)) {
-                $mailCfg      = require __DIR__ . '/../../../config/mail.php';
-                $appUrl       = rtrim($mailCfg['app_url'] ?? 'http://localhost/fact_hub2/public', '/');
+                @$mailCfg     = require __DIR__ . '/../../../config/mail.php';
+                if (!is_array($mailCfg)) $mailCfg = [];
+                $appUrl       = rtrim($mailCfg['app_url'] ?? ('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')), '/');
                 $notifySecret = $mailCfg['notify_secret'] ?? '';
                 $fundingUrl   = $appUrl . '/index.php?page=funding&view=' . $newFcId;
 

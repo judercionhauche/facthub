@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fixThread->execute();
 
         $mailCfg   = require __DIR__ . '/../../../config/mail.php';
-        $appUrl    = rtrim($mailCfg['app_url'] ?? 'http://localhost/fact_hub2/public', '/');
+        $appUrl    = rtrim($mailCfg['app_url'] ?? ('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . dirname($_SERVER['REQUEST_URI']) . '/public'), '/');
         $threadUrl = $appUrl . '/index.php?page=messages&tab=inbox&thread=' . $msgId;
 
         if ($recipientType === 'individual' && $recipientEmail !== '') {
@@ -144,7 +144,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Email notification with deep link to the thread
         if ($replyToEmail) {
             $mailCfg   = require __DIR__ . '/../../../config/mail.php';
-            $appUrl    = rtrim($mailCfg['app_url'] ?? 'http://localhost/fact_hub2/public', '/');
+            $appUrl    = rtrim($mailCfg['app_url'] ?? ('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . dirname($_SERVER['REQUEST_URI']) . '/public'), '/');
             $threadUrl = $appUrl . '/index.php?page=messages&tab=inbox&thread=' . $threadId;
             send_notification_email(
                 $replyToEmail,
@@ -941,7 +941,7 @@ function selectRecipient(type, email, name) {
             return;
         }
 
-        fetch('/fact_hub2/public/search_recipients.php?q=' + encodeURIComponent(query))
+        fetch('search_recipients.php?q=' + encodeURIComponent(query))
             .then(r => r.json())
             .then(data => {
                 if (!data.results || data.results.length === 0) {

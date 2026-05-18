@@ -20,8 +20,11 @@ require_once __DIR__ . '/../core/mailer.php';
 require_once __DIR__ . '/../services/ClaudeService.php';
 require_once __DIR__ . '/../services/BalanceMonitor.php';
 
-$mailCfg = require __DIR__ . '/../../config/mail.php';
-$appUrl  = rtrim($mailCfg['app_url'] ?? 'http://localhost/fact_hub2/public', '/');
+@$mailCfg = require __DIR__ . '/../../config/mail.php';
+if (!is_array($mailCfg)) {
+    $mailCfg = ['app_url' => getenv('APP_URL') ?: 'http://localhost/public'];
+}
+$appUrl  = rtrim($mailCfg['app_url'] ?? 'http://localhost/public', '/');
 
 define('WORKER_ID', gethostname() . ':' . getmypid());
 define('LOCK_TIMEOUT_MINUTES', 10);

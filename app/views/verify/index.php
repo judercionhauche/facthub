@@ -70,8 +70,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $ins->bind_param('ssss', $email, $newToken, $expiry, $now); $ins->execute();
                 }
 
-                $mailCfg   = require __DIR__ . '/../../../config/mail.php';
-                $appUrl    = rtrim($mailCfg['app_url'] ?? 'http://localhost/fact_hub2/public', '/');
+                @$mailCfg  = require __DIR__ . '/../../../config/mail.php';
+                if (!is_array($mailCfg)) $mailCfg = [];
+                $appUrl    = rtrim($mailCfg['app_url'] ?? ('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')), '/');
                 $verifyUrl = $appUrl . '/index.php?page=verify&token=' . urlencode($newToken);
                 $firstName = explode(' ', trim($uRow['name'] ?: 'there'))[0];
                 send_notification_email($email, 'Verify your FACT Alliance Hub account',
