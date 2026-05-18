@@ -39,16 +39,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 if ($userRow && password_verify($password, $userRow['password'])) {
+                    error_log("[LOGIN SUCCESS] User: {$userRow['email']}, role: {$userRow['role']}, status: {$userRow['status']}");
                     // Reset rate limit on successful login
                     $rateLimiter->reset('login_' . $ip);
 
                     // Check account status
                     if ($userRow['status'] === 'unverified') {
+                        error_log("[LOGIN] User unverified, redirecting to verify");
                         redirect_to('verify', ['e' => $userRow['email']]);
                     }
                     if (in_array($userRow['status'], ['inactive', 'deleted'], true) || $userRow['deleted_at'] !== null) {
+                        error_log("[LOGIN] User deactivated/deleted");
                         $login_error = 'This account has been deactivated. Please contact your administrator.';
                     } else {
+                        error_log("[LOGIN] Creating session");
                         // Generate session token and store in database
                         $sessionToken = bin2hex(random_bytes(32));
                         $tStmt = $conn->prepare('UPDATE users SET session_token = ? WHERE id = ?');
@@ -77,10 +81,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             if (!empty($returnParams['page']) && in_array($returnParams['page'], $safePages, true)) {
                                 $destPage = $returnParams['page'];
                                 unset($returnParams['page']);
+                                error_log("[LOGIN] Redirecting to return page: $destPage");
                                 redirect_to($destPage, array_filter($returnParams, fn($v) => $v !== '' && $v !== null));
                             }
                         }
-                        redirect_to(($userRow['role'] === 'funder') ? 'funding' : 'researchers');
+                        $redirectTo = ($userRow['role'] === 'funder') ? 'funding' : 'researchers';
+                        error_log("[LOGIN] Redirecting to: $redirectTo");
+                        redirect_to($redirectTo);
                     }
                 } else {
                     // Log the failed attempt (audit)
