@@ -415,7 +415,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     /* Send pending match notifications as digest */
     if ($action === 'send_pending_digest') {
-        $rows = $conn->query(
+        // Try with deleted_at column first, fall back if it doesn't exist
+        $res = @$conn->query(
             'SELECT ms.score_ai, ms.score_keyword,
                     r.id AS rid, r.email, r.first_name, r.topics AS r_topics, r.geography AS r_geo,
                     fc.id AS fc_id, fc.title, fc.funder, fc.deadline, fc.status, fc.amount,
@@ -428,7 +429,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                AND (ms.score_ai >= 60 OR (ms.score_ai IS NULL AND ms.score_keyword >= 3))
                AND ms.notified_at IS NULL
              ORDER BY r.email ASC, COALESCE(ms.score_ai, ms.score_keyword) DESC'
-        )->fetch_all(MYSQLI_ASSOC);
+        );
+        if (!$res) {
+            // Fallback if deleted_at column doesn't exist
+            $res = $conn->query(
+                'SELECT ms.score_ai, ms.score_keyword,
+                        r.id AS rid, r.email, r.first_name, r.topics AS r_topics, r.geography AS r_geo,
+                        fc.id AS fc_id, fc.title, fc.funder, fc.deadline, fc.status, fc.amount,
+                        fc.topics AS fc_topics, fc.geography AS fc_geo
+                 FROM match_scores ms
+                 JOIN researchers r ON r.id = ms.researcher_id
+                 JOIN funding_calls fc ON fc.id = ms.funding_call_id
+                 WHERE r.notify_matches = 1
+                   AND (ms.score_ai >= 60 OR (ms.score_ai IS NULL AND ms.score_keyword >= 3))
+                   AND ms.notified_at IS NULL
+                 ORDER BY r.email ASC, COALESCE(ms.score_ai, ms.score_keyword) DESC'
+            );
+        }
+        $rows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
 
         $messages = [];
         foreach ($rows as $row) {
@@ -624,22 +642,45 @@ $aiCoverage     = $kpiMatches > 0 ? round(($kpiAiMatches / $kpiMatches) * 100) :
 $balanceStatus = BalanceMonitor::getStatus($conn);
 $balanceAlerts = BalanceMonitor::getAlertCounts($conn);
 
-$topMatches = $conn->query(
+// Try with deleted_at columns first, fall back if they don't exist
+$res = @$conn->query(
     "SELECT r.first_name, r.last_name, fc.title, fc.funder, ms.score_ai, ms.explanation
      FROM match_scores ms
      JOIN researchers r ON r.id = ms.researcher_id
      JOIN funding_calls fc ON fc.id = ms.funding_call_id
      WHERE ms.score_ai IS NOT NULL AND r.status = 'active' AND r.deleted_at IS NULL AND fc.deleted_at IS NULL
      ORDER BY ms.score_ai DESC LIMIT 6"
-)->fetch_all(MYSQLI_ASSOC);
+);
+if (!$res) {
+    $res = $conn->query(
+        "SELECT r.first_name, r.last_name, fc.title, fc.funder, ms.score_ai, ms.explanation
+         FROM match_scores ms
+         JOIN researchers r ON r.id = ms.researcher_id
+         JOIN funding_calls fc ON fc.id = ms.funding_call_id
+         WHERE ms.score_ai IS NOT NULL AND r.status = 'active'
+         ORDER BY ms.score_ai DESC LIMIT 6"
+    );
+}
+$topMatches = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
 
-$distRows = $conn->query(
+// Try with deleted_at column first, fall back if it doesn't exist
+$res = @$conn->query(
     "SELECT FLOOR(ms.score_ai/20)*20 AS bucket, COUNT(*) AS cnt
      FROM match_scores ms
      JOIN researchers r ON r.id = ms.researcher_id
      WHERE ms.score_ai IS NOT NULL AND r.status = 'active' AND r.deleted_at IS NULL
      GROUP BY bucket ORDER BY bucket ASC"
-)->fetch_all(MYSQLI_ASSOC);
+);
+if (!$res) {
+    $res = $conn->query(
+        "SELECT FLOOR(ms.score_ai/20)*20 AS bucket, COUNT(*) AS cnt
+         FROM match_scores ms
+         JOIN researchers r ON r.id = ms.researcher_id
+         WHERE ms.score_ai IS NOT NULL AND r.status = 'active'
+         GROUP BY bucket ORDER BY bucket ASC"
+    );
+}
+$distRows = $res ? $res->fetch_all(MYSQLI_ASSOC) : [];
 $distMap = []; foreach ($distRows as $dr) $distMap[(int)$dr['bucket']] = (int)$dr['cnt'];
 $distMax = max(1, ...array_values($distMap ?: [1]));
 
