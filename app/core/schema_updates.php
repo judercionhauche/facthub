@@ -50,10 +50,12 @@ function apply_security_schema_updates(mysqli $conn): void {
     // Ensure audit_log has all necessary indexes (skip if table doesn't exist)
     $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='audit_log' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
     if ($result && $result->num_rows > 0) {
-        @$conn->query("ALTER TABLE audit_log ADD INDEX idx_actor (actor_email)");
-        @$conn->query("ALTER TABLE audit_log ADD INDEX idx_action (action)");
-        @$conn->query("ALTER TABLE audit_log ADD INDEX idx_time (created_at)");
-        @$conn->query("ALTER TABLE audit_log ADD INDEX idx_email (target_email)");
+        foreach (['idx_actor' => 'actor_email', 'idx_action' => 'action', 'idx_time' => 'created_at', 'idx_email' => 'target_email'] as $indexName => $col) {
+            $idxCheck = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='audit_log' AND INDEX_NAME='$indexName' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$idxCheck || $idxCheck->num_rows === 0) {
+                @$conn->query("ALTER TABLE audit_log ADD INDEX $indexName ($col)");
+            }
+        }
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -90,9 +92,12 @@ function apply_security_schema_updates(mysqli $conn): void {
     }
 
     // Add indexes on new users columns
-    @$conn->query("ALTER TABLE users ADD INDEX IF NOT EXISTS idx_status (status)");
-    @$conn->query("ALTER TABLE users ADD INDEX IF NOT EXISTS idx_deleted_at (deleted_at)");
-    @$conn->query("ALTER TABLE users ADD INDEX IF NOT EXISTS idx_session_token (session_token)");
+    foreach (['idx_status' => 'status', 'idx_deleted_at' => 'deleted_at', 'idx_session_token' => 'session_token'] as $idxName => $col) {
+        $idxCheck = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='users' AND INDEX_NAME='$idxName' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$idxCheck || $idxCheck->num_rows === 0) {
+            @$conn->query("ALTER TABLE users ADD INDEX $idxName ($col)");
+        }
+    }
 
     // 1b. Add user_id FK + lifecycle columns to researchers
     $res = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='researchers' AND COLUMN_NAME='user_id' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
@@ -112,8 +117,12 @@ function apply_security_schema_updates(mysqli $conn): void {
         }
     }
 
-    @$conn->query("ALTER TABLE researchers ADD INDEX IF NOT EXISTS idx_user_id (user_id)");
-    @$conn->query("ALTER TABLE researchers ADD INDEX IF NOT EXISTS idx_researcher_status (status)");
+    foreach (['idx_user_id' => 'user_id', 'idx_researcher_status' => 'status'] as $idxName => $col) {
+        $idxCheck = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='researchers' AND INDEX_NAME='$idxName' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$idxCheck || $idxCheck->num_rows === 0) {
+            @$conn->query("ALTER TABLE researchers ADD INDEX $idxName ($col)");
+        }
+    }
 
     // Backfill user_id for researchers (by email join)
     @$conn->query("UPDATE researchers r JOIN users u ON u.email = r.email SET r.user_id = u.id WHERE r.user_id IS NULL");
@@ -136,8 +145,12 @@ function apply_security_schema_updates(mysqli $conn): void {
         }
     }
 
-    @$conn->query("ALTER TABLE funders ADD INDEX IF NOT EXISTS idx_user_id (user_id)");
-    @$conn->query("ALTER TABLE funders ADD INDEX IF NOT EXISTS idx_funder_status (status)");
+    foreach (['idx_user_id' => 'user_id', 'idx_funder_status' => 'status'] as $idxName => $col) {
+        $idxCheck = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='funders' AND INDEX_NAME='$idxName' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$idxCheck || $idxCheck->num_rows === 0) {
+            @$conn->query("ALTER TABLE funders ADD INDEX $idxName ($col)");
+        }
+    }
 
     // Backfill user_id for funders (by email join)
     @$conn->query("UPDATE funders f JOIN users u ON u.email = f.email SET f.user_id = u.id WHERE f.user_id IS NULL");
@@ -167,7 +180,184 @@ function apply_security_schema_updates(mysqli $conn): void {
         }
     }
 
-    @$conn->query("ALTER TABLE funding_calls ADD INDEX IF NOT EXISTS idx_deleted_at (deleted_at)");
+    $idxCheck = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='funding_calls' AND INDEX_NAME='idx_deleted_at' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$idxCheck || $idxCheck->num_rows === 0) {
+        @$conn->query("ALTER TABLE funding_calls ADD INDEX idx_deleted_at (deleted_at)");
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // AI & Matching System Tables
+    // ════════════════════════════════════════════════════════════════
+
+    // match_scores table
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='match_scores' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS match_scores (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                funding_call_id INT NOT NULL,
+                researcher_id INT NOT NULL,
+                score_ai DECIMAL(5,2) DEFAULT NULL,
+                score_keyword INT DEFAULT 0,
+                explanation VARCHAR(1000) DEFAULT NULL,
+                notified_at TIMESTAMP NULL DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_funding (funding_call_id),
+                INDEX idx_researcher (researcher_id),
+                INDEX idx_notified (notified_at),
+                UNIQUE KEY unique_match (funding_call_id, researcher_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
+    // ai_summaries table
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='ai_summaries' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS ai_summaries (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                entity_type VARCHAR(50) NOT NULL,
+                entity_id INT NOT NULL,
+                summary LONGTEXT NOT NULL,
+                model_used VARCHAR(100) DEFAULT NULL,
+                prompt_hash VARCHAR(64) DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_entity (entity_type, entity_id),
+                UNIQUE KEY unique_entity (entity_type, entity_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
+    // email_verifications table
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='email_verifications' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS email_verifications (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                email VARCHAR(255) NOT NULL,
+                token VARCHAR(255) NOT NULL,
+                expires_at DATETIME NOT NULL,
+                verified_at TIMESTAMP NULL DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_email (email),
+                INDEX idx_token (token),
+                INDEX idx_expires (expires_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
+    // tags table
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='tags' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS tags (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                tag_type VARCHAR(50) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_name (name),
+                INDEX idx_type (tag_type),
+                UNIQUE KEY unique_tag (name, tag_type)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
+    // api_usage table
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='api_usage' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS api_usage (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                endpoint VARCHAR(255) NOT NULL,
+                method VARCHAR(10) NOT NULL,
+                tokens_used INT DEFAULT 0,
+                cost_usd DECIMAL(10,4) DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_user (user_id),
+                INDEX idx_endpoint (endpoint),
+                INDEX idx_created (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
+    // api_balances table
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='api_balances' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS api_balances (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL UNIQUE,
+                balance_usd DECIMAL(10,4) DEFAULT 0,
+                status ENUM('active','paused','emergency','suspended') DEFAULT 'active',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    } else {
+        @$conn->query("ALTER TABLE api_balances MODIFY COLUMN status ENUM('active','paused','emergency','suspended') DEFAULT 'active'");
+    }
+
+    // balance_alerts table
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='balance_alerts' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS balance_alerts (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                alert_type VARCHAR(50) NOT NULL,
+                threshold_usd DECIMAL(10,4) DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                dismissed_at TIMESTAMP NULL DEFAULT NULL,
+                INDEX idx_user (user_id),
+                INDEX idx_type (alert_type)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
+    // search_logs table
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='search_logs' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS search_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                search_query VARCHAR(500) NOT NULL,
+                filters JSON DEFAULT NULL,
+                results_count INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_user (user_id),
+                INDEX idx_created (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
+    // Ensure job_queue table exists with all necessary fields
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='job_queue' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS job_queue (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                job_type VARCHAR(100) NOT NULL,
+                payload JSON DEFAULT NULL,
+                status ENUM('pending','running','failed','done') DEFAULT 'pending',
+                attempts INT DEFAULT 0,
+                max_attempts INT DEFAULT 3,
+                locked_by VARCHAR(255) DEFAULT NULL,
+                locked_at TIMESTAMP NULL DEFAULT NULL,
+                run_after TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                failed_reason VARCHAR(1000) DEFAULT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                INDEX idx_status (status),
+                INDEX idx_run_after (run_after),
+                INDEX idx_created (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
 }
 
 ?>

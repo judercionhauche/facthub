@@ -1,6 +1,9 @@
 <?php
 require_admin();
 
+$mailCfg = require __DIR__ . '/../../config/mail.php';
+$appUrl  = rtrim($mailCfg['app_url'] ?? 'http://localhost/fact_hub2/public', '/');
+
 $adminUser   = current_user();
 $adminSection = in_array($_GET['section'] ?? '', ['dashboard','users','researchers','funders','audit','api_usage','jobs'])
                ? $_GET['section'] : 'dashboard';
@@ -431,8 +434,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         foreach ($rows as $row) {
             $matchedTopics = array_values(array_intersect(parse_tags($row['fc_topics']), parse_tags($row['r_topics'])));
             $matchedGeos   = array_values(array_intersect(parse_tags($row['fc_geo']),    parse_tags($row['r_geo'])));
-            $fundingUrl = 'http://localhost/fact_hub2/index.php?page=funding&view=' . (int)$row['fc_id'];
-            $unsubUrl   = 'http://localhost/fact_hub2/index.php?page=unsubscribe&email='
+            $fundingUrl = $appUrl . '/index.php?page=funding&view=' . (int)$row['fc_id'];
+            $unsubUrl   = $appUrl . '/index.php?page=unsubscribe&email='
                         . urlencode($row['email']) . '&token='
                         . hash_hmac('sha256', strtolower(trim($row['email'])), 'match_notify');
             $messages[] = [

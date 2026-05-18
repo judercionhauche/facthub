@@ -16,21 +16,7 @@ if (is_logged_in()) {
     <meta name="csrf-token" content="<?= h(csrf_token()) ?>">
     <title>FACT Alliance Hub</title>
     <link rel="stylesheet" href="assets/style.css">
-    <script defer src="assets/app.js"></script>
-    <script>
-    /* Auto-inject CSRF token into every form on the page */
-    document.addEventListener('DOMContentLoaded', function () {
-        var t = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
-        if (!t) return;
-        document.querySelectorAll('form').forEach(function (f) {
-            if (!f.querySelector('[name="_csrf"]')) {
-                var inp = document.createElement('input');
-                inp.type = 'hidden'; inp.name = '_csrf'; inp.value = t;
-                f.appendChild(inp);
-            }
-        });
-    });
-    </script>
+    <script src="assets/app.js"></script>
 </head>
 <body>
 <div class="site-shell">

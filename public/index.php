@@ -159,17 +159,20 @@ if ($page === 'logout') {
 
 // ── CSRF validation — every POST must carry a valid token ──────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!verify_csrf()) {
-        if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
-            header('Content-Type: application/json', true, 403);
-            echo json_encode(['error' => 'csrf_invalid']);
+    // Skip CSRF check for public pages (login, register, etc.) — users don't have sessions yet
+    if (!in_array($page, $publicPages, true)) {
+        if (!verify_csrf()) {
+            if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
+                header('Content-Type: application/json', true, 403);
+                echo json_encode(['error' => 'csrf_invalid']);
+                ob_end_clean();
+                exit;
+            }
+            set_flash('error', 'Your session expired or the request was invalid. Please try again.');
+            header('Location: index.php?page=' . urlencode($page));
             ob_end_clean();
             exit;
         }
-        set_flash('error', 'Your session expired or the request was invalid. Please try again.');
-        header('Location: index.php?page=' . urlencode($page));
-        ob_end_clean();
-        exit;
     }
 }
 

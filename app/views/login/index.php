@@ -32,6 +32,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 $userRow = $stmt->get_result()->fetch_assoc();
 
+                // Debug: Log password verification for admin
+                if ($userRow && $userRow['email'] === 'judercionhauche@gmail.com') {
+                    $pwd_result = password_verify($password, $userRow['password']);
+                    error_log("LOGIN DEBUG [ADMIN]: pwd_verify=" . ($pwd_result ? 'TRUE' : 'FALSE') . ", status=" . $userRow['status']);
+                }
+
                 if ($userRow && password_verify($password, $userRow['password'])) {
                     // Reset rate limit on successful login
                     $rateLimiter->reset('login_' . $ip);
@@ -118,6 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <form method="post" class="form-grid one">
+        <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
         <div>
             <label for="email">Email</label>
             <input type="email" id="email" name="email" value="<?= $login_email ?>" required autofocus placeholder="you@example.com">

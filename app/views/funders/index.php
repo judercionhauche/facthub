@@ -146,12 +146,13 @@ $flash = get_flash();
 
         <div style="margin-bottom: 24px;">
             <label style="display: block; font-weight: 600; color: #1a3d2a; margin-bottom: 8px; font-size: 14px;">Password *</label>
-            <input type="password" name="password" required placeholder="At least 8 characters" style="width: 100%; padding: 10px 12px; border: 1px solid #dde6dd; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+            <input type="password" name="password" id="funder-password" required placeholder="At least 8 characters" style="width: 100%; padding: 10px 12px; border: 1px solid #dde6dd; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
         </div>
 
         <div style="margin-bottom: 30px;">
             <label style="display: block; font-weight: 600; color: #1a3d2a; margin-bottom: 8px; font-size: 14px;">Confirm Password *</label>
-            <input type="password" name="confirm_password" required placeholder="Re-enter password" style="width: 100%; padding: 10px 12px; border: 1px solid #dde6dd; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+            <input type="password" name="confirm_password" id="funder-confirm-password" required placeholder="Re-enter password" style="width: 100%; padding: 10px 12px; border: 1px solid #dde6dd; border-radius: 6px; font-size: 14px; box-sizing: border-box;">
+            <div id="funder-pwd-match-msg" style="font-size: 13px; margin-top: 6px; display: none;"></div>
         </div>
 
         <button type="submit" style="width: 100%; padding: 12px; background: #1a6b5a; color: white; border: none; border-radius: 6px; font-weight: 600; font-size: 15px; cursor: pointer;">Create Account</button>
@@ -160,6 +161,33 @@ $flash = get_flash();
             Already have an account? <a href="index.php?page=login" style="color: #1a6b5a; text-decoration: none; font-weight: 600;">Sign in →</a>
         </div>
     </form>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const pwdInput = document.getElementById('funder-password');
+        const confirmInput = document.getElementById('funder-confirm-password');
+        const msgDiv = document.getElementById('funder-pwd-match-msg');
+
+        if (pwdInput && confirmInput && msgDiv) {
+            function validatePasswords() {
+                if (confirmInput.value === '') {
+                    msgDiv.style.display = 'none';
+                    return;
+                }
+                msgDiv.style.display = 'block';
+                if (pwdInput.value === confirmInput.value) {
+                    msgDiv.textContent = '✓ Passwords match';
+                    msgDiv.style.color = '#15803d';
+                } else {
+                    msgDiv.textContent = '✗ Passwords do not match';
+                    msgDiv.style.color = '#b54646';
+                }
+            }
+            pwdInput.addEventListener('input', validatePasswords);
+            confirmInput.addEventListener('input', validatePasswords);
+        }
+    });
+    </script>
 </div>
 
 <?php else: ?>

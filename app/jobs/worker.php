@@ -20,6 +20,9 @@ require_once __DIR__ . '/../core/mailer.php';
 require_once __DIR__ . '/../services/ClaudeService.php';
 require_once __DIR__ . '/../services/BalanceMonitor.php';
 
+$mailCfg = require __DIR__ . '/../../config/mail.php';
+$appUrl  = rtrim($mailCfg['app_url'] ?? 'http://localhost/fact_hub2/public', '/');
+
 define('WORKER_ID', gethostname() . ':' . getmypid());
 define('LOCK_TIMEOUT_MINUTES', 10);
 define('BATCH_SIZE', 5);
@@ -143,8 +146,8 @@ function dispatch_job(mysqli $conn, array $job): void {
                         parse_tags($n['fc_geo']), parse_tags($n['r_geo'])
                     ));
 
-                    $fundingUrl = 'http://localhost/fact_hub2/index.php?page=funding&view=' . ((int)$n['id'] ?? 0);
-                    $unsubUrl   = 'http://localhost/fact_hub2/index.php?page=unsubscribe&email='
+                    $fundingUrl = $appUrl . '/index.php?page=funding&view=' . (int)$fcId;
+                    $unsubUrl   = $appUrl . '/index.php?page=unsubscribe&email='
                                 . urlencode($n['email']) . '&token='
                                 . hash_hmac('sha256', strtolower(trim($n['email'])), 'match_notify');
 

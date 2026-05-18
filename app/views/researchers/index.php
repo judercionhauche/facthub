@@ -438,8 +438,12 @@ $selectedSubcats = array_values(array_filter(array_map('trim', explode(',', $edi
         <div><label>Email<?= ($mode === 'add' && !$editing) ? ' *' : '' ?></label><input name="email" type="email" value="<?= h($editing['email'] ?? '') ?>"<?= ($mode === 'add' && !$editing) ? ' required' : '' ?>></div>
 
         <?php if ($mode === 'add' && !$editing): ?>
-        <div><label>Password *</label><input name="password" type="password" required placeholder="At least 8 characters"></div>
-        <div><label>Confirm Password *</label><input name="confirm_password" type="password" required placeholder="Re-enter your password"></div>
+        <div><label>Password *</label><input name="password" type="password" id="reg-password" required placeholder="At least 8 characters"></div>
+        <div>
+            <label>Confirm Password *</label>
+            <input name="confirm_password" type="password" id="reg-confirm-password" required placeholder="Re-enter your password">
+            <div id="pwd-match-msg" style="font-size:13px;margin-top:4px;display:none"></div>
+        </div>
         <?php endif; ?>
 
         <div><label>Institution</label><input name="institution" value="<?= h($editing['institution'] ?? '') ?>"></div>
@@ -610,6 +614,30 @@ document.addEventListener('DOMContentLoaded', function() {
             wrap.style.display = this.checked ? '' : 'none';
             if (this.checked) wrap.querySelector('textarea').focus();
         });
+    }
+
+    // Password match validation (as you type)
+    const pwdInput = document.getElementById('reg-password');
+    const confirmInput = document.getElementById('reg-confirm-password');
+    const msgDiv = document.getElementById('pwd-match-msg');
+
+    if (pwdInput && confirmInput && msgDiv) {
+        function validatePasswords() {
+            if (confirmInput.value === '') {
+                msgDiv.style.display = 'none';
+                return;
+            }
+            msgDiv.style.display = 'block';
+            if (pwdInput.value === confirmInput.value) {
+                msgDiv.textContent = '✓ Passwords match';
+                msgDiv.style.color = '#15803d';
+            } else {
+                msgDiv.textContent = '✗ Passwords do not match';
+                msgDiv.style.color = '#b54646';
+            }
+        }
+        pwdInput.addEventListener('input', validatePasswords);
+        confirmInput.addEventListener('input', validatePasswords);
     }
 });
 </script>
