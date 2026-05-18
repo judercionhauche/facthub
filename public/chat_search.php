@@ -629,16 +629,12 @@ $stmt->execute();
 
 // ── Log search ──
 $stmt = $conn->prepare(
-    'INSERT INTO search_logs (user_email, query, parsed_topics, parsed_geos, fallback, fc_count, r_count)
-     VALUES (?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO search_logs (user_id, search_query, filters, results_count)
+     VALUES (?, ?, ?, ?)'
 );
-$logEmail = $user['email'];
-$logTopics = implode(', ', $topicFilters);
-$logGeos = implode(', ', $geoFilters);
-$logFb = $fallback ? 1 : 0;
-$logFc = count($fcResults);
-$logR = count($rResults);
-$stmt->bind_param('ssssiii', $logEmail, $q, $logTopics, $logGeos, $logFb, $logFc, $logR);
+$logFilters = json_encode(['topics' => $topicFilters, 'geos' => $geoFilters, 'fallback' => $fallback]);
+$logResultsCount = count($fcResults) + count($rResults);
+$stmt->bind_param('issi', $userId, $q, $logFilters, $logResultsCount);
 $stmt->execute();
 
 // ── Send done event ──
