@@ -140,7 +140,8 @@
       "Bash(/Applications/XAMPP/xamppfiles/bin/php -r ' *)",
       "Bash(/Applications/XAMPP/xamppfiles/bin/php /tmp/fresh_registration.php)",
       "Bash(/Applications/XAMPP/xamppfiles/bin/php /tmp/verify_data.php)",
-      "Bash(/Applications/XAMPP/xamppfiles/bin/php /tmp/count.php)"
+      "Bash(/Applications/XAMPP/xamppfiles/bin/php /tmp/count.php)",
+      "Bash(mysql -u fact_user -p'5310Judy####' fact_hub2 -e \"DESCRIBE job_queue;\")"
     ],
     "additionalDirectories": [
       "/tmp"

@@ -47,7 +47,7 @@ function apply_security_schema_updates(mysqli $conn): void {
         @$conn->query("ALTER TABLE job_queue ADD COLUMN idempotency_key VARCHAR(64) UNIQUE DEFAULT NULL");
     }
 
-    // Add job_queue worker columns if they don't exist
+    // Add/fix job_queue worker columns
     $jobQueueCols = [
         'status' => "ENUM('pending','processing','completed','failed') DEFAULT 'pending'",
         'locked_at' => 'TIMESTAMP NULL DEFAULT NULL',
@@ -61,6 +61,9 @@ function apply_security_schema_updates(mysqli $conn): void {
         $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='job_queue' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
         if (!$result || $result->num_rows === 0) {
             @$conn->query("ALTER TABLE job_queue ADD COLUMN $col $type");
+        } elseif ($col === 'status') {
+            // Fix status column if it exists but isn't the right ENUM
+            @$conn->query("ALTER TABLE job_queue MODIFY COLUMN status ENUM('pending','processing','completed','failed') DEFAULT 'pending'");
         }
     }
 
