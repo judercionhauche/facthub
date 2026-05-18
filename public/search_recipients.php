@@ -5,7 +5,6 @@
  * Returns JSON: [{email, name, role}, ...]
  */
 
-require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../app/core/session_manager.php';
 require_once __DIR__ . '/../app/core/helpers.php';
 require_once __DIR__ . '/../app/services/RateLimiter.php';
@@ -20,6 +19,16 @@ if (!is_logged_in()) {
     echo json_encode(['error' => 'Unauthorized']);
     exit;
 }
+
+// Initialize database connection
+$dbConfig = require_once __DIR__ . '/../config/database.php';
+$conn = new mysqli($dbConfig['db_host'], $dbConfig['db_user'], $dbConfig['db_pass'], $dbConfig['db_name']);
+if ($conn->connect_error) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Database connection failed']);
+    exit;
+}
+$conn->set_charset('utf8mb4');
 
 $user = current_user();
 
