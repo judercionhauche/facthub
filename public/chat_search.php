@@ -170,8 +170,11 @@ function fetchCandidates(mysqli $conn, string $table, array $allTerms, string $s
         $types = 'ss';
         if ($statusFilter) { $sql .= ' AND status = ?'; $params[] = $statusFilter; $types .= 's'; }
         $sql .= ' LIMIT 60';
-        $stmt = $conn->prepare($sql);
-        if ($stmt) { $stmt->bind_param($types, ...$params); $stmt->execute(); $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC); }
+        $stmt = @$conn->prepare($sql);
+        if ($stmt) {
+            $stmt->bind_param($types, ...$params);
+            if (@$stmt->execute()) { $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC); }
+        }
     }
     if (empty($results)) {
         $orClauses = []; $params = []; $types = '';
