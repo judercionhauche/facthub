@@ -7,7 +7,21 @@
  * Response: SSE stream with events: results, token*, done|error
  */
 
-// ── Headers & buffering (before any output) ──
+// Guard: POST only (before any output)
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    exit;
+}
+
+// Initialize session BEFORE sending any headers
+require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../app/core/session_manager.php';
+require_once __DIR__ . '/../app/core/helpers.php';
+require_once __DIR__ . '/../app/services/ClaudeService.php';
+
+init_session();
+
+// NOW send headers & buffering (after session init, before auth check)
 header('Content-Type: text/event-stream');
 header('Cache-Control: no-cache');
 header('Connection: keep-alive');
@@ -15,20 +29,6 @@ header('X-Accel-Buffering: no');
 @ob_end_clean();
 ob_implicit_flush(true);
 set_time_limit(90);
-
-// Guard: POST only
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    exit;
-}
-
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../app/core/session_manager.php';
-require_once __DIR__ . '/../app/core/helpers.php';
-require_once __DIR__ . '/../app/services/ClaudeService.php';
-
-// Initialize session before authentication checks
-init_session();
 
 function sseEvent(array $data): void {
     echo 'data: ' . json_encode($data) . "\n\n";
