@@ -187,18 +187,24 @@ function fetchCandidates(mysqli $conn, string $table, array $allTerms, string $s
 
     // Fallback to LIKE search if FULLTEXT failed or returned nothing
     if (empty($results)) {
-        $orClauses = []; $params = []; $types = '';
-        $cols = explode(',', $ftField);
-        foreach ($allTerms as $term) {
-            $sub = [];
-            foreach ($cols as $col) { $sub[] = trim($col) . ' LIKE ?'; $params[] = '%' . $term . '%'; $types .= 's'; }
-            $orClauses[] = '(' . implode(' OR ', $sub) . ')';
+        try {
+            $orClauses = []; $params = []; $types = '';
+            $cols = explode(',', $ftField);
+            foreach ($allTerms as $term) {
+                $sub = [];
+                foreach ($cols as $col) { $sub[] = trim($col) . ' LIKE ?'; $params[] = '%' . $term . '%'; $types .= 's'; }
+                $orClauses[] = '(' . implode(' OR ', $sub) . ')';
+            }
+            $sql = "SELECT *, 0.0 AS ft_relevance FROM {$table} WHERE " . implode(' OR ', $orClauses);
+            if ($statusFilter) { $sql .= ' AND status = ?'; $params[] = $statusFilter; $types .= 's'; }
+            $sql .= ' LIMIT 60';
+            $stmt = $conn->prepare($sql);
+            if ($stmt && !empty($params)) { $stmt->bind_param($types, ...$params); $stmt->execute(); $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC); }
+        } catch (Exception $e) {
+            // If LIKE search also fails, return empty results instead of crashing
+            error_log("[fetchCandidates] LIKE fallback failed for {$table}: " . $e->getMessage());
+            $results = [];
         }
-        $sql = "SELECT *, 0.0 AS ft_relevance FROM {$table} WHERE " . implode(' OR ', $orClauses);
-        if ($statusFilter) { $sql .= ' AND status = ?'; $params[] = $statusFilter; $types .= 's'; }
-        $sql .= ' LIMIT 60';
-        $stmt = $conn->prepare($sql);
-        if ($stmt && !empty($params)) { $stmt->bind_param($types, ...$params); $stmt->execute(); $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC); }
     }
     return $results;
 }
