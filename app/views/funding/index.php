@@ -53,11 +53,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $notifySecret = $mailCfg['notify_secret'] ?? '';
                 $fundingUrl   = $appUrl . '/index.php?page=funding&view=' . $newFcId;
 
-                $rq = $conn->prepare("SELECT first_name, email, topics, geography FROM researchers WHERE status = 'active' AND deleted_at IS NULL AND notify_matches = 1 AND email != '' AND email IS NOT NULL");
-                $rq->execute();
-                $rqResult = $rq->get_result();
+                // Try with deleted_at column first, fall back if it doesn't exist
+                $rq = @$conn->prepare("SELECT first_name, email, topics, geography FROM researchers WHERE status = 'active' AND deleted_at IS NULL AND notify_matches = 1 AND email != '' AND email IS NOT NULL");
+                if (!$rq) {
+                    // Fallback if deleted_at column doesn't exist
+                    $rq = $conn->prepare("SELECT first_name, email, topics, geography FROM researchers WHERE status = 'active' AND notify_matches = 1 AND email != '' AND email IS NOT NULL");
+                }
+                if ($rq) {
+                    $rq->execute();
+                    $rqResult = $rq->get_result();
+                } else {
+                    $rqResult = null;
+                }
 
                 $notifications = [];
+                if ($rqResult) {
                 while ($r = $rqResult->fetch_assoc()) {
                     $rEmail = trim($r['email'] ?? '');
                     if (!$rEmail) continue;
@@ -77,6 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $fundingUrl, $unsubUrl
                         ),
                     ];
+                }
                 }
 
                 if (!empty($notifications)) {
@@ -218,15 +229,28 @@ $savedMap = []; foreach ($saved as $s) $savedMap[$s['funding_call_id']] = $s;
 // Top researcher matches for viewing panel
 $topResearcherMatches = [];
 if ($viewing) {
-    $tmStmt = $conn->prepare(
+    // Try with deleted_at column first, fall back if it doesn't exist
+    $tmStmt = @$conn->prepare(
         "SELECT ms.score_ai, ms.score_keyword, ms.explanation,
                 r.id, r.first_name, r.last_name, r.institution, r.title, r.email
          FROM match_scores ms JOIN researchers r ON r.id = ms.researcher_id
          WHERE ms.funding_call_id = ? AND r.status = 'active' AND r.deleted_at IS NULL
          ORDER BY COALESCE(ms.score_ai, ms.score_keyword) DESC LIMIT 5"
     );
-    $tmStmt->bind_param('i', $viewing['id']); $tmStmt->execute();
-    $topResearcherMatches = $tmStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    if (!$tmStmt) {
+        // Fallback if deleted_at column doesn't exist
+        $tmStmt = $conn->prepare(
+            "SELECT ms.score_ai, ms.score_keyword, ms.explanation,
+                    r.id, r.first_name, r.last_name, r.institution, r.title, r.email
+             FROM match_scores ms JOIN researchers r ON r.id = ms.researcher_id
+             WHERE ms.funding_call_id = ? AND r.status = 'active'
+             ORDER BY COALESCE(ms.score_ai, ms.score_keyword) DESC LIMIT 5"
+        );
+    }
+    if ($tmStmt) {
+        $tmStmt->bind_param('i', $viewing['id']); $tmStmt->execute();
+        $topResearcherMatches = $tmStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    }
 }
 
 // Load funding call AI summary for viewing panel
