@@ -154,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 generate_researcher_summary($conn, $newResearcherId);
 
                 // Send verification email
-                @$mailCfg = require __DIR__ . '/../../config/mail.php';
+                @$mailCfg = require __DIR__ . '/../../../config/mail.php';
                 if (!is_array($mailCfg)) $mailCfg = [];
                 $appUrl = rtrim($mailCfg['app_url'] ?? ('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')), '/');
                 $verifyUrl = $appUrl . '/index.php?page=verify&token=' . urlencode($token);

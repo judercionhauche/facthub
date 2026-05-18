@@ -169,7 +169,10 @@ if ($page === 'login') {
     error_log("[LOGIN POST] About to include login view");
 }
 include __DIR__ . '/../app/views/layout/header.php';
-include __DIR__ . '/../app/views/' . $page . '/index.php';
+$viewFile = __DIR__ . '/../app/views/' . $page . '/index.php';
+if (file_exists($viewFile)) {
+    include $viewFile;
+}
 include __DIR__ . '/../app/views/layout/footer.php';
 
 ob_end_flush();

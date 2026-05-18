@@ -135,7 +135,7 @@ function audit(mysqli $conn, string $action, array $ctx = []): void {
 }
 
 function get_all_tags($conn, $type) {
-    $stmt = $conn->prepare('SELECT name FROM tags WHERE type = ? ORDER BY name ASC');
+    $stmt = $conn->prepare('SELECT name FROM tags WHERE tag_type = ? ORDER BY name ASC');
     $stmt->bind_param('s', $type);
     $stmt->execute();
     $res = $stmt->get_result();
