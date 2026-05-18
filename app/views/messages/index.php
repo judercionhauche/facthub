@@ -564,6 +564,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
             <?php if ($totalUnread > 0): ?>
             <form method="post" style="display:inline">
                 <input type="hidden" name="action" value="mark_all_read">
+                <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
                 <button class="ghost-btn" type="submit" style="font-size:13px;padding:8px 12px">Mark all read</button>
             </form>
             <?php endif; ?>
@@ -607,6 +608,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
         <div style="display:flex;gap:8px;flex-shrink:0;align-items:center">
             <form method="post" onsubmit="return confirm('Move this entire conversation to Trash?')">
                 <input type="hidden" name="action" value="delete_thread">
+                <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
                 <input type="hidden" name="thread_id" value="<?= $threadId ?>">
                 <button class="danger-btn" type="submit" style="padding:7px 14px;font-size:13px">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block;vertical-align:middle;margin-right:4px"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -639,6 +641,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
             <div class="thread-msg-actions">
                 <form method="post" style="display:inline" onsubmit="return confirm('Delete this message?')">
                     <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
                     <input type="hidden" name="message_id" value="<?= (int)$tm['id'] ?>">
                     <input type="hidden" name="thread_id" value="<?= $threadId ?>">
                     <button class="danger-btn" type="submit" style="padding:5px 12px;font-size:12px">Delete</button>
@@ -674,11 +677,13 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
                 <div class="thread-msg-actions">
                     <form method="post" style="display:inline">
                         <input type="hidden" name="action" value="restore_thread">
+                        <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
                         <input type="hidden" name="thread_id" value="<?= $threadId ?>">
                         <button class="ghost-btn" type="submit" style="padding:5px 12px;font-size:12px;color:var(--primary)">Restore</button>
                     </form>
                     <form method="post" style="display:inline" onsubmit="return confirm('Permanently delete this message?')">
                         <input type="hidden" name="action" value="delete_forever">
+                        <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
                         <input type="hidden" name="thread_id" value="<?= (int)$dm['id'] ?>">
                         <button class="danger-btn" type="submit" style="padding:5px 12px;font-size:12px">Delete Forever</button>
                     </form>
@@ -695,6 +700,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
         <div class="thread-reply-label">Reply</div>
         <form method="post">
             <input type="hidden" name="action" value="reply">
+            <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
             <input type="hidden" name="thread_id" value="<?= $threadId ?>">
             <textarea name="body" placeholder="Write your reply…" required id="reply-body"></textarea>
             <div class="thread-reply-row">
@@ -716,6 +722,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
     </div>
     <form method="post" class="form-grid one">
         <input type="hidden" name="action" value="send">
+        <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
 
         <div>
             <label>To</label>
@@ -791,6 +798,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
         <?php if ($trashCount > 0): ?>
         <form method="post" onsubmit="return confirm('Permanently delete all <?= $trashCount ?> items? This cannot be undone.')">
             <input type="hidden" name="action" value="empty_trash">
+            <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
             <button class="danger-btn" type="submit" style="padding:6px 14px;font-size:12px">Empty Trash</button>
         </form>
         <?php endif; ?>
@@ -827,11 +835,13 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
             <div class="trash-actions">
                 <form method="post" style="display:inline">
                     <input type="hidden" name="action" value="restore_thread">
+                    <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
                     <input type="hidden" name="thread_id" value="<?= (int)$t['id'] ?>">
                     <button class="trash-restore-btn" type="submit">Restore</button>
                 </form>
                 <form method="post" style="display:inline" onsubmit="return confirm('Permanently delete this conversation? This cannot be undone.')">
                     <input type="hidden" name="action" value="delete_forever">
+                    <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
                     <input type="hidden" name="thread_id" value="<?= (int)$t['id'] ?>">
                     <button class="trash-del-btn" type="submit">Delete Forever</button>
                 </form>
