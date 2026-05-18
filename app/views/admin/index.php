@@ -632,10 +632,18 @@ $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 require_once __DIR__ . '/../../services/BalanceMonitor.php';
 
 $kpiResearchers = (int)$conn->query("SELECT COUNT(*) FROM researchers WHERE status = 'active' AND deleted_at IS NULL")->fetch_row()[0];
-$kpiFunding     = (int)$conn->query('SELECT COUNT(*) FROM funding_calls WHERE deleted_at IS NULL')->fetch_row()[0];
-$kpiMatches     = (int)$conn->query("SELECT COUNT(*) FROM match_scores ms JOIN researchers r ON r.id = ms.researcher_id WHERE r.status = 'active' AND r.deleted_at IS NULL")->fetch_row()[0];
-$kpiAiMatches   = (int)$conn->query("SELECT COUNT(*) FROM match_scores ms JOIN researchers r ON r.id = ms.researcher_id WHERE ms.score_ai IS NOT NULL AND r.status = 'active' AND r.deleted_at IS NULL")->fetch_row()[0];
-$kpiSummaries   = (int)$conn->query("SELECT COUNT(*) FROM ai_summaries WHERE entity_type = 'researcher' AND entity_id IN (SELECT id FROM researchers WHERE status = 'active' AND deleted_at IS NULL)")->fetch_row()[0];
+// KPI queries with fallbacks for missing deleted_at columns
+$res = @$conn->query('SELECT COUNT(*) FROM funding_calls WHERE deleted_at IS NULL');
+$kpiFunding = $res ? (int)$res->fetch_row()[0] : (int)$conn->query('SELECT COUNT(*) FROM funding_calls')->fetch_row()[0];
+
+$res = @$conn->query("SELECT COUNT(*) FROM match_scores ms JOIN researchers r ON r.id = ms.researcher_id WHERE r.status = 'active' AND r.deleted_at IS NULL");
+$kpiMatches = $res ? (int)$res->fetch_row()[0] : (int)$conn->query("SELECT COUNT(*) FROM match_scores ms JOIN researchers r ON r.id = ms.researcher_id WHERE r.status = 'active'")->fetch_row()[0];
+
+$res = @$conn->query("SELECT COUNT(*) FROM match_scores ms JOIN researchers r ON r.id = ms.researcher_id WHERE ms.score_ai IS NOT NULL AND r.status = 'active' AND r.deleted_at IS NULL");
+$kpiAiMatches = $res ? (int)$res->fetch_row()[0] : (int)$conn->query("SELECT COUNT(*) FROM match_scores ms JOIN researchers r ON r.id = ms.researcher_id WHERE ms.score_ai IS NOT NULL AND r.status = 'active'")->fetch_row()[0];
+
+$res = @$conn->query("SELECT COUNT(*) FROM ai_summaries WHERE entity_type = 'researcher' AND entity_id IN (SELECT id FROM researchers WHERE status = 'active' AND deleted_at IS NULL)");
+$kpiSummaries = $res ? (int)$res->fetch_row()[0] : (int)$conn->query("SELECT COUNT(*) FROM ai_summaries WHERE entity_type = 'researcher' AND entity_id IN (SELECT id FROM researchers WHERE status = 'active')")->fetch_row()[0];
 $kpiCostMonth   = (float)$conn->query("SELECT COALESCE(SUM(cost_usd),0) FROM api_usage WHERE created_at >= DATE_FORMAT(NOW(),'%Y-%m-01')")->fetch_row()[0];
 $aiCoverage     = $kpiMatches > 0 ? round(($kpiAiMatches / $kpiMatches) * 100) : 0;
 
