@@ -14,11 +14,18 @@ if (PHP_SAPI !== 'cli') {
     exit('CLI only' . PHP_EOL);
 }
 
-require_once __DIR__ . '/../../config/database.php';
 require_once __DIR__ . '/../core/helpers.php';
 require_once __DIR__ . '/../core/mailer.php';
 require_once __DIR__ . '/../services/ClaudeService.php';
 require_once __DIR__ . '/../services/BalanceMonitor.php';
+
+// Initialize database connection
+$dbConfig = require_once __DIR__ . '/../../config/database.php';
+$conn = new mysqli($dbConfig['db_host'], $dbConfig['db_user'], $dbConfig['db_pass'], $dbConfig['db_name']);
+if ($conn->connect_error) {
+    die('Database connection failed: ' . $conn->connect_error . PHP_EOL);
+}
+$conn->set_charset('utf8mb4');
 
 @$mailCfg = require __DIR__ . '/../../config/mail.php';
 if (!is_array($mailCfg)) {
