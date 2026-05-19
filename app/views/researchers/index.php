@@ -73,29 +73,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $googleScholarUrl = trim($_POST['google_scholar_url'] ?? '');
             $notifyMatches    = isset($_POST['notify_matches']) ? 1 : 0;
 
+            // Helper function to save form data and redirect with error
+            $saveFormDataAndError = function($errorMsg) use ($first, $last, $email, $institution, $department, $title, $bio, $focusAreaArr, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $isNewRegistration) {
+                $_SESSION['form_data'] = [
+                    'first_name' => $first,
+                    'last_name' => $last,
+                    'email' => $email,
+                    'institution' => $institution,
+                    'department' => $department,
+                    'title' => $title,
+                    'bio' => $bio,
+                    'focus_area' => implode('|', $focusAreaArr), // Convert array back to pipe-separated
+                    'focus_area_detail' => $focusDetail,
+                    'topics' => $topics,
+                    'geography' => $geography,
+                    'co_advising' => $coAdvising,
+                    'co_advising_details' => $coDetails,
+                    'profile_url' => $profileUrl,
+                    'website_url' => $websiteUrl,
+                    'orcid_id' => $orcidId,
+                    'google_scholar_url' => $googleScholarUrl,
+                    'notify_matches' => $notifyMatches
+                ];
+                set_flash('error', $errorMsg);
+                redirect_to('researchers', ['mode' => $isNewRegistration ? 'add' : null]);
+            };
+
             if ($first === '' || $last === '') {
-                set_flash('error', 'First and last name are required.');
-                if ($isNewRegistration) {
-                    redirect_to('researchers', ['mode' => 'add']);
-                } else {
-                    redirect_to('researchers');
-                }
+                $saveFormDataAndError('First and last name are required.');
             }
             if ($institution === '') {
-                set_flash('error', 'Institution is required.');
-                if ($isNewRegistration) {
-                    redirect_to('researchers', ['mode' => 'add']);
-                } else {
-                    redirect_to('researchers');
-                }
+                $saveFormDataAndError('Institution is required.');
             }
             if (strlen($geography) > 500) {
-                set_flash('error', 'Geographic focus cannot exceed 500 characters. Currently: ' . strlen($geography) . ' characters.');
-                redirect_to('researchers', ['mode' => 'add']);
+                $saveFormDataAndError('Geographic focus cannot exceed 500 characters. Currently: ' . strlen($geography) . ' characters.');
             }
             if (strlen($topics) > 500) {
-                set_flash('error', 'Topics cannot exceed 500 characters. Currently: ' . strlen($topics) . ' characters.');
-                redirect_to('researchers', ['mode' => 'add']);
+                $saveFormDataAndError('Topics cannot exceed 500 characters. Currently: ' . strlen($topics) . ' characters.');
             }
 
             // NEW REGISTRATION: create user account + researcher profile
@@ -126,8 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $checkUser->bind_param('s', $email);
                 if (!$checkUser->execute()) throw new Exception('Error checking email: ' . $checkUser->error);
                 if ($checkUser->get_result()->num_rows > 0) {
-                    set_flash('error', 'This email is already registered.');
-                    redirect_to('researchers', ['mode' => 'add']);
+                    $saveFormDataAndError('This email is already registered.');
                 }
 
                 // Create user account
@@ -347,6 +360,12 @@ sort($institutions);
 
 $editing = null;
 if ($editId > 0) foreach ($researchers as $r) if ((int)$r['id'] === $editId) $editing = $r;
+
+// Use form data from session error if available (keeps data on validation errors)
+if (!$editing && isset($_SESSION['form_data'])) {
+    $editing = $_SESSION['form_data'];
+    unset($_SESSION['form_data']); // Clear after use
+}
 $viewing = null;
 if ($viewId > 0) foreach ($researchers as $r) if ((int)$r['id'] === $viewId) $viewing = $r;
 
