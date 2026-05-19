@@ -650,8 +650,15 @@ $kpiSummaries = $res ? (int)$res->fetch_row()[0] : (int)$conn->query("SELECT COU
 $kpiCostMonth   = (float)$conn->query("SELECT COALESCE(SUM(cost_usd),0) FROM api_usage WHERE created_at >= DATE_FORMAT(NOW(),'%Y-%m-01')")->fetch_row()[0];
 $aiCoverage     = $kpiMatches > 0 ? round(($kpiAiMatches / $kpiMatches) * 100) : 0;
 
-$balanceStatus = BalanceMonitor::getStatus($conn);
-$balanceAlerts = BalanceMonitor::getAlertCounts($conn);
+// Fetch balance status safely (skip if table not ready)
+$balanceStatus = [];
+$balanceAlerts = [];
+try {
+    $balanceStatus = BalanceMonitor::getStatus($conn) ?? [];
+    $balanceAlerts = BalanceMonitor::getAlertCounts($conn) ?? [];
+} catch (Throwable $e) {
+    // BalanceMonitor table not ready yet, skip for now
+}
 
 // Try with deleted_at columns first, fall back if they don't exist
 $res = @$conn->query(
@@ -1130,7 +1137,7 @@ if ($rSearch) {
     $rWhere .= " AND (CONCAT(first_name,' ',last_name) LIKE ? OR institution LIKE ? OR email LIKE ?)";
 }
 
-$rSql    = "SELECT * FROM researchers $rWhere ORDER BY last_name ASC, first_name ASC";
+$rSql    = "SELECT * FROM researchers $rWhere ORDER BY first_name ASC";
 $rStmt   = $conn->prepare($rSql);
 if ($rSearch) {
     $rLike = '%' . $rSearch . '%';
@@ -1236,7 +1243,7 @@ if ($fSearch) {
     $fWhere .= " AND (CONCAT(first_name,' ',last_name) LIKE ? OR organization LIKE ? OR email LIKE ?)";
 }
 
-$fSql    = "SELECT * FROM funders $fWhere ORDER BY last_name ASC, first_name ASC";
+$fSql    = "SELECT * FROM funders $fWhere ORDER BY name ASC";
 $fStmt   = $conn->prepare($fSql);
 if ($fSearch) {
     $fLike = '%' . $fSearch . '%';
