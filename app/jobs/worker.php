@@ -229,14 +229,22 @@ function dispatch_job(mysqli $conn, array $job, string $appUrl): void {
                     $rStmt->bind_param('i', $eid); $rStmt->execute();
                     $r = $rStmt->get_result()->fetch_assoc();
                     if ($r) {
-                        $claude->summarizeResearcher($eid, $r);
+                        $apiAvail = $claude->isAvailable() ? 'YES' : 'NO';
+                        echo "[" . date('Y-m-d H:i:s') . "] Generating researcher summary (ID $eid), API available: $apiAvail" . PHP_EOL;
+                        $result = $claude->summarizeResearcher($eid, $r);
+                        echo "[" . date('Y-m-d H:i:s') . "] Result: " . ($result ? 'SUCCESS' : 'NULL/FAILED') . PHP_EOL;
+                    } else {
+                        echo "[" . date('Y-m-d H:i:s') . "] Researcher $eid not found" . PHP_EOL;
                     }
                 } elseif ($type === 'funding_call') {
                     $fcStmt = $conn->prepare('SELECT * FROM funding_calls WHERE id = ? LIMIT 1');
                     $fcStmt->bind_param('i', $eid); $fcStmt->execute();
                     $fc = $fcStmt->get_result()->fetch_assoc();
                     if ($fc) {
-                        $claude->summarizeFundingCall($eid, $fc);
+                        $apiAvail = $claude->isAvailable() ? 'YES' : 'NO';
+                        echo "[" . date('Y-m-d H:i:s') . "] Generating funding call summary (ID $eid), API available: $apiAvail" . PHP_EOL;
+                        $result = $claude->summarizeFundingCall($eid, $fc);
+                        echo "[" . date('Y-m-d H:i:s') . "] Result: " . ($result ? 'SUCCESS' : 'NULL/FAILED') . PHP_EOL;
                     }
                 }
                 mark_job_done($conn, $jobId);
