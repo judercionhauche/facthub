@@ -21,11 +21,14 @@ function apply_security_schema_updates(mysqli $conn): void {
         ");
     }
 
-    // Add used_at column to password_resets if it doesn't exist
-    $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='password_resets' AND COLUMN_NAME='used_at' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
-    if (!$result || $result->num_rows === 0) {
-        @$conn->query("ALTER TABLE password_resets ADD COLUMN used_at DATETIME DEFAULT NULL AFTER expires_at");
-        @$conn->query("ALTER TABLE password_resets ADD INDEX idx_used_at (used_at)");
+    // Add used_at column to password_resets if table exists
+    $tblCheck = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='password_resets' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if ($tblCheck && $tblCheck->num_rows > 0) {
+        $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='password_resets' AND COLUMN_NAME='used_at' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("ALTER TABLE password_resets ADD COLUMN used_at DATETIME DEFAULT NULL AFTER expires_at");
+            @$conn->query("ALTER TABLE password_resets ADD INDEX idx_used_at (used_at)");
+        }
     }
 
     // Create unsubscribe_tokens table if it doesn't exist
