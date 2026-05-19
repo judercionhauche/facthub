@@ -609,9 +609,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
     <div class="msg-head-row">
         <div style="display:flex;align-items:center;gap:10px">
             <h1 style="margin:0">Messages</h1>
-            <?php if ($totalUnread > 0): ?>
-            <span class="badge" style="background:#b54646;color:#fff"><?= $totalUnread ?> unread</span>
-            <?php endif; ?>
+            <span class="badge" data-unread-count style="background:#b54646;color:#fff;<?= $totalUnread === 0 ? 'display:none' : '' ?>"><?= $totalUnread ?> unread</span>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
             <?php if ($totalUnread > 0): ?>
@@ -1128,5 +1126,37 @@ function undoTrashDelete(threadId) {
     var t = document.getElementById('undo-toast');
     if (!t) return;
     setTimeout(function () { dismissUndoToast(); }, 8000);
+})();
+
+/* Periodically refresh unread count badge (every 15 seconds) */
+(function () {
+    function refreshUnreadCount() {
+        fetch('index.php?page=ping')
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                var badge = document.querySelector('[data-unread-count]');
+                if (!badge) return;
+                var currentCount = parseInt(badge.textContent, 10);
+                var newCount = d.unread || 0;
+                if (currentCount !== newCount) {
+                    badge.textContent = newCount + ' unread';
+                    if (newCount > 0) {
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                    // Update inbox row styling if on inbox tab
+                    document.querySelectorAll('.msg-row').forEach(function (row) {
+                        var badge = row.querySelector('.msg-unread-badge');
+                        if (badge) {
+                            var count = parseInt(badge.textContent, 10);
+                            row.classList.toggle('unread-row', count > 0);
+                        }
+                    });
+                }
+            })
+            .catch(function () {});
+    }
+    setInterval(refreshUnreadCount, 15000);
 })();
 </script>
