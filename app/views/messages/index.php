@@ -26,16 +26,19 @@ if ($emailLinkFor && $emailLinkToken && $emailLinkThread) {
 require_login();
 $user = current_user();
 
-// Check if user accessed via email link for wrong account
+// Check if user accessed via email link for wrong account — log out and redirect to login
 if ($emailLinkWrongUser) {
-    ?>
-    <div style="max-width:600px;margin:50px auto;padding:20px;border:1px solid #e0e0e0;border-radius:6px;">
-        <h2 style="color:#b54646;">Wrong Account</h2>
-        <p>This message link was sent to a different email address. You are currently logged in as <strong><?= h($user['email']) ?></strong>.</p>
-        <p>Please log out and log back in with the account that received the email, or ask the sender to resend the link to your current email.</p>
-        <a href="index.php?page=logout" style="display:inline-block;margin-top:10px;padding:10px 20px;background:#333;color:#fff;text-decoration:none;border-radius:4px;">Log Out</a>
-    </div>
-    <?php
+    session_unset();
+    session_destroy();
+    session_start();
+    session_regenerate_id(true);
+    set_flash('info', 'Please log in with the account that received this message link.');
+    $redirectUrl = 'index.php?page=login';
+    if (!empty($_SERVER['QUERY_STRING'])) {
+        $redirectUrl .= '&' . $_SERVER['QUERY_STRING'];
+    }
+    header("Location: $redirectUrl");
+    ob_end_clean();
     exit;
 }
 
