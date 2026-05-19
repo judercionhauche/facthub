@@ -118,20 +118,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $confirmPassword = $_POST['confirm_password'] ?? '';
 
                 if ($password === '' || $confirmPassword === '') {
-                    set_flash('error', 'Password is required.');
-                    redirect_to('researchers', ['mode' => 'add']);
+                    $saveFormDataAndError('Password is required.');
                 }
                 if ($password !== $confirmPassword) {
-                    set_flash('error', 'Passwords do not match.');
-                    redirect_to('researchers', ['mode' => 'add']);
+                    $saveFormDataAndError('Passwords do not match.');
                 }
                 if (strlen($password) < 8) {
-                    set_flash('error', 'Password must be at least 8 characters.');
-                    redirect_to('researchers', ['mode' => 'add']);
+                    $saveFormDataAndError('Password must be at least 8 characters.');
                 }
                 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    set_flash('error', 'Please enter a valid email address.');
-                    redirect_to('researchers', ['mode' => 'add']);
+                    $saveFormDataAndError('Please enter a valid email address.');
                 }
 
                 // Check if user already exists
@@ -264,8 +260,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect_to('researchers');
         } catch (Throwable $e) {
             error_log('[Researcher Registration Error] ' . $e->getMessage());
+            if ($isNewRegistration) {
+                // Preserve form data on registration errors
+                $_SESSION['form_data'] = [
+                    'first_name' => $first,
+                    'last_name' => $last,
+                    'email' => $email,
+                    'institution' => $institution,
+                    'department' => $department,
+                    'title' => $title,
+                    'bio' => $bio,
+                    'focus_area' => implode('|', $focusAreaArr),
+                    'focus_area_detail' => $focusDetail,
+                    'topics' => $topics,
+                    'geography' => $geography,
+                    'co_advising' => $coAdvising,
+                    'co_advising_details' => $coDetails,
+                    'profile_url' => $profileUrl,
+                    'website_url' => $websiteUrl,
+                    'orcid_id' => $orcidId,
+                    'google_scholar_url' => $googleScholarUrl,
+                    'notify_matches' => $notifyMatches
+                ];
+            }
             set_flash('error', 'Registration error: ' . $e->getMessage());
-            redirect_to('researchers', ['mode' => 'add']);
+            redirect_to('researchers', ['mode' => ($isNewRegistration ? 'add' : null)]);
         }
     }
 
