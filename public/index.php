@@ -80,16 +80,19 @@ if (is_logged_in()) {
 // Lightweight JSON endpoint — returns unread message count for live polling
 if ($page === 'ping' && is_logged_in()) {
     $em = $_SESSION['user_email'] ?? '';
-    // Match the inbox query exactly: only count root messages (those that appear in inbox list)
+    // Match the inbox query: count root messages that are either received or sent with replies
     $q  = $conn->prepare(
-        "SELECT COUNT(*) c FROM messages
-         WHERE (thread_id = id OR thread_id IS NULL)
-           AND sender_email != ?
-           AND is_read = 0
-           AND is_deleted = 0
-           AND (recipient_type = 'network' OR recipient_email = ?)"
+        "SELECT COUNT(DISTINCT m.id) c FROM messages m
+         WHERE (m.thread_id = m.id OR m.thread_id IS NULL)
+           AND m.is_read = 0
+           AND m.is_deleted = 0
+           AND (
+             (m.sender_email != ? AND (m.recipient_type = 'network' OR m.recipient_email = ?))
+             OR
+             (m.sender_email = ? AND EXISTS (SELECT 1 FROM messages r WHERE r.thread_id = m.id AND r.id != m.id AND r.sender_email != ? AND r.is_deleted = 0))
+           )"
     );
-    $q->bind_param('ss', $em, $em); $q->execute();
+    $q->bind_param('ssss', $em, $em, $em, $em); $q->execute();
     $cnt = (int)($q->get_result()->fetch_assoc()['c'] ?? 0);
     header('Content-Type: application/json');
     echo json_encode(['unread' => $cnt]);

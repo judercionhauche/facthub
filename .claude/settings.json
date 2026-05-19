@@ -146,7 +146,16 @@
       "Bash(cat)",
       "Read(//var/www/html/facthub/config/**)",
       "Bash(git checkout *)",
-      "Bash(grep -n '\\\\$editing\\\\s*=' /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/app/views/researchers/index.php)"
+      "Bash(grep -n '\\\\$editing\\\\s*=' /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/app/views/researchers/index.php)",
+      "Bash(grep -A 20 \"CREATE TABLE.*messages\\\\|CREATE TABLE \\\\`messages\" /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/fact_hub2.sql)",
+      "Bash(mysql -u root fact_hub2 -e \"DESCRIBE researchers;\")",
+      "Bash(mysql -u fact_user '-p5310Judy####' fact_hub2 -e ' *)",
+      "Bash(curl -s \"http://localhost/debug_messages.php?token=debug_fact_2026&user=jnhauche@brandeis.edu\")",
+      "Bash(mysql -h localhost -u root fact_hub2)",
+      "Bash(sudo /Applications/XAMPP/xamppfiles/bin/mysql.server stop)",
+      "Bash(sudo /Applications/XAMPP/xamppfiles/bin/mysql.server start)",
+      "Bash(grep -A 5 \"LEFT JOIN messages root\" /var/www/html/facthub/app/views/messages/index.php 2>/dev/null || echo \"File not found or pattern not found\")",
+      "Read(//var/www/html/facthub/app/views/messages/**)"
     ],
     "additionalDirectories": [
       "/tmp"

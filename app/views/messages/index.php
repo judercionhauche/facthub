@@ -343,7 +343,7 @@ if ($threadId > 0) {
        AND m.thread_id != m.id"
 );
 
-/* Inbox threads — root messages received by this user, with unread + reply counts */
+/* Inbox threads — root messages: either (1) received by user, or (2) sent by user with replies */
 $inboxSql = "
     SELECT m.*,
         COALESCE(
@@ -355,12 +355,15 @@ $inboxSql = "
     FROM messages m
     WHERE (m.thread_id = m.id OR m.thread_id IS NULL)
       AND m.is_deleted = 0
-      AND m.sender_email != ?
-      AND (m.recipient_type = 'network' OR m.recipient_email = ?)
+      AND (
+        (m.sender_email != ? AND (m.recipient_type = 'network' OR m.recipient_email = ?))
+        OR
+        (m.sender_email = ? AND EXISTS (SELECT 1 FROM messages r WHERE r.thread_id = m.id AND r.id != m.id AND r.sender_email != ? AND r.is_deleted = 0))
+      )
     ORDER BY last_at DESC
 ";
 $inboxStmt = $conn->prepare($inboxSql);
-$inboxStmt->bind_param('sss', $user['email'], $user['email'], $user['email']);
+$inboxStmt->bind_param('sssss', $user['email'], $user['email'], $user['email'], $user['email'], $user['email']);
 $inboxStmt->execute();
 $inboxThreads = $inboxStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
