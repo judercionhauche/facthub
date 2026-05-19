@@ -1140,20 +1140,10 @@ function undoTrashDelete(threadId) {
             pageBadge.style.display = newCount > 0 ? 'inline-block' : 'none';
         }
 
-        // Update header/nav badges
-        document.querySelectorAll('a[href*="page=messages"]').forEach(function (link) {
-            var existingBadge = link.querySelector('.badge');
-            if (!existingBadge && newCount > 0) {
-                existingBadge = document.createElement('span');
-                existingBadge.className = 'badge';
-                existingBadge.style.cssText = 'display:inline-block;margin-left:4px;background:#b54646;color:#fff;border-radius:999px;font-size:11px;font-weight:800;padding:2px 6px';
-                link.appendChild(existingBadge);
-            }
-            if (existingBadge) {
-                existingBadge.textContent = newCount;
-                existingBadge.style.display = newCount > 0 ? 'inline-block' : 'none';
-            }
-        });
+        // If count changed significantly, reload page to sync all badges and nav
+        if (lastUnreadCount !== newCount && Math.abs(lastUnreadCount - newCount) >= 1) {
+            location.reload();
+        }
     }
 
     function refreshInbox() {
