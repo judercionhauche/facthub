@@ -81,6 +81,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     redirect_to('researchers');
                 }
             }
+            if (strlen($geography) > 500) {
+                set_flash('error', 'Geographic focus cannot exceed 500 characters. Currently: ' . strlen($geography) . ' characters.');
+                redirect_to('researchers', ['mode' => 'add']);
+            }
+            if (strlen($topics) > 500) {
+                set_flash('error', 'Topics cannot exceed 500 characters. Currently: ' . strlen($topics) . ' characters.');
+                redirect_to('researchers', ['mode' => 'add']);
+            }
 
             // NEW REGISTRATION: create user account + researcher profile
             if ($isNewRegistration) {
@@ -525,8 +533,8 @@ $selectedSubcats = array_values(array_filter(array_map('trim', explode(',', $edi
             </div>
         </div>
 
-        <div><label>Topics (comma-separated)</label><input name="topics" value="<?= h($editing['topics'] ?? '') ?>"></div>
-        <div><label>Geographic focus (comma-separated)</label><input name="geography" value="<?= h($editing['geography'] ?? '') ?>"></div>
+        <div><label>Topics (comma-separated)</label><input name="topics" maxlength="500" value="<?= h($editing['topics'] ?? '') ?>" title="Maximum 500 characters"></div>
+        <div><label>Geographic focus (comma-separated)</label><input name="geography" maxlength="500" value="<?= h($editing['geography'] ?? '') ?>" title="Maximum 500 characters"></div>
 
         <div class="span-2">
             <div class="coadvising-section">
