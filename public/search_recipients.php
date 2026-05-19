@@ -14,7 +14,10 @@ init_session();
 
 header('Content-Type: application/json');
 
+error_log('[search_recipients] Endpoint called');
+
 if (!is_logged_in()) {
+    error_log('[search_recipients] Not logged in');
     http_response_code(401);
     echo json_encode(['error' => 'Unauthorized']);
     exit;
@@ -42,9 +45,11 @@ if (!$rateLimiter->check('search_recipients_' . $userId, 60, 3600)) {
 }
 
 $query = trim($_GET['q'] ?? '');
+error_log('[search_recipients] Query: ' . $query . ', User: ' . $user['email']);
 
 // Require minimum 1 character search (prevent dumping all users)
 if (empty($query) || mb_strlen($query) < 1) {
+    error_log('[search_recipients] Query too short');
     echo json_encode(['results' => []]);
     exit;
 }
@@ -81,9 +86,11 @@ $formatted = array_map(function($r) {
     return [
         'email' => $r['email'],
         'name' => $r['name'] ?: $r['email'],
-        'display' => ($r['name'] ?: $r['email'])
+        'display' => ($r['name'] ?: $r['email']),
+        'role' => $r['role'] ?? 'user'
     ];
 }, $results);
 
+error_log('[search_recipients] Found ' . count($formatted) . ' results');
 echo json_encode(['results' => $formatted]);
 ?>
