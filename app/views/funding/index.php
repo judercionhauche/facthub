@@ -50,6 +50,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $conn->prepare('UPDATE funding_calls SET title=?, funder=?, deadline=?, status=?, description=?, topics=?, geography=?, amount=?, url=? WHERE id=?');
             $stmt->bind_param('sssssssssi', $title, $funder, $deadline, $status, $description, $topics, $geography, $amount, $url, $id);
             $stmt->execute();
+
+            // Regenerate AI summary since funding call content changed
+            enqueue_job($conn, 'generate_summary', ['entity_type' => 'funding_call', 'entity_id' => $id]);
+            // Recompute researcher matches for updated funding call
+            enqueue_job($conn, 'compute_matches', ['funding_call_id' => $id]);
+
             set_flash('success', 'Funding call updated.');
         } else {
             $added = $user['email'];

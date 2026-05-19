@@ -88,11 +88,17 @@ try {
                     if ($stmt->affected_rows >= 0) {
                         $success_message = 'Profile updated successfully!';
                         audit($conn, 'update_profile', ['type' => 'researcher', 'id' => $profile['id']]);
+
                         // Refresh profile data
                         $stmt2 = $conn->prepare("SELECT * FROM researchers WHERE email = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1");
                         $stmt2->bind_param('s', $user['email']);
                         $stmt2->execute();
                         $profile = $stmt2->get_result()->fetch_assoc();
+
+                        // Regenerate AI summary since profile content changed
+                        if ($profile && $profile['id']) {
+                            enqueue_job($conn, 'generate_summary', ['entity_type' => 'researcher', 'entity_id' => (int)$profile['id']]);
+                        }
                     } else {
                         $error_message = 'Failed to update profile.';
                     }
