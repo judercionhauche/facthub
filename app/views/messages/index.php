@@ -336,10 +336,11 @@ if ($threadId > 0) {
 /* This happens when a message is deleted but its replies still exist */
 @$conn->query(
     "UPDATE messages m
+     LEFT JOIN messages root ON root.id = m.thread_id
      SET m.thread_id = m.id, m.parent_id = NULL
-     WHERE m.thread_id != m.id
+     WHERE root.id IS NULL
        AND m.thread_id IS NOT NULL
-       AND NOT EXISTS (SELECT 1 FROM messages root WHERE root.id = m.thread_id)"
+       AND m.thread_id != m.id"
 );
 
 /* Inbox threads — root messages received by this user, with unread + reply counts */
