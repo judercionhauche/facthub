@@ -57,7 +57,13 @@ $stmt = $conn->prepare(
      AND deleted_at IS NULL
      AND email != ?
      AND (name LIKE ? OR email LIKE ?)
-     ORDER BY FIELD(role,'admin','researcher','funder'), name ASC
+     ORDER BY
+       CASE role
+         WHEN 'admin' THEN 1
+         WHEN 'researcher' THEN 2
+         WHEN 'funder' THEN 3
+         ELSE 4
+       END, name ASC
      LIMIT 50"
 );
 
