@@ -110,6 +110,59 @@ if ($orphaned_count > 0) {
     echo "</table>";
 }
 
+// 5. ALL MESSAGES SENT TO USER (regardless of filters)
+echo "<h3>5. ALL Messages Sent To This User (unfiltered):</h3>";
+$all_to_user_sql = "
+    SELECT id, thread_id, sender_email, recipient_email, recipient_type, subject, is_read, is_deleted, created_at
+    FROM messages
+    WHERE recipient_email = ? OR recipient_type = 'network'
+    ORDER BY created_at DESC
+    LIMIT 50
+";
+$stmt = $conn->prepare($all_to_user_sql);
+$stmt->bind_param('s', $user_email);
+$stmt->execute();
+$result = $stmt->get_result();
+$total_to_user = $result->num_rows;
+echo "<p><strong>Total messages for user: $total_to_user</strong></p>";
+echo "<table border='1' cellpadding='5'>";
+echo "<tr><th>ID</th><th>Thread</th><th>From</th><th>To Email</th><th>Type</th><th>Read</th><th>Deleted</th><th>Created</th></tr>";
+while ($row = $result->fetch_assoc()) {
+    $created = substr($row['created_at'], 0, 16);
+    echo "<tr style='background:" . ($row['is_deleted'] ? '#ffcccc' : ($row['is_read'] ? '#f0f0f0' : '#ffffcc')) . "'>";
+    echo "<td>{$row['id']}</td>";
+    echo "<td>{$row['thread_id']}</td>";
+    echo "<td>{$row['sender_email']}</td>";
+    echo "<td>" . ($row['recipient_email'] ?: 'NETWORK') . "</td>";
+    echo "<td>{$row['recipient_type']}</td>";
+    echo "<td>" . ($row['is_read'] ? 'YES' : 'NO') . "</td>";
+    echo "<td>" . ($row['is_deleted'] ? 'YES' : 'NO') . "</td>";
+    echo "<td>$created</td>";
+    echo "</tr>";
+}
+echo "</table>";
+
+// 6. Check session/user data
+echo "<h3>6. Current User Info:</h3>";
+echo "<table border='1' cellpadding='5'>";
+if (session_status() === PHP_SESSION_ACTIVE) {
+    echo "<tr><td>Session User Email</td><td>" . ($_SESSION['user_email'] ?? 'NOT SET') . "</td></tr>";
+    echo "<tr><td>Session User ID</td><td>" . ($_SESSION['user_id'] ?? 'NOT SET') . "</td></tr>";
+} else {
+    echo "<tr><td colspan='2'>Session not active</td></tr>";
+}
+$user_check = $conn->prepare("SELECT email, status FROM users WHERE email = ?");
+$user_check->bind_param('s', $user_email);
+$user_check->execute();
+$user_data = $user_check->get_result()->fetch_assoc();
+if ($user_data) {
+    echo "<tr><td>DB Email</td><td>" . $user_data['email'] . "</td></tr>";
+    echo "<tr><td>DB Status</td><td>" . $user_data['status'] . "</td></tr>";
+} else {
+    echo "<tr><td colspan='2'>User not found in database</td></tr>";
+}
+echo "</table>";
+
 $conn->close();
 ?>
 <hr>
