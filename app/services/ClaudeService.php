@@ -117,7 +117,8 @@ class ClaudeService {
                                      model_used=VALUES(model_used), computed_at=CURRENT_TIMESTAMP'
         );
         $modelUsed = self::MODEL_HAIKU;
-        $stmt->bind_param('iiiiss', $fcId, $rId, $scoreKeyword, $scoreAi, $explanation, $modelUsed);
+        $scoreAiFloat = (float)$scoreAi;
+        $stmt->bind_param('iidiss', $fcId, $rId, $scoreKeyword, $scoreAiFloat, $explanation, $modelUsed);
         $stmt->execute();
 
         return ['score' => $scoreAi, 'explanation' => $explanation];
