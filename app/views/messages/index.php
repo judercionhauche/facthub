@@ -323,6 +323,15 @@ if (isset($_GET['recipient_email']) || isset($_GET['compose'])) {
     $tab = 'compose';
 }
 
+/* Mark messages as read BEFORE fetching counts (so counts reflect actual DB state) */
+if ($threadId > 0) {
+    $mr = $conn->prepare(
+        'UPDATE messages SET is_read = 1
+         WHERE thread_id = ? AND sender_email != ? AND is_read = 0'
+    );
+    $mr->bind_param('is', $threadId, $user['email']); $mr->execute();
+}
+
 /* Inbox threads — root messages received by this user, with unread + reply counts */
 $inboxSql = "
     SELECT m.*,
@@ -389,13 +398,6 @@ if ($threadId > 0) {
         );
         $ts->bind_param('i', $threadId); $ts->execute();
         $threadMessages = $ts->get_result()->fetch_all(MYSQLI_ASSOC);
-
-        // Mark unread messages in this thread as read
-        $mr = $conn->prepare(
-            'UPDATE messages SET is_read = 1
-             WHERE thread_id = ? AND sender_email != ? AND is_read = 0'
-        );
-        $mr->bind_param('is', $threadId, $user['email']); $mr->execute();
     }
 }
 
