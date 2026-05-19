@@ -5,6 +5,7 @@
  */
 
 function apply_security_schema_updates(mysqli $conn): void {
+    try {
     // Suppress errors to avoid 500s during table/column creation
     $oldErrorMode = $conn->sql_mode ?? '';
 
@@ -522,6 +523,10 @@ function apply_security_schema_updates(mysqli $conn): void {
     if (!$result || $result->num_rows === 0) {
         @$conn->query("ALTER TABLE messages ADD COLUMN funding_call_id INT DEFAULT 0");
         @$conn->query("ALTER TABLE messages ADD COLUMN funding_call_title VARCHAR(255) DEFAULT NULL");
+    }
+    } catch (Throwable $e) {
+        error_log('[Schema Migration] Error: ' . $e->getMessage());
+        // Continue anyway - some tables may not exist yet
     }
 }
 
