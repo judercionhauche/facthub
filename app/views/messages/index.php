@@ -602,7 +602,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
 .undo-close:hover{color:#fff}
 </style>
 
-<div class="msg-page">
+<div class="msg-page" data-current-tab="<?= h($tab) ?>" data-current-thread="<?= $threadId ?>">
 
 <!-- ── Top bar ── -->
 <div class="panel msg-topbar">
@@ -906,7 +906,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
 
 <!-- ── Message list ── -->
 <?php if ($tab !== 'compose' && $tab !== 'trash'): ?>
-<div class="panel" style="padding:10px 8px">
+<div class="panel" style="padding:10px 8px" data-inbox-list>
     <?php if (!$activeList): ?>
         <div class="msg-empty">
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
@@ -1128,35 +1128,50 @@ function undoTrashDelete(threadId) {
     setTimeout(function () { dismissUndoToast(); }, 8000);
 })();
 
-/* Periodically refresh unread count badge (every 15 seconds) */
+/* Real-time unread count polling and inbox refresh (every 5 seconds) */
 (function () {
-    function refreshUnreadCount() {
-        fetch('index.php?page=ping')
-            .then(function (r) { return r.json(); })
-            .then(function (d) {
-                var badge = document.querySelector('[data-unread-count]');
-                if (!badge) return;
-                var currentCount = parseInt(badge.textContent, 10);
-                var newCount = d.unread || 0;
-                if (currentCount !== newCount) {
-                    badge.textContent = newCount + ' unread';
-                    if (newCount > 0) {
-                        badge.style.display = 'inline-block';
-                    } else {
-                        badge.style.display = 'none';
-                    }
-                    // Update inbox row styling if on inbox tab
-                    document.querySelectorAll('.msg-row').forEach(function (row) {
-                        var badge = row.querySelector('.msg-unread-badge');
-                        if (badge) {
-                            var count = parseInt(badge.textContent, 10);
-                            row.classList.toggle('unread-row', count > 0);
+    var lastUnreadCount = <?= (int)$totalUnread ?>;
+    var refreshing = false;
+
+    function refreshInbox() {
+        if (refreshing) return;
+        refreshing = true;
+        var currentTab = document.querySelector('[data-current-tab]')?.getAttribute('data-current-tab') || 'inbox';
+        var threadId = document.querySelector('[data-current-thread]')?.getAttribute('data-current-thread') || '0';
+
+        var url = 'index.php?page=messages&tab=' + encodeURIComponent(currentTab);
+        if (threadId !== '0') url += '&thread=' + encodeURIComponent(threadId);
+
+        fetch(url)
+            .then(function (r) { return r.text(); })
+            .then(function (html) {
+                var parser = new DOMParser();
+                var newDoc = parser.parseFromString(html, 'text/html');
+                var newBadge = newDoc.querySelector('[data-unread-count]');
+                var oldBadge = document.querySelector('[data-unread-count]');
+
+                if (newBadge && oldBadge) {
+                    var newCount = parseInt(newBadge.textContent, 10);
+                    if (lastUnreadCount !== newCount) {
+                        lastUnreadCount = newCount;
+                        oldBadge.textContent = newBadge.textContent;
+                        oldBadge.style.display = newCount > 0 ? 'inline-block' : 'none';
+
+                        // Replace inbox content if on inbox tab
+                        if (currentTab === 'inbox') {
+                            var oldList = document.querySelector('[data-inbox-list]');
+                            var newList = newDoc.querySelector('[data-inbox-list]');
+                            if (oldList && newList) {
+                                oldList.innerHTML = newList.innerHTML;
+                            }
                         }
-                    });
+                    }
                 }
             })
-            .catch(function () {});
+            .catch(function () {})
+            .finally(function () { refreshing = false; });
     }
-    setInterval(refreshUnreadCount, 15000);
+
+    setInterval(refreshInbox, 5000);
 })();
 </script>
