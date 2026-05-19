@@ -14,10 +14,11 @@ init_session();
 
 header('Content-Type: application/json');
 
-error_log('[search_recipients] Endpoint called');
+error_log('[search_recipients] Endpoint called, Session ID: ' . session_id() . ', Keys: ' . implode(',', array_keys($_SESSION)));
 
 if (!is_logged_in()) {
-    error_log('[search_recipients] Not logged in');
+    error_log('[search_recipients] Not logged in - is_logged_in() returned false');
+    error_log('[search_recipients] $_SESSION: ' . json_encode($_SESSION));
     http_response_code(401);
     echo json_encode(['error' => 'Unauthorized']);
     exit;
