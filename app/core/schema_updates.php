@@ -406,16 +406,36 @@ function apply_security_schema_updates(mysqli $conn): void {
         @$conn->query("
             CREATE TABLE IF NOT EXISTS api_balances (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                user_id INT NOT NULL UNIQUE,
-                balance_usd DECIMAL(10,4) DEFAULT 0,
+                provider VARCHAR(50) NOT NULL UNIQUE,
+                total_budget DECIMAL(12,2) DEFAULT 0,
+                remaining_balance DECIMAL(12,2) DEFAULT 0,
                 status ENUM('active','paused','emergency','suspended') DEFAULT 'active',
+                last_checked_at TIMESTAMP NULL DEFAULT NULL,
+                last_check_error TEXT NULL DEFAULT NULL,
+                checked_by VARCHAR(100) DEFAULT 'system',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                INDEX idx_status (status)
+                INDEX idx_status (status),
+                INDEX idx_provider (provider)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
     } else {
         @$conn->query("ALTER TABLE api_balances MODIFY COLUMN status ENUM('active','paused','emergency','suspended') DEFAULT 'active'");
+        // Add missing columns if they don't exist
+        $balancesCols = [
+            'provider' => 'VARCHAR(50) NOT NULL UNIQUE',
+            'total_budget' => 'DECIMAL(12,2) DEFAULT 0',
+            'remaining_balance' => 'DECIMAL(12,2) DEFAULT 0',
+            'last_checked_at' => 'TIMESTAMP NULL DEFAULT NULL',
+            'last_check_error' => 'TEXT NULL DEFAULT NULL',
+            'checked_by' => 'VARCHAR(100) DEFAULT "system"'
+        ];
+        foreach ($balancesCols as $col => $type) {
+            $colCheck = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='api_balances' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$colCheck || $colCheck->num_rows === 0) {
+                @$conn->query("ALTER TABLE api_balances ADD COLUMN $col $type");
+            }
+        }
     }
 
     // balance_alerts table

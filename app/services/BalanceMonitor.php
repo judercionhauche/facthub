@@ -324,7 +324,7 @@ class BalanceMonitor {
      */
     public static function getStatus(mysqli $conn): array {
         $stmt = $conn->prepare(
-            'SELECT provider, total_budget, remaining_balance, status, last_checked_at, usage_this_month
+            'SELECT provider, total_budget, remaining_balance, status, last_checked_at
              FROM api_balances
              ORDER BY provider ASC'
         );
