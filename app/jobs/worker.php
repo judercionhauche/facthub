@@ -278,6 +278,20 @@ function dispatch_job(mysqli $conn, array $job, string $appUrl): void {
                 echo "[" . date('Y-m-d H:i:s') . "] Job {$jobId} (check_balance) done" . PHP_EOL;
                 break;
 
+            case 'fetch_orcid_publications':
+                $researcherId = (int)($payload['researcher_id'] ?? 0);
+                $orcidId = $payload['orcid_id'] ?? '';
+                if ($researcherId && $orcidId) {
+                    echo "[" . date('Y-m-d H:i:s') . "] Fetching ORCID publications for researcher {$researcherId} ({$orcidId})" . PHP_EOL;
+                    fetch_orcid_publications($conn, $researcherId, $orcidId);
+                    echo "[" . date('Y-m-d H:i:s') . "] ORCID fetch complete for {$orcidId}" . PHP_EOL;
+                } else {
+                    echo "[" . date('Y-m-d H:i:s') . "] Missing researcher_id or orcid_id for fetch_orcid_publications" . PHP_EOL;
+                }
+                mark_job_done($conn, $jobId);
+                echo "[" . date('Y-m-d H:i:s') . "] Job {$jobId} (fetch_orcid_publications) done" . PHP_EOL;
+                break;
+
             default:
                 throw new RuntimeException("Unknown job type: " . $job['job_type']);
         }
@@ -303,6 +317,95 @@ function mark_job_failed(mysqli $conn, int $id, string $error, int $attempts, in
             "UPDATE job_queue SET status='pending', last_error='{$error}', locked_at=NULL,
              run_after=DATE_ADD(NOW(), INTERVAL {$backoff} SECOND), updated_at=NOW() WHERE id={$id}"
         );
+    }
+}
+
+// ── ORCID Publication Fetcher ──
+
+function fetch_orcid_publications(mysqli $conn, int $researcherId, string $orcidId): void {
+    try {
+        // Normalize ORCID (remove URL prefix if present)
+        $orcid = preg_replace('#https?://orcid\.org/#', '', trim($orcidId));
+        if (!preg_match('#^\d{4}-\d{4}-\d{4}-\d{3}[0-9X]$#', $orcid)) {
+            echo "[WARN] Invalid ORCID format: {$orcidId}" . PHP_EOL;
+            return;
+        }
+
+        // Fetch from ORCID API (public endpoint, no auth needed)
+        $url = "https://pub.orcid.org/v3.0/{$orcid}/works";
+        $ctx = stream_context_create([
+            'http' => ['timeout' => 10, 'user_agent' => 'FACT-Hub/1.0']
+        ]);
+        $json = @file_get_contents($url, false, $ctx);
+        if (!$json) {
+            echo "[WARN] Failed to fetch ORCID profile {$orcid}" . PHP_EOL;
+            return;
+        }
+
+        $data = json_decode($json, true);
+        if (!$data || empty($data['group'])) {
+            echo "[INFO] No works found for {$orcid}" . PHP_EOL;
+            return;
+        }
+
+        // Clear old publications for this researcher
+        $delStmt = $conn->prepare('DELETE FROM researcher_publications WHERE researcher_id = ?');
+        $delStmt->bind_param('i', $researcherId);
+        $delStmt->execute();
+
+        // Insert new publications
+        $insStmt = $conn->prepare(
+            'INSERT INTO researcher_publications
+             (researcher_id, orcid_id, title, publication_year, journal_name, doi, url, citation_count)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+
+        $count = 0;
+        foreach ($data['group'] as $group) {
+            $work = $group['work-summary'][0] ?? null;
+            if (!$work) continue;
+
+            $title = $work['title']['title']['value'] ?? '';
+            $year = (int)($work['publication-date']['year']['value'] ?? 0);
+            $doi = '';
+            $url = '';
+            $journal = '';
+            $citations = 0;
+
+            // Extract DOI and URL
+            if (!empty($work['external-ids']['external-id'])) {
+                foreach ($work['external-ids']['external-id'] as $extId) {
+                    if ($extId['external-id-type'] === 'doi') {
+                        $doi = $extId['external-id-value'] ?? '';
+                    }
+                }
+            }
+
+            // Get URL
+            if (!empty($work['url'])) {
+                $url = $work['url']['value'] ?? '';
+            }
+
+            // Get journal name
+            if (!empty($work['journal-title'])) {
+                $journal = $work['journal-title']['value'] ?? '';
+            }
+
+            if (!$title) continue;
+
+            $insStmt->bind_param(
+                'isssissi',
+                $researcherId, $orcid, $title, $year,
+                $journal, $doi, $url, $citations
+            );
+            $insStmt->execute();
+            $count++;
+        }
+
+        echo "[OK] Fetched {$count} publications for researcher {$researcherId}" . PHP_EOL;
+
+    } catch (Throwable $e) {
+        echo "[ERROR] ORCID fetch failed: " . $e->getMessage() . PHP_EOL;
     }
 }
 ?>

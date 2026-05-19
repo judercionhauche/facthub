@@ -553,6 +553,29 @@ function apply_security_schema_updates(mysqli $conn): void {
         @$conn->query("ALTER TABLE messages ADD COLUMN funding_call_id INT DEFAULT 0");
         @$conn->query("ALTER TABLE messages ADD COLUMN funding_call_title VARCHAR(255) DEFAULT NULL");
     }
+
+    // Create researcher_publications table for ORCID publications
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='researcher_publications' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS researcher_publications (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                researcher_id INT NOT NULL,
+                orcid_id VARCHAR(50) NOT NULL,
+                title VARCHAR(500) NOT NULL,
+                publication_year INT,
+                journal_name VARCHAR(255),
+                doi VARCHAR(255),
+                url VARCHAR(500),
+                citation_count INT DEFAULT 0,
+                fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_researcher (researcher_id),
+                INDEX idx_orcid (orcid_id),
+                INDEX idx_year (publication_year),
+                FOREIGN KEY (researcher_id) REFERENCES researchers(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
     } catch (Throwable $e) {
         error_log('[Schema Migration] Error: ' . $e->getMessage());
         // Continue anyway - some tables may not exist yet

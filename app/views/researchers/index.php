@@ -191,6 +191,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $newResearcherId = $conn->insert_id;
                     generate_researcher_summary($conn, $newResearcherId);
 
+                    // Enqueue ORCID publication fetch if provided
+                    if ($orcidId) {
+                        enqueue_job($conn, 'fetch_orcid_publications', ['researcher_id' => $newResearcherId, 'orcid_id' => $orcidId]);
+                    }
+
                     // Enqueue verification email
                     @$mailCfg = require __DIR__ . '/../../../config/mail.php';
                     if (!is_array($mailCfg)) $mailCfg = [];
@@ -215,6 +220,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->bind_param('sssssssssssisssssii', $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $id);
                 if (!$stmt->execute()) throw new Exception('Error updating profile: ' . $stmt->error);
                 enqueue_job($conn, 'generate_summary', ['entity_type' => 'researcher', 'entity_id' => $id]);
+                if ($orcidId) {
+                    enqueue_job($conn, 'fetch_orcid_publications', ['researcher_id' => $id, 'orcid_id' => $orcidId]);
+                }
                 set_flash('success', 'Researcher updated.');
             }
             // ADMIN ADDING RESEARCHER

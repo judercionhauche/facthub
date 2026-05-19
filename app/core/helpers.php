@@ -174,7 +174,7 @@ function ensure_tags($conn, $csv, $type) {
 }
 
 function enqueue_job(mysqli $conn, string $jobType, array $payload, int $delaySec = 0): int {
-    $allowed = ['compute_matches','generate_summary','send_notification','send_digest','check_balance'];
+    $allowed = ['compute_matches','generate_summary','send_notification','send_digest','check_balance','fetch_orcid_publications'];
     if (!in_array($jobType, $allowed, true)) {
         error_log('[enqueue_job] Invalid job type: ' . $jobType);
         return 0;
