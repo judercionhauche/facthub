@@ -271,7 +271,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 audit($conn, 'add_researcher', ['type' => 'researcher', 'id' => $newResearcherId, 'email' => $email]);
                 set_flash('success', 'Researcher added.' . ($userId ? ' A verification email has been sent.' : ''));
             }
-            redirect_to('researchers');
+            // Only redirect if no registration error (form will render inline with error if there is one)
+            if (!$registrationError) {
+                redirect_to('researchers');
+            }
         } catch (Throwable $e) {
             error_log('[Researcher Registration Error] ' . $e->getMessage());
             if ($isNewRegistration) {
