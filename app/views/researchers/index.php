@@ -18,6 +18,9 @@ $FACT_CATEGORIES = [
 ];
 
 /* ── POST handler ─────────────────────────────────────────────────── */
+$registrationError = null;
+$registrationFormData = null;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
@@ -73,9 +76,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $googleScholarUrl = trim($_POST['google_scholar_url'] ?? '');
             $notifyMatches    = isset($_POST['notify_matches']) ? 1 : 0;
 
-            // Helper function to save form data and redirect with error
-            $saveFormDataAndError = function($errorMsg) use ($first, $last, $email, $institution, $department, $title, $bio, $focusAreaArr, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $isNewRegistration) {
-                $_SESSION['form_data'] = [
+            // For registration errors, store form data and error to show form inline
+            $storeFormDataForRegistrationError = function($errorMsg) use ($first, $last, $email, $institution, $department, $title, $bio, $focusAreaArr, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches) {
+                global $registrationError, $registrationFormData;
+                $registrationError = $errorMsg;
+                $registrationFormData = [
                     'first_name' => $first,
                     'last_name' => $last,
                     'email' => $email,
@@ -83,7 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'department' => $department,
                     'title' => $title,
                     'bio' => $bio,
-                    'focus_area' => implode('|', $focusAreaArr), // Convert array back to pipe-separated
+                    'focus_area' => $focusAreaArr,
                     'focus_area_detail' => $focusDetail,
                     'topics' => $topics,
                     'geography' => $geography,
@@ -95,21 +100,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'google_scholar_url' => $googleScholarUrl,
                     'notify_matches' => $notifyMatches
                 ];
-                set_flash('error', $errorMsg);
-                redirect_to('researchers', ['mode' => $isNewRegistration ? 'add' : null]);
+                return true; // Signal to continue without registering
             };
 
-            if ($first === '' || $last === '') {
-                $saveFormDataAndError('First and last name are required.');
-            }
-            if ($institution === '') {
-                $saveFormDataAndError('Institution is required.');
-            }
-            if (strlen($geography) > 500) {
-                $saveFormDataAndError('Geographic focus cannot exceed 500 characters. Currently: ' . strlen($geography) . ' characters.');
-            }
-            if (strlen($topics) > 500) {
-                $saveFormDataAndError('Topics cannot exceed 500 characters. Currently: ' . strlen($topics) . ' characters.');
+            // Validation for registration only
+            if ($isNewRegistration) {
+                if ($first === '' || $last === '') {
+                    $storeFormDataForRegistrationError('First and last name are required.');
+                }
+                if ($institution === '') {
+                    $storeFormDataForRegistrationError('Institution is required.');
+                }
+                if (strlen($geography) > 500) {
+                    $storeFormDataForRegistrationError('Geographic focus cannot exceed 500 characters. Currently: ' . strlen($geography) . ' characters.');
+                }
+                if (strlen($topics) > 500) {
+                    $storeFormDataForRegistrationError('Topics cannot exceed 500 characters. Currently: ' . strlen($topics) . ' characters.');
+                }
             }
 
             // NEW REGISTRATION: create user account + researcher profile
@@ -118,81 +125,86 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $confirmPassword = $_POST['confirm_password'] ?? '';
 
                 if ($password === '' || $confirmPassword === '') {
-                    $saveFormDataAndError('Password is required.');
+                    $storeFormDataForRegistrationError('Password is required.');
                 }
-                if ($password !== $confirmPassword) {
-                    $saveFormDataAndError('Passwords do not match.');
+                if (!$registrationError && $password !== $confirmPassword) {
+                    $storeFormDataForRegistrationError('Passwords do not match.');
                 }
-                if (strlen($password) < 8) {
-                    $saveFormDataAndError('Password must be at least 8 characters.');
+                if (!$registrationError && strlen($password) < 8) {
+                    $storeFormDataForRegistrationError('Password must be at least 8 characters.');
                 }
-                if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                    $saveFormDataAndError('Please enter a valid email address.');
+                if (!$registrationError && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $storeFormDataForRegistrationError('Please enter a valid email address.');
                 }
 
                 // Check if user already exists
-                $checkUser = $conn->prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)');
-                if (!$checkUser) throw new Exception('Prepare check email failed: ' . $conn->error);
-                $checkUser->bind_param('s', $email);
-                if (!$checkUser->execute()) throw new Exception('Error checking email: ' . $checkUser->error);
-                if ($checkUser->get_result()->num_rows > 0) {
-                    $saveFormDataAndError('This email is already registered.');
+                if (!$registrationError) {
+                    $checkUser = $conn->prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?)');
+                    if (!$checkUser) throw new Exception('Prepare check email failed: ' . $conn->error);
+                    $checkUser->bind_param('s', $email);
+                    if (!$checkUser->execute()) throw new Exception('Error checking email: ' . $checkUser->error);
+                    if ($checkUser->get_result()->num_rows > 0) {
+                        $storeFormDataForRegistrationError('This email is already registered.');
+                    }
                 }
 
-                // Create user account
-                $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-                $userStmt = $conn->prepare('INSERT INTO users (email, password, name, role, status) VALUES (?, ?, ?, ?, ?)');
-                if (!$userStmt) throw new Exception('Prepare user failed: ' . $conn->error);
-                $role = 'researcher';
-                $status = 'unverified';
-                $fullName = trim("$first $last");
-                $userStmt->bind_param('sssss', $email, $passwordHash, $fullName, $role, $status);
-                if (!$userStmt->execute()) {
-                    throw new Exception('Error creating account: ' . $userStmt->error);
+                // Only proceed with user creation if no validation errors
+                if (!$registrationError) {
+                    // Create user account
+                    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+                    $userStmt = $conn->prepare('INSERT INTO users (email, password, name, role, status) VALUES (?, ?, ?, ?, ?)');
+                    if (!$userStmt) throw new Exception('Prepare user failed: ' . $conn->error);
+                    $role = 'researcher';
+                    $status = 'unverified';
+                    $fullName = trim("$first $last");
+                    $userStmt->bind_param('sssss', $email, $passwordHash, $fullName, $role, $status);
+                    if (!$userStmt->execute()) {
+                        throw new Exception('Error creating account: ' . $userStmt->error);
+                    }
+                    $userId = $conn->insert_id;
+
+                    // Create email verification token
+                    $token = bin2hex(random_bytes(32));
+                    $expiresAt = date('Y-m-d H:i:s', time() + 86400);
+                    $evStmt = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)');
+                    if (!$evStmt) throw new Exception('Prepare email_verifications failed: ' . $conn->error);
+                    $evStmt->bind_param('sss', $email, $token, $expiresAt);
+                    if (!$evStmt->execute()) {
+                        throw new Exception('Error creating verification token: ' . $evStmt->error);
+                    }
+
+                    // Create researcher profile linked to user
+                    ensure_tags($conn, $topics, 'topic');
+                    ensure_tags($conn, $geography, 'geography');
+
+                    $stmt = $conn->prepare('INSERT INTO researchers (user_id, first_name, last_name, email, institution, department, title, bio, focus_area, focus_area_detail, topics, geography, co_advising, co_advising_details, profile_url, website_url, orcid_id, google_scholar_url, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                    if (!$stmt) throw new Exception('Prepare researchers failed: ' . $conn->error);
+                    $status_researcher = 'active';
+                    $stmt->bind_param('isssssssssssissssss', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher);
+                    if (!$stmt->execute()) {
+                        throw new Exception('Error creating researcher profile: ' . $stmt->error);
+                    }
+
+                    // Generate AI summary immediately
+                    $newResearcherId = $conn->insert_id;
+                    generate_researcher_summary($conn, $newResearcherId);
+
+                    // Enqueue verification email
+                    @$mailCfg = require __DIR__ . '/../../../config/mail.php';
+                    if (!is_array($mailCfg)) $mailCfg = [];
+                    $appUrl = rtrim($mailCfg['app_url'] ?? ('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')), '/');
+                    $verifyUrl = $appUrl . '/index.php?page=verify&token=' . urlencode($token);
+                    $html = mail_tpl_verify_email($verifyUrl, $first);
+                    enqueue_job($conn, 'send_notification', [
+                        'to' => $email,
+                        'subject' => 'Verify your FACT Alliance Hub account',
+                        'html' => $html
+                    ]);
+
+                    audit($conn, 'researcher_signup', ['type' => 'user', 'id' => $userId, 'email' => $email, 'detail' => "New researcher registration: $fullName"]);
+                    set_flash('success', 'Account created! Check your email to verify your account.');
+                    redirect_to('verify', ['e' => $email, 'pending' => '1']);
                 }
-                $userId = $conn->insert_id;
-
-                // Create email verification token
-                $token = bin2hex(random_bytes(32));
-                $expiresAt = date('Y-m-d H:i:s', time() + 86400);
-                $evStmt = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)');
-                if (!$evStmt) throw new Exception('Prepare email_verifications failed: ' . $conn->error);
-                $evStmt->bind_param('sss', $email, $token, $expiresAt);
-                if (!$evStmt->execute()) {
-                    throw new Exception('Error creating verification token: ' . $evStmt->error);
-                }
-
-                // Create researcher profile linked to user
-                ensure_tags($conn, $topics, 'topic');
-                ensure_tags($conn, $geography, 'geography');
-
-                $stmt = $conn->prepare('INSERT INTO researchers (user_id, first_name, last_name, email, institution, department, title, bio, focus_area, focus_area_detail, topics, geography, co_advising, co_advising_details, profile_url, website_url, orcid_id, google_scholar_url, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-                if (!$stmt) throw new Exception('Prepare researchers failed: ' . $conn->error);
-                $status_researcher = 'active';
-                $stmt->bind_param('isssssssssssissssss', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher);
-                if (!$stmt->execute()) {
-                    throw new Exception('Error creating researcher profile: ' . $stmt->error);
-                }
-
-                // Generate AI summary immediately
-                $newResearcherId = $conn->insert_id;
-                generate_researcher_summary($conn, $newResearcherId);
-
-                // Enqueue verification email
-                @$mailCfg = require __DIR__ . '/../../../config/mail.php';
-                if (!is_array($mailCfg)) $mailCfg = [];
-                $appUrl = rtrim($mailCfg['app_url'] ?? ('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')), '/');
-                $verifyUrl = $appUrl . '/index.php?page=verify&token=' . urlencode($token);
-                $html = mail_tpl_verify_email($verifyUrl, $first);
-                enqueue_job($conn, 'send_notification', [
-                    'to' => $email,
-                    'subject' => 'Verify your FACT Alliance Hub account',
-                    'html' => $html
-                ]);
-
-                audit($conn, 'researcher_signup', ['type' => 'user', 'id' => $userId, 'email' => $email, 'detail' => "New researcher registration: $fullName"]);
-                set_flash('success', 'Account created! Check your email to verify your account.');
-                redirect_to('verify', ['e' => $email, 'pending' => '1']);
             }
             // EXISTING RESEARCHER: update profile
             else if ($id > 0) {
@@ -261,30 +273,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Throwable $e) {
             error_log('[Researcher Registration Error] ' . $e->getMessage());
             if ($isNewRegistration) {
-                // Preserve form data on registration errors
-                $_SESSION['form_data'] = [
-                    'first_name' => $first,
-                    'last_name' => $last,
-                    'email' => $email,
-                    'institution' => $institution,
-                    'department' => $department,
-                    'title' => $title,
-                    'bio' => $bio,
-                    'focus_area' => implode('|', $focusAreaArr),
-                    'focus_area_detail' => $focusDetail,
-                    'topics' => $topics,
-                    'geography' => $geography,
-                    'co_advising' => $coAdvising,
-                    'co_advising_details' => $coDetails,
-                    'profile_url' => $profileUrl,
-                    'website_url' => $websiteUrl,
-                    'orcid_id' => $orcidId,
-                    'google_scholar_url' => $googleScholarUrl,
-                    'notify_matches' => $notifyMatches
+                // Store error and form data to show form inline
+                if (!isset($first)) $first = $_POST['first_name'] ?? '';
+                if (!isset($focusAreaArr)) $focusAreaArr = array_values(array_filter(array_map('trim', (array)($_POST['focus_area'] ?? []))));
+                $registrationError = 'Registration error: ' . $e->getMessage();
+                $registrationFormData = [
+                    'first_name' => $first ?? '',
+                    'last_name' => $_POST['last_name'] ?? '',
+                    'email' => $_POST['email'] ?? '',
+                    'institution' => $_POST['institution'] ?? '',
+                    'department' => $_POST['department'] ?? '',
+                    'title' => $_POST['title'] ?? '',
+                    'bio' => $_POST['bio'] ?? '',
+                    'focus_area' => $focusAreaArr ?? [],
+                    'focus_area_detail' => $_POST['focus_area_detail'] ?? '',
+                    'topics' => $_POST['topics'] ?? '',
+                    'geography' => $_POST['geography'] ?? '',
+                    'co_advising' => isset($_POST['co_advising']) ? 1 : 0,
+                    'co_advising_details' => $_POST['co_advising_details'] ?? '',
+                    'profile_url' => $_POST['profile_url'] ?? '',
+                    'website_url' => $_POST['website_url'] ?? '',
+                    'orcid_id' => $_POST['orcid_id'] ?? '',
+                    'google_scholar_url' => $_POST['google_scholar_url'] ?? '',
+                    'notify_matches' => isset($_POST['notify_matches']) ? 1 : 0
                 ];
+            } else {
+                set_flash('error', 'Error: ' . $e->getMessage());
+                redirect_to('researchers');
             }
-            set_flash('error', 'Registration error: ' . $e->getMessage());
-            redirect_to('researchers', ['mode' => ($isNewRegistration ? 'add' : null)]);
         }
     }
 
@@ -389,9 +405,14 @@ if ($editId > 0) {
     }
 }
 
+// Use form data from POST + inline error (registration validation failure)
+if (!$editing && $registrationFormData) {
+    $editing = $registrationFormData;
+    $mode = 'add'; // Ensure we show registration form
+}
 // Use form data from session error if available (keeps data on validation errors)
 // This is different from editing an existing profile
-if (!$editing && isset($_SESSION['form_data'])) {
+else if (!$editing && isset($_SESSION['form_data'])) {
     $editing = $_SESSION['form_data'];
     unset($_SESSION['form_data']); // Clear after use
 }
@@ -535,8 +556,21 @@ if (!is_admin()) {
 <!-- ── Edit/Registration form ────────────────────────────────────── -->
 <?php if ($mode === 'add' || $editing): ?>
 <?php
-$selectedCats   = array_values(array_filter(array_map('trim', explode('|', $editing['focus_area'] ?? ''))));
-$selectedSubcats = array_values(array_filter(array_map('trim', explode(',', $editing['focus_area_detail'] ?? ''))));
+// Handle focus_area as either array (from POST) or string (from DB)
+$focusAreaRaw = $editing['focus_area'] ?? '';
+if (is_array($focusAreaRaw)) {
+    $selectedCats = $focusAreaRaw;
+} else {
+    $selectedCats = array_values(array_filter(array_map('trim', explode('|', $focusAreaRaw))));
+}
+
+// Handle focus_area_detail
+$focusDetailRaw = $editing['focus_area_detail'] ?? '';
+if (is_array($focusDetailRaw)) {
+    $selectedSubcats = $focusDetailRaw;
+} else {
+    $selectedSubcats = array_values(array_filter(array_map('trim', explode(',', $focusDetailRaw))));
+}
 ?>
 <div class="panel modalish">
     <h2><?php
@@ -544,6 +578,11 @@ $selectedSubcats = array_values(array_filter(array_map('trim', explode(',', $edi
         elseif ($mode === 'add' && !is_logged_in()) echo 'Register as Researcher';
         else echo 'Add Researcher';
     ?></h2>
+    <?php if ($registrationError): ?>
+    <div class="alert alert-error" style="margin-bottom:16px;background:#fff5f5;border-left:4px solid #b54646;padding:12px 16px;border-radius:6px;color:#5a2c2c">
+        <strong>Error:</strong> <?= h($registrationError) ?>
+    </div>
+    <?php endif; ?>
     <form method="post" class="form-grid two">
         <input type="hidden" name="action" value="save">
         <input type="hidden" name="id" value="<?= h($editing['id'] ?? '') ?>">
