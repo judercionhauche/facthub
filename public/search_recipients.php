@@ -68,7 +68,12 @@ $stmt = $conn->prepare(
 );
 
 $stmt->bind_param('sss', $user['email'], $searchTerm, $searchTerm);
-$stmt->execute();
+if (!$stmt->execute()) {
+    error_log('[search_recipients] Query error: ' . $stmt->error);
+    http_response_code(500);
+    echo json_encode(['error' => 'Query failed']);
+    exit;
+}
 $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 // Format response
