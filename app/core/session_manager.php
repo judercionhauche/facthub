@@ -13,11 +13,11 @@
 function init_session(): void {
     if (PHP_SAPI !== 'cli' && session_status() === PHP_SESSION_NONE) {
         session_set_cookie_params([
-            'lifetime' => 0,        // Browser cookie (expires when browser closes)
-            'path'     => '/',      // Available on entire domain
-            'secure'   => false,    // Set to true in production with HTTPS
-            'httponly' => true,     // Prevent JavaScript access
-            'samesite' => 'Strict', // CSRF protection
+            'lifetime' => 0,       // Browser cookie (expires when browser closes)
+            'path'     => '/',     // Available on entire domain
+            'secure'   => false,   // Set to true in production with HTTPS
+            'httponly' => true,    // Prevent JavaScript access
+            'samesite' => 'Lax',   // Allow same-site AJAX requests (Strict breaks fetch)
         ]);
         session_start();
     }
