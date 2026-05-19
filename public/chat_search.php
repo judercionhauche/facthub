@@ -424,6 +424,16 @@ $rJson = [];
 foreach ($rForResponse as $item) {
     $r = $item['r'];
     $name = trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
+
+    // Fetch researcher's publications
+    $pubStmt = $conn->prepare(
+        'SELECT title, publication_year, journal_name FROM researcher_publications
+         WHERE researcher_id = ? ORDER BY publication_year DESC LIMIT 5'
+    );
+    $pubStmt->bind_param('i', $r['id']);
+    $pubStmt->execute();
+    $publications = $pubStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
     $rJson[] = [
         'id' => (int)$r['id'],
         'entity_type' => 'researcher',
@@ -431,6 +441,11 @@ foreach ($rForResponse as $item) {
         'institution' => h($r['institution'] ?? ''),
         'topics' => parse_tags($r['topics'] ?? ''),
         'geography' => parse_tags($r['geography'] ?? ''),
+        'publications' => array_map(fn($p) => [
+            'title' => h($p['title'] ?? ''),
+            'year' => (int)($p['publication_year'] ?? 0),
+            'journal' => h($p['journal_name'] ?? '')
+        ], $publications),
         'destination_url' => getEntityUrl('researcher', (int)$r['id']),
     ];
 }
@@ -514,6 +529,19 @@ $resultsSummary .= "\nResearchers (" . count($rResults) . " total):\n";
 foreach ($topN as $item) {
     $r = $item['r'];
     $resultsSummary .= "- " . trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? 'Unknown')) . " (" . ($r['institution'] ?? 'Unknown') . ")\n";
+
+    // Include recent publications if available
+    $pubStmt = $conn->prepare(
+        'SELECT title FROM researcher_publications WHERE researcher_id = ? ORDER BY publication_year DESC LIMIT 2'
+    );
+    $pubStmt->bind_param('i', $r['id']);
+    $pubStmt->execute();
+    $pubs = $pubStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    if (!empty($pubs)) {
+        foreach ($pubs as $pub) {
+            $resultsSummary .= "  • " . ($pub['title'] ?? '') . "\n";
+        }
+    }
 }
 if (count($rResults) > 3) $resultsSummary .= "- ... and " . (count($rResults) - 3) . " more\n";
 
