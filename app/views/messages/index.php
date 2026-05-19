@@ -1,6 +1,43 @@
 <?php
+/* ── Email link token verification (before require_login) ─── */
+$emailLinkFor    = strtolower(trim($_GET['for'] ?? ''));
+$emailLinkToken  = trim($_GET['mt'] ?? '');
+$emailLinkThread = (int)($_GET['thread'] ?? 0);
+$emailLinkWrongUser = false;
+
+if ($emailLinkFor && $emailLinkToken && $emailLinkThread) {
+    @$_mcfg = require __DIR__ . '/../../../config/mail.php';
+    $notifySecret = is_array($_mcfg) ? ($_mcfg['notify_secret'] ?? '') : '';
+    $tokenValid = $notifySecret && hash_equals(
+        generate_message_link_token($emailLinkFor, $emailLinkThread, $notifySecret),
+        $emailLinkToken
+    );
+    if ($tokenValid) {
+        if (!is_logged_in()) {
+            init_session();
+            $_SESSION['login_return'] = http_build_query($_GET);
+            redirect_to('login');
+        } elseif (strtolower($_SESSION['user_email'] ?? '') !== $emailLinkFor) {
+            $emailLinkWrongUser = true;
+        }
+    }
+}
+
 require_login();
 $user = current_user();
+
+// Check if user accessed via email link for wrong account
+if ($emailLinkWrongUser) {
+    ?>
+    <div style="max-width:600px;margin:50px auto;padding:20px;border:1px solid #e0e0e0;border-radius:6px;">
+        <h2 style="color:#b54646;">Wrong Account</h2>
+        <p>This message link was sent to a different email address. You are currently logged in as <strong><?= h($user['email']) ?></strong>.</p>
+        <p>Please log out and log back in with the account that received the email, or ask the sender to resend the link to your current email.</p>
+        <a href="index.php?page=logout" style="display:inline-block;margin-top:10px;padding:10px 20px;background:#333;color:#fff;text-decoration:none;border-radius:4px;">Log Out</a>
+    </div>
+    <?php
+    exit;
+}
 
 /* ── POST ACTIONS ─────────────────────────────────────────────────── */
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -50,10 +87,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $mailCfg   = require __DIR__ . '/../../../config/mail.php';
         $appUrl    = rtrim($mailCfg['app_url'] ?? ('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . dirname($_SERVER['REQUEST_URI']) . '/public'), '/');
-        $threadUrl = $appUrl . '/index.php?page=messages&tab=inbox&thread=' . $msgId;
 
         if ($recipientType === 'individual' && $recipientEmail !== '') {
-            // Individual — one email with deep thread link
+            // Individual — one email with deep thread link + token
+            $notifySecret = $mailCfg['notify_secret'] ?? '';
+            $token = $notifySecret
+                ? generate_message_link_token($recipientEmail, $msgId, $notifySecret)
+                : '';
+            $threadUrl = $appUrl . '/index.php?page=messages&tab=inbox&thread=' . $msgId
+                . ($token ? '&for=' . urlencode($recipientEmail) . '&mt=' . $token : '');
             send_notification_email(
                 $recipientEmail,
                 "New message from {$senderName}: {$subject}",
@@ -62,7 +104,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $senderName
             );
         } elseif ($recipientType === 'network') {
-            // Network broadcast — email every active user except the sender
+            // Network broadcast — email every active user except the sender (no token)
+            $threadUrl = $appUrl . '/index.php?page=messages&tab=inbox&thread=' . $msgId;
             $bq = $conn->prepare("SELECT name, email FROM users WHERE status = 'active' AND deleted_at IS NULL AND email != '' AND email IS NOT NULL AND email != ?");
             $bq->bind_param('s', $senderEmail); $bq->execute();
             $bqResult = $bq->get_result();
@@ -141,11 +184,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
         $stmt->execute();
 
-        // Email notification with deep link to the thread
+        // Email notification with deep link to the thread + token
         if ($replyToEmail) {
             $mailCfg   = require __DIR__ . '/../../../config/mail.php';
             $appUrl    = rtrim($mailCfg['app_url'] ?? ('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . dirname($_SERVER['REQUEST_URI']) . '/public'), '/');
-            $threadUrl = $appUrl . '/index.php?page=messages&tab=inbox&thread=' . $threadId;
+            $notifySecret = $mailCfg['notify_secret'] ?? '';
+            $token = $notifySecret
+                ? generate_message_link_token($replyToEmail, $threadId, $notifySecret)
+                : '';
+            $threadUrl = $appUrl . '/index.php?page=messages&tab=inbox&thread=' . $threadId
+                . ($token ? '&for=' . urlencode($replyToEmail) . '&mt=' . $token : '');
             send_notification_email(
                 $replyToEmail,
                 "{$senderName} replied: {$replySubject}",

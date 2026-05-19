@@ -180,6 +180,10 @@ function generate_unsubscribe_token(string $email, string $secret): string {
     return bin2hex(hash_hmac('sha256', strtolower(trim($email)), $secret, true));
 }
 
+function generate_message_link_token(string $email, int $threadId, string $secret): string {
+    return bin2hex(hash_hmac('sha256', strtolower(trim($email)) . ':' . $threadId, $secret, true));
+}
+
 function send_bulk_notifications(array $messages): void {
     if (empty($messages)) return;
     static $cfg = null;

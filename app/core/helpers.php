@@ -28,8 +28,11 @@ function is_logged_in() {
 
 function require_login() {
     if (!is_logged_in()) {
-        header('Location: index.php?page=login');
-        exit;
+        init_session();
+        if (!empty($_SERVER['QUERY_STRING'])) {
+            $_SESSION['login_return'] = $_SERVER['QUERY_STRING'];
+        }
+        redirect_to('login');
     }
 }
 
