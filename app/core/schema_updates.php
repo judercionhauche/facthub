@@ -166,11 +166,20 @@ function apply_security_schema_updates(mysqli $conn): void {
     }
 
     // Add notify_matches and profile columns to researchers if missing
-    $researchersProfileCols = ['notify_matches' => 'TINYINT DEFAULT 1', 'focus_area' => 'VARCHAR(255)', 'focus_area_detail' => 'VARCHAR(255)', 'co_advising' => 'TINYINT DEFAULT 0', 'co_advising_details' => 'VARCHAR(255)'];
+    $researchersProfileCols = ['notify_matches' => 'TINYINT DEFAULT 1', 'focus_area' => 'VARCHAR(255)', 'focus_area_detail' => 'VARCHAR(1000)', 'co_advising' => 'TINYINT DEFAULT 0', 'co_advising_details' => 'VARCHAR(255)'];
     foreach ($researchersProfileCols as $col => $type) {
         $res = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='researchers' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
         if (!$res || $res->num_rows === 0) {
             @$conn->query("ALTER TABLE researchers ADD COLUMN $col $type DEFAULT NULL");
+        }
+    }
+
+    // Increase focus_area_detail column size to accommodate longer descriptions
+    $res = @$conn->query("SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_NAME='researchers' AND COLUMN_NAME='focus_area_detail' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if ($res && ($row = $res->fetch_assoc())) {
+        $currentType = $row['COLUMN_TYPE'];
+        if ($currentType !== 'varchar(1000)' && $currentType !== 'text') {
+            @$conn->query("ALTER TABLE researchers MODIFY COLUMN focus_area_detail VARCHAR(1000)");
         }
     }
 
