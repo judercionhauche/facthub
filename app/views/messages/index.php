@@ -1147,39 +1147,21 @@ function undoTrashDelete(threadId) {
     }
 
     function refreshInbox() {
-        fetch('index.php?page=ping')
+        // Bypass browser cache with timestamp
+        fetch('index.php?page=ping&_t=' + Date.now())
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 var newCount = data.unread || 0;
+                // If unread count changed, immediately reload to ensure everything is in sync
                 if (lastUnreadCount !== newCount) {
+                    console.log('[Messages] Unread count changed from ' + lastUnreadCount + ' to ' + newCount + ' - reloading page');
                     lastUnreadCount = newCount;
-                    updateAllBadges(newCount);
-
-                    // If count changed significantly, refresh the inbox content
-                    var currentTab = document.querySelector('[data-current-tab]')?.getAttribute('data-current-tab') || 'inbox';
-                    if (currentTab === 'inbox') {
-                        var threadId = document.querySelector('[data-current-thread]')?.getAttribute('data-current-thread') || '0';
-                        var url = 'index.php?page=messages&tab=inbox';
-                        if (threadId !== '0') url += '&thread=' + threadId;
-
-                        fetch(url)
-                            .then(function (r) { return r.text(); })
-                            .then(function (html) {
-                                var parser = new DOMParser();
-                                var newDoc = parser.parseFromString(html, 'text/html');
-                                var newList = newDoc.querySelector('[data-inbox-list]');
-                                var oldList = document.querySelector('[data-inbox-list]');
-                                if (oldList && newList) {
-                                    oldList.innerHTML = newList.innerHTML;
-                                }
-                            })
-                            .catch(function () {});
-                    }
+                    location.reload();
                 }
             })
-            .catch(function () {});
+            .catch(function (err) { console.error('[Messages Polling Error]', err); });
     }
 
-    setInterval(refreshInbox, 3000); // Super fast 3-second polling for instant feedback
+    setInterval(refreshInbox, 2000); // Poll every 2 seconds for instant badge updates
 })();
 </script>
