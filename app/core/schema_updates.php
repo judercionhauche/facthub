@@ -405,20 +405,20 @@ function apply_security_schema_updates(mysqli $conn): void {
         ");
     } else {
         // Add missing columns if they don't exist
-        $cols = ['model' => 'VARCHAR(100) DEFAULT NULL', 'purpose' => 'VARCHAR(100) DEFAULT NULL', 'token_input' => 'INT DEFAULT 0',
-                 'token_output' => 'INT DEFAULT 0', 'duration_ms' => 'INT DEFAULT 0', 'status' => 'VARCHAR(50) DEFAULT NULL',
+        $cols = ['user_id' => 'INT DEFAULT NULL', 'model' => 'VARCHAR(100) DEFAULT NULL', 'purpose' => 'VARCHAR(100) DEFAULT NULL', 'token_input' => 'INT DEFAULT 0',
+                 'token_output' => 'INT DEFAULT 0', 'cost_usd' => 'DECIMAL(10,4) DEFAULT 0', 'duration_ms' => 'INT DEFAULT 0', 'status' => 'VARCHAR(50) DEFAULT NULL',
                  'error_code' => 'VARCHAR(100) DEFAULT NULL', 'triggered_by' => 'VARCHAR(255) DEFAULT NULL', 'endpoint' => 'VARCHAR(255) DEFAULT NULL',
-                 'method' => 'VARCHAR(10) DEFAULT NULL'];
+                 'method' => 'VARCHAR(10) DEFAULT NULL', 'tokens_used' => 'INT DEFAULT 0'];
         foreach ($cols as $col => $type) {
             $check = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='api_usage' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
             if (!$check || $check->num_rows === 0) {
                 @$conn->query("ALTER TABLE api_usage ADD COLUMN $col $type");
             }
         }
-        // Modify user_id to allow NULL if it doesn't already
+        // Modify columns to ensure they have defaults
         @$conn->query("ALTER TABLE api_usage MODIFY COLUMN user_id INT DEFAULT NULL");
-        // CRITICAL: Ensure endpoint has a default value to prevent "doesn't have a default value" errors
         @$conn->query("ALTER TABLE api_usage MODIFY COLUMN endpoint VARCHAR(255) DEFAULT NULL");
+        @$conn->query("ALTER TABLE api_usage MODIFY COLUMN cost_usd DECIMAL(10,4) DEFAULT 0");
     }
 
     // api_balances table
@@ -533,6 +533,9 @@ function apply_security_schema_updates(mysqli $conn): void {
                 UNIQUE KEY unique_session (session_key, user_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+    } else {
+        // Ensure turns column has DEFAULT NULL for existing tables
+        @$conn->query("ALTER TABLE search_sessions MODIFY COLUMN turns JSON DEFAULT NULL");
     }
 
     // Add funding_call_id and funding_call_title to messages table
