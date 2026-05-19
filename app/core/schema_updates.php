@@ -32,6 +32,23 @@ function apply_security_schema_updates(mysqli $conn): void {
         }
     }
 
+    // Add missing columns to email_verifications table
+    $tblCheck = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='email_verifications' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if ($tblCheck && $tblCheck->num_rows > 0) {
+        $emailVerifCols = [
+            'verified_at' => 'TIMESTAMP NULL DEFAULT NULL',
+            'resend_count' => 'INT DEFAULT 0',
+            'last_resent_at' => 'TIMESTAMP NULL DEFAULT NULL',
+            'used_at' => 'TIMESTAMP NULL DEFAULT NULL'
+        ];
+        foreach ($emailVerifCols as $col => $type) {
+            $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='email_verifications' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$result || $result->num_rows === 0) {
+                @$conn->query("ALTER TABLE email_verifications ADD COLUMN $col $type");
+            }
+        }
+    }
+
     // Create unsubscribe_tokens table if it doesn't exist
     $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='unsubscribe_tokens' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
     if (!$result || $result->num_rows === 0) {
