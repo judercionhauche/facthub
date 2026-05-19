@@ -1128,50 +1128,68 @@ function undoTrashDelete(threadId) {
     setTimeout(function () { dismissUndoToast(); }, 8000);
 })();
 
-/* Real-time unread count polling and inbox refresh (every 5 seconds) */
+/* Real-time unread count polling (every 5 seconds) - truly dynamic */
 (function () {
     var lastUnreadCount = <?= (int)$totalUnread ?>;
-    var refreshing = false;
+
+    function updateAllBadges(newCount) {
+        // Update Messages page badge
+        var pageBadge = document.querySelector('[data-unread-count]');
+        if (pageBadge) {
+            pageBadge.textContent = newCount + ' unread';
+            pageBadge.style.display = newCount > 0 ? 'inline-block' : 'none';
+        }
+
+        // Update header/nav badges
+        document.querySelectorAll('a[href*="page=messages"]').forEach(function (link) {
+            var existingBadge = link.querySelector('.badge');
+            if (!existingBadge && newCount > 0) {
+                existingBadge = document.createElement('span');
+                existingBadge.className = 'badge';
+                existingBadge.style.cssText = 'display:inline-block;margin-left:4px;background:#b54646;color:#fff;border-radius:999px;font-size:11px;font-weight:800;padding:2px 6px';
+                link.appendChild(existingBadge);
+            }
+            if (existingBadge) {
+                existingBadge.textContent = newCount;
+                existingBadge.style.display = newCount > 0 ? 'inline-block' : 'none';
+            }
+        });
+    }
 
     function refreshInbox() {
-        if (refreshing) return;
-        refreshing = true;
-        var currentTab = document.querySelector('[data-current-tab]')?.getAttribute('data-current-tab') || 'inbox';
-        var threadId = document.querySelector('[data-current-thread]')?.getAttribute('data-current-thread') || '0';
+        fetch('index.php?page=ping')
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var newCount = data.unread || 0;
+                if (lastUnreadCount !== newCount) {
+                    lastUnreadCount = newCount;
+                    updateAllBadges(newCount);
 
-        var url = 'index.php?page=messages&tab=' + encodeURIComponent(currentTab);
-        if (threadId !== '0') url += '&thread=' + encodeURIComponent(threadId);
+                    // If count changed significantly, refresh the inbox content
+                    var currentTab = document.querySelector('[data-current-tab]')?.getAttribute('data-current-tab') || 'inbox';
+                    if (currentTab === 'inbox') {
+                        var threadId = document.querySelector('[data-current-thread]')?.getAttribute('data-current-thread') || '0';
+                        var url = 'index.php?page=messages&tab=inbox';
+                        if (threadId !== '0') url += '&thread=' + threadId;
 
-        fetch(url)
-            .then(function (r) { return r.text(); })
-            .then(function (html) {
-                var parser = new DOMParser();
-                var newDoc = parser.parseFromString(html, 'text/html');
-                var newBadge = newDoc.querySelector('[data-unread-count]');
-                var oldBadge = document.querySelector('[data-unread-count]');
-
-                if (newBadge && oldBadge) {
-                    var newCount = parseInt(newBadge.textContent, 10);
-                    if (lastUnreadCount !== newCount) {
-                        lastUnreadCount = newCount;
-                        oldBadge.textContent = newBadge.textContent;
-                        oldBadge.style.display = newCount > 0 ? 'inline-block' : 'none';
-
-                        // Replace inbox content if on inbox tab
-                        if (currentTab === 'inbox') {
-                            var oldList = document.querySelector('[data-inbox-list]');
-                            var newList = newDoc.querySelector('[data-inbox-list]');
-                            if (oldList && newList) {
-                                oldList.innerHTML = newList.innerHTML;
-                            }
-                        }
+                        fetch(url)
+                            .then(function (r) { return r.text(); })
+                            .then(function (html) {
+                                var parser = new DOMParser();
+                                var newDoc = parser.parseFromString(html, 'text/html');
+                                var newList = newDoc.querySelector('[data-inbox-list]');
+                                var oldList = document.querySelector('[data-inbox-list]');
+                                if (oldList && newList) {
+                                    oldList.innerHTML = newList.innerHTML;
+                                }
+                            })
+                            .catch(function () {});
                     }
                 }
             })
-            .catch(function () {})
-            .finally(function () { refreshing = false; });
+            .catch(function () {});
     }
 
-    setInterval(refreshInbox, 5000);
+    setInterval(refreshInbox, 3000); // Super fast 3-second polling for instant feedback
 })();
 </script>
