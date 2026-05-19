@@ -14,7 +14,8 @@ if ($conn->connect_error) {
 }
 $conn->set_charset('utf8mb4');
 
-$user_email = 'juderciojosenhauche@gmail.com';
+// Allow specifying user email via ?user=email
+$user_email = $_GET['user'] ?? 'juderciojosenhauche@gmail.com';
 
 echo "<h2>MESSAGE COUNT DIAGNOSTICS</h2>";
 echo "<p>User: <strong>$user_email</strong></p>";
