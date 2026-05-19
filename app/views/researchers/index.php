@@ -81,6 +81,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     redirect_to('researchers');
                 }
             }
+            if ($institution === '') {
+                set_flash('error', 'Institution is required.');
+                if ($isNewRegistration) {
+                    redirect_to('researchers', ['mode' => 'add']);
+                } else {
+                    redirect_to('researchers');
+                }
+            }
             if (strlen($geography) > 500) {
                 set_flash('error', 'Geographic focus cannot exceed 500 characters. Currently: ' . strlen($geography) . ' characters.');
                 redirect_to('researchers', ['mode' => 'add']);
@@ -507,7 +515,7 @@ $selectedSubcats = array_values(array_filter(array_map('trim', explode(',', $edi
         </div>
         <?php endif; ?>
 
-        <div><label>Institution</label><input name="institution" value="<?= h($editing['institution'] ?? '') ?>"></div>
+        <div><label>Institution <span style="color:#b54646;font-weight:600">*</span></label><input name="institution" value="<?= h($editing['institution'] ?? '') ?>" required></div>
         <div><label>Department</label><input name="department" value="<?= h($editing['department'] ?? '') ?>"></div>
         <div><label>Title</label><input name="title" value="<?= h($editing['title'] ?? '') ?>"></div>
         <div class="span-2"><label>Bio</label><textarea name="bio"><?= h($editing['bio'] ?? '') ?></textarea></div>
