@@ -113,7 +113,7 @@ while ($running) {
     $rows = $conn->query("SELECT * FROM job_queue WHERE id IN ({$idList})")->fetch_all(MYSQLI_ASSOC);
 
     foreach ($rows as $job) {
-        dispatch_job($conn, $job);
+        dispatch_job($conn, $job, $appUrl);
     }
 
     if (function_exists('pcntl_signal_dispatch')) pcntl_signal_dispatch();
@@ -124,7 +124,7 @@ exit(0);
 
 // ── Job Dispatcher ──
 
-function dispatch_job(mysqli $conn, array $job): void {
+function dispatch_job(mysqli $conn, array $job, string $appUrl): void {
     $payload = json_decode($job['payload'], true) ?? [];
     $claude = new ClaudeService($conn, 'worker:' . $job['job_type']);
     $jobId = (int)$job['id'];
@@ -185,7 +185,7 @@ function dispatch_job(mysqli $conn, array $job): void {
                     $html = mail_tpl_match_notify(
                         $n['first_name'],
                         $n['title'],
-                        $n['funder'],
+                        $n['funder'] ?? '',
                         $n['deadline'] ?? '',
                         $n['status']   ?? '',
                         $n['amount']   ?? '',
