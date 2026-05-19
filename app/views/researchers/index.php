@@ -98,7 +98,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'website_url' => $websiteUrl,
                     'orcid_id' => $orcidId,
                     'google_scholar_url' => $googleScholarUrl,
-                    'notify_matches' => $notifyMatches
+                    'notify_matches' => $notifyMatches,
+                    'password' => $_POST['password'] ?? '',
+                    'confirm_password' => $_POST['confirm_password'] ?? ''
                 ];
                 return true; // Signal to continue without registering
             };
@@ -295,7 +297,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'website_url' => $_POST['website_url'] ?? '',
                     'orcid_id' => $_POST['orcid_id'] ?? '',
                     'google_scholar_url' => $_POST['google_scholar_url'] ?? '',
-                    'notify_matches' => isset($_POST['notify_matches']) ? 1 : 0
+                    'notify_matches' => isset($_POST['notify_matches']) ? 1 : 0,
+                    'password' => $_POST['password'] ?? '',
+                    'confirm_password' => $_POST['confirm_password'] ?? ''
                 ];
             } else {
                 set_flash('error', 'Error: ' . $e->getMessage());
@@ -594,10 +598,10 @@ if (is_array($focusDetailRaw)) {
         <div><label>Email<?= ($mode === 'add' && !$editing) ? ' *' : '' ?></label><input name="email" type="email" value="<?= h($editing['email'] ?? '') ?>"<?= ($mode === 'add' && !$editing) ? ' required' : '' ?>></div>
 
         <?php if ($mode === 'add' && !$isEditingExisting): ?>
-        <div><label>Password *</label><input name="password" type="password" id="reg-password" required placeholder="At least 8 characters"></div>
+        <div><label>Password *</label><input name="password" type="password" id="reg-password" value="<?= h($editing['password'] ?? '') ?>" required placeholder="At least 8 characters"></div>
         <div>
             <label>Confirm Password *</label>
-            <input name="confirm_password" type="password" id="reg-confirm-password" required placeholder="Re-enter your password">
+            <input name="confirm_password" type="password" id="reg-confirm-password" value="<?= h($editing['confirm_password'] ?? '') ?>" required placeholder="Re-enter your password">
             <div id="pwd-match-msg" style="font-size:13px;margin-top:4px;display:none"></div>
         </div>
         <?php endif; ?>
