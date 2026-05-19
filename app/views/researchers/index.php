@@ -378,9 +378,19 @@ $institutions = array_values(array_unique(array_filter(array_map(fn($r) => trim(
 sort($institutions);
 
 $editing = null;
-if ($editId > 0) foreach ($researchers as $r) if ((int)$r['id'] === $editId) $editing = $r;
+$isEditingExisting = false;
+if ($editId > 0) {
+    foreach ($researchers as $r) {
+        if ((int)$r['id'] === $editId) {
+            $editing = $r;
+            $isEditingExisting = true;
+            break;
+        }
+    }
+}
 
 // Use form data from session error if available (keeps data on validation errors)
+// This is different from editing an existing profile
 if (!$editing && isset($_SESSION['form_data'])) {
     $editing = $_SESSION['form_data'];
     unset($_SESSION['form_data']); // Clear after use
@@ -544,7 +554,7 @@ $selectedSubcats = array_values(array_filter(array_map('trim', explode(',', $edi
         <div><label>Last name *</label><input name="last_name" value="<?= h($editing['last_name'] ?? '') ?>" required></div>
         <div><label>Email<?= ($mode === 'add' && !$editing) ? ' *' : '' ?></label><input name="email" type="email" value="<?= h($editing['email'] ?? '') ?>"<?= ($mode === 'add' && !$editing) ? ' required' : '' ?>></div>
 
-        <?php if ($mode === 'add' && !$editing): ?>
+        <?php if ($mode === 'add' && !$isEditingExisting): ?>
         <div><label>Password *</label><input name="password" type="password" id="reg-password" required placeholder="At least 8 characters"></div>
         <div>
             <label>Confirm Password *</label>
