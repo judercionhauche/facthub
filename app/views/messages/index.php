@@ -332,6 +332,16 @@ if ($threadId > 0) {
     $mr->bind_param('is', $threadId, $user['email']); $mr->execute();
 }
 
+/* Fix orphaned messages: convert replies with deleted threads to root messages */
+/* This happens when a message is deleted but its replies still exist */
+@$conn->query(
+    "UPDATE messages m
+     SET m.thread_id = m.id, m.parent_id = NULL
+     WHERE m.thread_id != m.id
+       AND m.thread_id IS NOT NULL
+       AND NOT EXISTS (SELECT 1 FROM messages root WHERE root.id = m.thread_id)"
+);
+
 /* Inbox threads — root messages received by this user, with unread + reply counts */
 $inboxSql = "
     SELECT m.*,
