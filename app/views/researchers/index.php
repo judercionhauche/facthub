@@ -928,7 +928,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <a class="ghost-btn" href="index.php?page=researchers&edit=<?= (int)$r['id'] ?>"><?= $isOwnProfile && !is_admin() ? 'Edit my profile' : 'Edit' ?></a>
                     <?php endif; ?>
                     <?php if (is_admin()): ?>
-                        <form method="post" onsubmit="return confirm('Delete researcher?');"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$r['id'] ?>"><button class="danger-btn" type="submit">Delete</button></form>
+                        <form method="post" onsubmit="return confirm('Delete researcher?');"><input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$r['id'] ?>"><?= csrf_input() ?><button class="danger-btn" type="submit">Delete</button></form>
                     <?php endif; ?>
                 </div>
             </div>
