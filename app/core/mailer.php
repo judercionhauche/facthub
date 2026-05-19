@@ -37,7 +37,7 @@ function send_mail(string $to, string $subject, string $html, string $text = '',
     }
 
     try {
-        $fromEmail = validate_email_for_headers($cfg['from_email'] ?? 'noreply@localhost');
+        $fromEmail = validate_email_for_headers($cfg['smtp_from'] ?? $cfg['from_email'] ?? 'noreply@localhost');
         $to = validate_email_for_headers($to);
         if ($replyTo && $replyTo !== '') {
             $replyTo = validate_email_for_headers($replyTo);
@@ -49,7 +49,7 @@ function send_mail(string $to, string $subject, string $html, string $text = '',
         return false;
     }
     if (empty($fromName)) {
-        $fromName = $cfg['from_name'] ?? 'FACT Alliance Hub';
+        $fromName = $cfg['smtp_from_name'] ?? $cfg['from_name'] ?? 'FACT Alliance Hub';
     }
     $text = $text ?: strip_tags(str_replace(
         ['<br>', '<br/>', '<br />', '</p>', '</div>', '</h1>', '</h2>', '</h3>'],
