@@ -331,10 +331,14 @@ function fetch_orcid_publications(mysqli $conn, int $researcherId, string $orcid
             return;
         }
 
-        // Fetch from ORCID API (public endpoint, no auth needed)
+        // Fetch from ORCID API (request JSON explicitly)
         $url = "https://pub.orcid.org/v3.0/{$orcid}/works";
         $ctx = stream_context_create([
-            'http' => ['timeout' => 10, 'user_agent' => 'FACT-Hub/1.0']
+            'http' => [
+                'timeout' => 10,
+                'user_agent' => 'FACT-Hub/1.0',
+                'header' => "Accept: application/json\r\n"
+            ]
         ]);
         $json = @file_get_contents($url, false, $ctx);
         if (!$json) {

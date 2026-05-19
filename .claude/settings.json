@@ -155,7 +155,11 @@
       "Bash(sudo /Applications/XAMPP/xamppfiles/bin/mysql.server stop)",
       "Bash(sudo /Applications/XAMPP/xamppfiles/bin/mysql.server start)",
       "Bash(grep -A 5 \"LEFT JOIN messages root\" /var/www/html/facthub/app/views/messages/index.php 2>/dev/null || echo \"File not found or pattern not found\")",
-      "Read(//var/www/html/facthub/app/views/messages/**)"
+      "Read(//var/www/html/facthub/app/views/messages/**)",
+      "Bash(ssh -o StrictHostKeyChecking=no ubuntu@54.221.189.212 'mysql -u fact_user -pBrandeis2024 fact_hub2 -e \"SELECT id, job_type, status, attempts, created_at FROM job_queue WHERE job_type = '\\\\''fetch_orcid_publications'\\\\'' ORDER BY created_at DESC LIMIT 10;\"')",
+      "Bash(chmod +x /tmp/check_jobs.sh)",
+      "Bash(chmod +x /tmp/verify_code.sh)",
+      "Bash(bash /tmp/verify_code.sh)"
     ],
     "additionalDirectories": [
       "/tmp"
