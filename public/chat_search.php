@@ -649,12 +649,6 @@ $stmt = $conn->prepare('UPDATE search_sessions SET turns = ?, updated_at = NOW()
 $stmt->bind_param('ssi', $historyJson, $sessionKey, $userId);
 $stmt->execute();
 
-// ── Log search (optional — skip if table missing) ──
-@$conn->query("INSERT INTO search_logs (user_id, search_query, filters, results_count) VALUES ("
-    . (int)$userId . ", '" . $conn->real_escape_string($q) . "', '"
-    . $conn->real_escape_string(json_encode(['topics' => $topicFilters, 'geos' => $geoFilters, 'fallback' => $fallback]))
-    . "', " . (count($fcResults) + count($rResults)) . ")");
-
 // ── Send done event ──
 sseEvent(['t' => 'done', 'sk' => $sessionKey]);
 ?>
