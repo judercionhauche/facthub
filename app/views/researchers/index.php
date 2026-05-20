@@ -435,9 +435,9 @@ else if (!$editing && isset($_SESSION['form_data'])) {
 $viewing = null;
 if ($viewId > 0) foreach ($researchers as $r) if ((int)$r['id'] === $viewId) $viewing = $r;
 
-// Top funding matches for viewing panel
+// Top funding matches for viewing panel (only show if user is approved)
 $topFundingMatches = [];
-if ($viewing) {
+if ($viewing && is_approved()) {
     // Try with deleted_at column first, fall back if it doesn't exist
     $tfStmt = @$conn->prepare(
         'SELECT ms.score_ai, ms.score_keyword, ms.explanation,
@@ -473,10 +473,10 @@ if ($viewing) {
     $researcherSummary = $sq->get_result()->fetch_assoc();
 }
 
-// "For You" recommendations: top funding matches for the logged-in researcher
+// "For You" recommendations: top funding matches for the logged-in researcher (only if approved)
 $myMatches    = [];
 $myResearcher = null;
-if (!is_admin()) {
+if (!is_admin() && is_approved()) {
     // Try with deleted_at column first, fall back if it doesn't exist
     $meStmt = @$conn->prepare("SELECT id FROM researchers WHERE LOWER(email) = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1");
     if (!$meStmt) {
