@@ -650,7 +650,11 @@ function escapeHtmlAttr(text) {
 
 function navigateToEntity(url) {
     if (url && url !== '#') {
-        window.location.href = url;
+        const sessionKey = document.getElementById('sessionKey')?.value;
+        // Append session key to preserve search context when going back
+        const separator = url.includes('?') ? '&' : '?';
+        const enhancedUrl = sessionKey ? url + separator + 's=' + encodeURIComponent(sessionKey) + '&from_search=1' : url;
+        window.location.href = enhancedUrl;
     }
 }
 
