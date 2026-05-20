@@ -645,8 +645,16 @@ $history[] = $newTurn;
 if (count($history) > 10) array_shift($history);
 $historyJson = json_encode($history);
 
-$stmt = $conn->prepare('UPDATE search_sessions SET turns = ?, updated_at = NOW() WHERE session_key = ? AND user_id = ?');
-$stmt->bind_param('ssi', $historyJson, $sessionKey, $userId);
+// Store both turns and result cards for full restoration
+$resultsJson = json_encode([
+    'fc' => $fcJson,
+    'r' => $rJson,
+    'inst' => $instJson,
+    'pivot_fc' => $pivotFcJson,
+    'pivot_reason' => $pivotReason,
+]);
+$stmt = $conn->prepare('UPDATE search_sessions SET turns = ?, results = ?, updated_at = NOW() WHERE session_key = ? AND user_id = ?');
+$stmt->bind_param('sssi', $historyJson, $resultsJson, $sessionKey, $userId);
 $stmt->execute();
 
 // ── Send done event ──

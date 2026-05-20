@@ -5,14 +5,16 @@ $user = current_user();
 // Load existing session if session_key param present
 $sessionKey = preg_replace('/[^a-f0-9]/', '', $_GET['s'] ?? '');
 $turns = [];
+$storedResults = null;
 if ($sessionKey) {
-    $stmt = $conn->prepare('SELECT turns FROM search_sessions WHERE session_key = ? AND user_id = ? LIMIT 1');
+    $stmt = $conn->prepare('SELECT turns, results FROM search_sessions WHERE session_key = ? AND user_id = ? LIMIT 1');
     $userId = (int)$user['id'];
     $stmt->bind_param('si', $sessionKey, $userId);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
     if ($row) {
         $turns = json_decode($row['turns'], true) ?? [];
+        $storedResults = json_decode($row['results'] ?? '{}', true);
     }
 }
 
@@ -49,6 +51,40 @@ if (!$sessionKey) {
                     <div class="bubble-content"><?= h($turn['assistant'] ?? '') ?></div>
                 </div>
             <?php endforeach; ?>
+            <?php if ($storedResults && !empty($storedResults['r'] || $storedResults['fc'])): ?>
+                <div style="margin-top:20px;padding:0 16px">
+                    <div class="result-cards">
+                        <?php if (!empty($storedResults['r'])): ?>
+                            <div class="result-section-title first">Researchers (<?= count($storedResults['r']) ?> total)</div>
+                            <?php foreach ($storedResults['r'] as $item): ?>
+                                <div class="result-card r" onclick="navigateToEntity('<?= h($item['destination_url'] ?? '#') ?>')">
+                                    <div style="display:flex;justify-content:space-between;align-items:center">
+                                        <div>
+                                            <div class="result-card-title"><?= h($item['name'] ?? '') ?></div>
+                                            <div class="result-card-subtitle"><?= h($item['institution'] ?? 'Unknown') ?></div>
+                                        </div>
+                                        <span class="entity-badge researcher-badge">Researcher</span>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                        <?php if (!empty($storedResults['fc'])): ?>
+                            <div class="result-section-title">Funding Calls (<?= count($storedResults['fc']) ?> total)</div>
+                            <?php foreach ($storedResults['fc'] as $item): ?>
+                                <div class="result-card fc" onclick="navigateToEntity('<?= h($item['destination_url'] ?? '#') ?>')">
+                                    <div style="display:flex;justify-content:space-between;align-items:center">
+                                        <div>
+                                            <div class="result-card-title"><?= h($item['title'] ?? '') ?></div>
+                                            <div class="result-card-subtitle"><?= h($item['funder'] ?? 'Unknown') ?></div>
+                                        </div>
+                                        <span class="entity-badge fc-badge">Funding Call</span>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            <?php endif; ?>
         <?php endif; ?>
     </div>
 
