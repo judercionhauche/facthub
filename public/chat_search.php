@@ -272,11 +272,11 @@ function getEntityUrl(string $entityType, int|string $entityId): string {
     $entityType = strtolower(trim($entityType));
     switch ($entityType) {
         case 'researcher':
-            return 'index.php?page=researchers&view=' . (int)$entityId;
+            return 'index.php?page=researchers&view=' . (int)$entityId . '&from_search=1';
         case 'funding_call':
-            return 'index.php?page=funding&view=' . (int)$entityId;
+            return 'index.php?page=funding&view=' . (int)$entityId . '&from_search=1';
         case 'funder':
-            return 'index.php?page=funders&id=' . (int)$entityId;
+            return 'index.php?page=funders&id=' . (int)$entityId . '&from_search=1';
         case 'institution':
             return 'index.php?page=institutions&search=' . urlencode((string)$entityId);
         default:

@@ -67,10 +67,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['user_email']    = $userRow['email'];
                         $_SESSION['user_name']     = $userRow['name'] ?: $userRow['email'];
                         $_SESSION['user_role']     = $userRow['role'] ?? 'researcher';
+                        $_SESSION['user_status']   = $userRow['status'];
                         $_SESSION['last_activity'] = time();
 
                         $firstName = explode(' ', trim($userRow['name'] ?: 'there'))[0];
-                        set_flash('success', 'Welcome back, ' . h($firstName) . '!');
+                        if ($userRow['status'] === 'pending_approval') {
+                            set_flash('info', 'Welcome! Your account is pending admin approval. You can update your profile while you wait.');
+                        } else {
+                            set_flash('success', 'Welcome back, ' . h($firstName) . '!');
+                        }
 
                         $loginReturn = $_SESSION['login_return'] ?? null;
                         unset($_SESSION['login_return']);

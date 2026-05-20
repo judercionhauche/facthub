@@ -108,10 +108,15 @@ function check_session_validity(mysqli $conn): bool {
         return false; // User deleted
     }
 
-    // Validate status and lifecycle
-    $valid = $row['status'] === 'active'
+    // Validate status and lifecycle — allow both active and pending_approval
+    $valid = in_array($row['status'], ['active', 'pending_approval'], true)
         && $row['deleted_at'] === null
         && ($tok === null || $row['session_token'] === $tok);
+
+    // Refresh user_status in session in case admin changed it
+    if ($valid) {
+        $_SESSION['user_status'] = $row['status'];
+    }
 
     return $valid;
 }

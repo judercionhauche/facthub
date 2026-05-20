@@ -19,13 +19,13 @@ if (isset($_GET['token'])) {
         $del->bind_param('s', $token); $del->execute();
         $state = 'expired';
     } else {
-        // Valid — activate account
-        $upd = $conn->prepare("UPDATE users SET status = 'active' WHERE email = ? AND status = 'unverified'");
+        // Valid — mark account as pending approval
+        $upd = $conn->prepare("UPDATE users SET status = 'pending_approval' WHERE email = ? AND status = 'unverified'");
         $upd->bind_param('s', $ev['email']); $upd->execute();
         $now = date('Y-m-d H:i:s');
         $mu  = $conn->prepare('UPDATE email_verifications SET verified_at = NOW() WHERE token = ?');
         $mu->bind_param('s', $token); $mu->execute();
-        set_flash('success', 'Your account has been verified. You can now sign in.');
+        set_flash('success', 'Your account has been verified. An admin will review your profile soon. You can edit your profile while you wait.');
         redirect_to('login');
     }
 }

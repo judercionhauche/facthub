@@ -24,6 +24,13 @@ if ($emailLinkFor && $emailLinkToken && $emailLinkThread) {
 }
 
 require_login();
+
+// Check if user is approved to access messaging
+if (!is_approved()) {
+    set_flash('info', 'Your account is pending admin approval. You can access messaging once approved.');
+    redirect_to('researchers');
+}
+
 $user = current_user();
 
 // Check if user accessed via email link for wrong account — log out and redirect to login

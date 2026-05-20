@@ -108,11 +108,11 @@ function apply_security_schema_updates(mysqli $conn): void {
     $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='users' AND COLUMN_NAME='status' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
     if ($result && $result->num_rows > 0) {
         // Step 1: Expand ENUM to include all old + new values
-        @$conn->query("ALTER TABLE users MODIFY COLUMN status ENUM('verified','unverified','active','inactive','deleted') NOT NULL DEFAULT 'active'");
+        @$conn->query("ALTER TABLE users MODIFY COLUMN status ENUM('verified','unverified','active','inactive','deleted','pending_approval') NOT NULL DEFAULT 'active'");
         // Step 2: Migrate 'verified' → 'active'
         @$conn->query("UPDATE users SET status = 'active' WHERE status = 'verified'");
         // Step 3: Remove old 'verified' value
-        @$conn->query("ALTER TABLE users MODIFY COLUMN status ENUM('active','inactive','deleted','unverified') NOT NULL DEFAULT 'active'");
+        @$conn->query("ALTER TABLE users MODIFY COLUMN status ENUM('active','inactive','deleted','unverified','pending_approval') NOT NULL DEFAULT 'active'");
     }
 
     // 1a. Add lifecycle columns to users table

@@ -1,6 +1,12 @@
 <?php
 require_login();
 
+// Check if user is approved to access matching
+if (!is_approved()) {
+    set_flash('info', 'Your account is pending admin approval. You can access matching once approved.');
+    redirect_to('researchers');
+}
+
 // Handle compute_matches action
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'compute_matches') {
     $fcId = (int)($_POST['funding_call_id'] ?? 0);

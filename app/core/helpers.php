@@ -53,6 +53,10 @@ function is_funder() {
     return ($_SESSION['user_role'] ?? '') === 'funder';
 }
 
+function is_approved() {
+    return is_logged_in() && ($_SESSION['user_status'] ?? '') === 'active';
+}
+
 function require_admin() {
     if (!is_admin()) {
         set_flash('error', 'You do not have permission to do that.');
