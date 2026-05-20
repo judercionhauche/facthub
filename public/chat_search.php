@@ -350,6 +350,11 @@ foreach ($fcCandidates as $fc) {
 }
 usort($fcResults, fn($a, $b) => $b['score'] <=> $a['score']);
 
+// Filter funding calls for pending users — they can search researchers but not funding calls
+if (!is_approved()) {
+    $fcResults = [];
+}
+
 $rResults = [];
 foreach ($rCandidates as $r) {
     $s = scoreResearcher($r, $topicFilters, $geoFilters, $keywords, $expandedTopics, $expandedGeos, $synonyms);
@@ -375,7 +380,7 @@ $PIVOT_TOPICS = [
     'food security' => ['agriculture', 'nutrition', 'livelihoods'],
 ];
 
-if (count($fcResults) <= 1 && !empty($topicFilters)) {
+if (count($fcResults) <= 1 && !empty($topicFilters) && is_approved()) {
     $primaryTopic = strtolower($topicFilters[0] ?? '');
     $pivotTopics = $PIVOT_TOPICS[$primaryTopic] ?? [];
 
