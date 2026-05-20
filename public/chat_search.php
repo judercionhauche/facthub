@@ -320,7 +320,6 @@ $allSearchTerms = array_unique(array_merge($expandedTopics, $expandedGeos, $keyw
 // Funding calls are access-controlled: pending users cannot fetch them at all
 $fcCandidates = (is_approved() && $filterType !== 'researcher' && $filterType !== 'institution' && !empty($allSearchTerms)) ? fetchCandidates($conn, 'funding_calls', $allSearchTerms, $filterStatus, 'title,description,topics,geography') : [];
 $rCandidates = ($filterType !== 'funding' && $filterType !== 'institution' && !empty($allSearchTerms)) ? fetchCandidates($conn, 'researchers', $allSearchTerms, '', 'first_name,last_name,institution,bio,topics,geography') : [];
-$funderCandidates = ($filterType !== 'researcher' && $filterType !== 'funding' && !empty($allSearchTerms)) ? fetchCandidates($conn, 'funders', $allSearchTerms, '', 'first_name,last_name,organization,bio,topics,geography') : [];
 
 // Institution grouping: GROUP BY institution + aggregate metadata
 $institutionCandidates = [];
@@ -363,13 +362,6 @@ foreach ($rCandidates as $r) {
 }
 usort($rResults, fn($a, $b) => $b['score'] <=> $a['score']);
 
-$funderResults = [];
-foreach ($funderCandidates as $f) {
-    $s = scoreFunder($f, $topicFilters, $geoFilters, $keywords, $expandedTopics, $expandedGeos, $synonyms);
-    if ($s >= 0.5) $funderResults[] = ['score' => $s, 'f' => $f];
-}
-usort($funderResults, fn($a, $b) => $b['score'] <=> $a['score']);
-
 // Step 6: Smart pivot searches (if results sparse, auto-search related categories)
 $pivotFcResults = [];
 $pivotReason = '';
@@ -407,7 +399,6 @@ if (count($fcResults) <= 1 && !empty($topicFilters) && is_approved()) {
 // ── Format results for first SSE event ──
 $fcForResponse = array_slice($fcResults, 0, 6);
 $rForResponse = array_slice($rResults, 0, 6);
-$fForResponse = array_slice($funderResults, 0, 6);
 $instForResponse = array_slice($institutionCandidates, 0, 5);
 
 $fcJson = [];
@@ -456,21 +447,6 @@ foreach ($rForResponse as $item) {
     ];
 }
 
-$funderJson = [];
-foreach ($fForResponse as $item) {
-    $f = $item['f'];
-    $name = trim(($f['first_name'] ?? '') . ' ' . ($f['last_name'] ?? ''));
-    $funderJson[] = [
-        'id' => (int)$f['id'],
-        'entity_type' => 'funder',
-        'name' => h($name),
-        'organization' => h($f['organization'] ?? ''),
-        'topics' => parse_tags($f['topics'] ?? ''),
-        'geography' => parse_tags($f['geography'] ?? ''),
-        'destination_url' => getEntityUrl('funder', (int)$f['id']),
-    ];
-}
-
 $instJson = [];
 foreach ($instForResponse as $inst) {
     $instJson[] = [
@@ -506,7 +482,6 @@ sseEvent([
     't' => 'results',
     'fc' => $fcJson,
     'r' => $rJson,
-    'f' => $funderJson,
     'inst' => $instJson,
     'pivot_fc' => $pivotFcJson,
     'pivot_reason' => $pivotReason,
@@ -514,7 +489,6 @@ sseEvent([
     'total' => [
         'funding_calls' => count($fcResults),
         'researchers' => count($rResults),
-        'funders' => count($funderResults),
         'institutions' => count($institutionCandidates),
         'pivot_funding_calls' => count($pivotFcResults),
     ]
@@ -551,16 +525,6 @@ foreach ($topN as $item) {
 }
 if (count($rResults) > 3) $resultsSummary .= "- ... and " . (count($rResults) - 3) . " more\n";
 
-if (!empty($funderResults)) {
-    $topN = array_slice($funderResults, 0, 2);
-    $resultsSummary .= "\nFunders (" . count($funderResults) . " total):\n";
-    foreach ($topN as $item) {
-        $f = $item['f'];
-        $resultsSummary .= "- " . trim(($f['first_name'] ?? '') . ' ' . ($f['last_name'] ?? '') . ' ' . ($f['organization'] ?? 'Unknown')) . "\n";
-    }
-    if (count($funderResults) > 2) $resultsSummary .= "- ... and " . (count($funderResults) - 2) . " more\n";
-}
-
 if (!empty($institutionCandidates)) {
     $topN = array_slice($institutionCandidates, 0, 2);
     $resultsSummary .= "\nInstitutions (" . count($institutionCandidates) . " total):\n";
@@ -590,7 +554,6 @@ if ($claude->isAvailable()) {
     $streamPrompt = "You are a discovery assistant for FACT Alliance Hub, a research collaboration platform. You help users find:
 - Researchers: by name, institution, topic, geography
 - Funding Calls: grants, fellowships, and open opportunities
-- Funders: organizations that provide research funding
 - Institutions: universities and research organizations
 
 Conversation so far:
