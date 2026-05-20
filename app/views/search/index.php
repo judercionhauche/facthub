@@ -7,7 +7,8 @@ $sessionKey = preg_replace('/[^a-f0-9]/', '', $_GET['s'] ?? '');
 $turns = [];
 if ($sessionKey) {
     $stmt = $conn->prepare('SELECT turns FROM search_sessions WHERE session_key = ? AND user_id = ? LIMIT 1');
-    $stmt->bind_param('si', $sessionKey, (int)$user['id']);
+    $userId = (int)$user['id'];
+    $stmt->bind_param('si', $sessionKey, $userId);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
     if ($row) {
