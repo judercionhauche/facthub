@@ -1,5 +1,12 @@
 <?php
 require_login();
+
+// Check if user is approved to access funding calls
+if (!is_approved()) {
+    set_flash('info', 'Your account is pending admin approval. You can access funding calls once approved.');
+    redirect_to('researchers');
+}
+
 $user = current_user();
 
 // Ownership check — admins can manage any funding call, funders only their own
