@@ -372,6 +372,7 @@ $mode   = $_GET['mode']  ?? '';
 $editId = (int)($_GET['edit'] ?? 0);
 $viewId = (int)($_GET['view'] ?? 0);
 $fromSearch = isset($_GET['from_search']) && $_GET['from_search'] === '1';
+$searchSessionKey = preg_replace('/[^a-f0-9]/', '', $_GET['s'] ?? '');
 
 // Admin-only checks: admin adding researcher (not user registration)
 if ($mode === 'add' && is_logged_in() && !is_admin()) {
@@ -823,7 +824,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <h2 style="margin-bottom:2px"><?= h(trim(($viewing['first_name'] ?? '') . ' ' . ($viewing['last_name'] ?? ''))) ?></h2>
             <?php if ($viewing['title']): ?><div class="muted" style="font-size:14px"><?= h($viewing['title']) ?><?= $viewing['institution'] ? ' · ' . h($viewing['institution']) : '' ?></div><?php endif; ?>
         </div>
-        <a class="ghost-btn" href="<?= $fromSearch ? 'index.php?page=search' : 'index.php?page=researchers' ?>">
+        <a class="ghost-btn" href="<?= $fromSearch ? 'index.php?page=search' . ($searchSessionKey ? '&s=' . h($searchSessionKey) : '') : 'index.php?page=researchers' ?>">
             <?= $fromSearch ? '← Back to Search' : 'Close' ?>
         </a>
     </div>

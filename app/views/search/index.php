@@ -651,9 +651,12 @@ function escapeHtmlAttr(text) {
 
 function navigateToEntity(url) {
     if (url && url !== '#') {
-        // Add from_search marker so back button knows to return to search
+        // Pass sessionKey and from_search marker so back button restores search session
+        const sessionKey = document.getElementById('sessionKey')?.value;
         const separator = url.includes('?') ? '&' : '?';
-        const enhancedUrl = url + separator + 'from_search=1';
+        const enhancedUrl = sessionKey
+            ? url + separator + 's=' + encodeURIComponent(sessionKey) + '&from_search=1'
+            : url + separator + 'from_search=1';
         window.location.href = enhancedUrl;
     }
 }
