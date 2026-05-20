@@ -569,6 +569,11 @@ if (!empty($institutionCandidates)) {
     if (count($institutionCandidates) > 2) $resultsSummary .= "- ... and " . (count($institutionCandidates) - 2) . " more\n";
 }
 
+// Add access restriction notice if user is pending approval
+if (!is_approved()) {
+    $resultsSummary .= "\n⚠️  IMPORTANT: Your account is currently pending admin approval. You can search and view researchers, but funding calls are not available until your account is approved. Please wait for admin approval to access funding opportunities.\n";
+}
+
 // ── Stream Claude response (or auto-response fallback) ──
 $fullResponse = '';
 $inputTokens = 0;
@@ -649,7 +654,11 @@ Write a SHORT, natural response (2-4 sentences):
     curl_close($ch);
 } else {
     // Fallback: no Claude API key, generate simple response
-    $autoResponse = 'Found ' . count($fcResults) . ' funding calls and ' . count($rResults) . ' researchers matching your query.';
+    if (!is_approved()) {
+        $autoResponse = 'Found ' . count($rResults) . ' researchers matching your query. Note: Your account is pending approval, so funding calls are not available yet. Once approved, you\'ll be able to access funding opportunities.';
+    } else {
+        $autoResponse = 'Found ' . count($fcResults) . ' funding calls and ' . count($rResults) . ' researchers matching your query.';
+    }
     foreach (explode(' ', $autoResponse) as $word) {
         $fullResponse .= $word . ' ';
         sseEvent(['t' => 'token', 'v' => $word . ' ']);
