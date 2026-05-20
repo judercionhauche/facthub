@@ -741,16 +741,38 @@ function escapeHtmlAttr(text) {
 }
 
 function copyPrompt(text) {
-    navigator.clipboard.writeText(text).then(() => {
-        // Show brief visual feedback
+    function showFeedback() {
         const feedback = document.createElement('div');
         feedback.textContent = 'Copied!';
         feedback.style.cssText = 'position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:8px 16px;border-radius:4px;font-size:12px;z-index:10000;';
         document.body.appendChild(feedback);
         setTimeout(() => feedback.remove(), 1500);
-    }).catch(err => {
-        console.error('Failed to copy:', err);
-    });
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(showFeedback).catch(() => {
+            fallbackCopy(text);
+        });
+    } else {
+        fallbackCopy(text);
+    }
+}
+
+function fallbackCopy(text) {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+
+    const feedback = document.createElement('div');
+    feedback.textContent = 'Copied!';
+    feedback.style.cssText = 'position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:8px 16px;border-radius:4px;font-size:12px;z-index:10000;';
+    document.body.appendChild(feedback);
+    setTimeout(() => feedback.remove(), 1500);
 }
 
 function editPrompt(text) {
