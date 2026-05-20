@@ -45,6 +45,16 @@ if (!$sessionKey) {
             <?php foreach ($turns as $turn): ?>
                 <div class="chat-bubble user-bubble">
                     <div class="bubble-content"><?= h($turn['user'] ?? '') ?></div>
+                    <div class="bubble-actions">
+                        <button class="action-btn" onclick="copyPrompt('<?= h(addslashes($turn['user'] ?? '')) ?>')" title="Copy prompt">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                                <rect x="2" y="2" width="11" height="11" rx="1"/><path d="M5 13a2 2 0 002-2"/></svg>
+                        </button>
+                        <button class="action-btn" onclick="editPrompt('<?= h(addslashes($turn['user'] ?? '')) ?>')" title="Edit prompt">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+                                <path d="M2 14l1-4 8-8 4 4-8 8-5 0z"/></svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="chat-bubble assistant-bubble">
@@ -212,6 +222,47 @@ if (!$sessionKey) {
     padding: 12px 16px;
     border-radius: 12px;
     word-wrap: break-word;
+}
+
+.user-bubble {
+    position: relative;
+}
+
+.bubble-actions {
+    position: absolute;
+    right: 0;
+    bottom: -32px;
+    display: flex;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none;
+}
+
+.chat-bubble:hover .bubble-actions {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.action-btn {
+    width: 28px;
+    height: 28px;
+    padding: 4px;
+    background: white;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.action-btn:hover {
+    background: var(--bg);
+    color: var(--primary);
+    border-color: var(--primary);
 }
 
 .assistant-bubble {
@@ -683,6 +734,26 @@ function escapeHtmlAttr(text) {
             default: return c;
         }
     });
+}
+
+function copyPrompt(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        // Show brief visual feedback
+        const feedback = document.createElement('div');
+        feedback.textContent = 'Copied!';
+        feedback.style.cssText = 'position:fixed;top:20px;right:20px;background:#4CAF50;color:white;padding:8px 16px;border-radius:4px;font-size:12px;z-index:10000;';
+        document.body.appendChild(feedback);
+        setTimeout(() => feedback.remove(), 1500);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+    });
+}
+
+function editPrompt(text) {
+    const queryInput = document.getElementById('queryInput');
+    queryInput.value = text;
+    queryInput.focus();
+    queryInput.select();
 }
 
 function navigateToEntity(url) {
