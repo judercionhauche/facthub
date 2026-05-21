@@ -1,5 +1,4 @@
 <?php
-error_log("[ADMIN PAGE] Loading admin view");
 require_admin();
 
 $mailCfg = @include __DIR__ . '/../../config/mail.php';
@@ -1115,7 +1114,7 @@ $recentAudit = $conn->query(
         <div style="display:flex;gap:8px;flex-wrap:wrap">
             <?php if ($editUser['status'] === 'active'): ?>
                 <form method="post" style="display:inline">
-                    <?php error_log("[ADMIN] About to call csrf_input() for active user"); echo csrf_input(); ?>
+                    <?= csrf_input() ?>
                     <input type="hidden" name="action" value="deactivate_user">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="ghost-btn" type="submit" style="font-size:13px;padding:8px 14px">Deactivate</button>
@@ -1128,7 +1127,7 @@ $recentAudit = $conn->query(
                 </form>
             <?php elseif ($editUser['status'] === 'pending_approval'): ?>
                 <form method="post" style="display:inline">
-                    <?php error_log("[ADMIN] About to call csrf_input() for PENDING user"); echo csrf_input(); ?>
+                    <?= csrf_input() ?>
                     <input type="hidden" name="action" value="approve_user">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="primary-btn" type="submit" style="font-size:13px;padding:8px 14px">✓ Approve</button>
@@ -1206,17 +1205,20 @@ $recentAudit = $conn->query(
                 <?php if ($u['id'] !== (int)$adminUser['id']): ?>
                     <?php if ($u['status'] === 'active'): ?>
                         <form method="post" style="display:inline">
+                            <?= csrf_input() ?>
                             <input type="hidden" name="action" value="deactivate_user">
                             <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                             <button class="ghost-btn" type="submit">Deactivate</button>
                         </form>
                     <?php elseif ($u['status'] === 'pending_approval'): ?>
                         <form method="post" style="display:inline">
+                            <?= csrf_input() ?>
                             <input type="hidden" name="action" value="approve_user">
                             <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                             <button class="primary-btn" type="submit">✓ Approve</button>
                         </form>
                         <form method="post" style="display:inline">
+                            <?= csrf_input() ?>
                             <input type="hidden" name="action" value="reject_user">
                             <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                             <input type="text" name="rejection_reason" placeholder="Reason (optional)" maxlength="500" style="padding:6px 10px;font-size:12px;border:1px solid var(--line);border-radius:4px;width:180px;min-width:180px">
@@ -1224,12 +1226,14 @@ $recentAudit = $conn->query(
                         </form>
                     <?php elseif ($u['status'] === 'inactive'): ?>
                         <form method="post" style="display:inline">
+                            <?= csrf_input() ?>
                             <input type="hidden" name="action" value="activate_user">
                             <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                             <button class="primary-btn" type="submit">Activate</button>
                         </form>
                     <?php elseif ($u['status'] === 'deleted'): ?>
                         <form method="post" style="display:inline">
+                            <?= csrf_input() ?>
                             <input type="hidden" name="action" value="restore_user">
                             <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                             <button class="primary-btn" type="submit">Restore</button>
