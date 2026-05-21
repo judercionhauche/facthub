@@ -1128,7 +1128,7 @@ $recentAudit = $conn->query(
                 </form>
             <?php elseif ($editUser['status'] === 'pending_approval'): ?>
                 <form method="post" style="display:inline">
-                    <?= csrf_input() ?>
+                    <?php error_log("[ADMIN] About to call csrf_input() for PENDING user"); echo csrf_input(); ?>
                     <input type="hidden" name="action" value="approve_user">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="primary-btn" type="submit" style="font-size:13px;padding:8px 14px">✓ Approve</button>
