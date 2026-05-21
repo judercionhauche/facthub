@@ -60,8 +60,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Regenerate AI summary since funding call content changed
             enqueue_job($conn, 'generate_summary', ['entity_type' => 'funding_call', 'entity_id' => $id]);
-            // Recompute researcher matches for updated funding call
-            enqueue_job($conn, 'compute_matches', ['funding_call_id' => $id]);
 
             set_flash('success', 'Funding call updated.');
         } else {
