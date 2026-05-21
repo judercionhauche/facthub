@@ -167,7 +167,7 @@ function dispatch_job(mysqli $conn, array $job, string $appUrl): void {
                 // Notify opted-in researchers with high scores
                 $notifyStmt = $conn->prepare(
                     'SELECT ms.score_ai, ms.score_keyword, ms.explanation,
-                            r.id AS rid, r.email, r.first_name, r.topics AS r_topics, r.geography AS r_geo,
+                            r.id AS rid, r.email, r.first_name, r.notify_frequency, r.topics AS r_topics, r.geography AS r_geo,
                             fc.title, fc.funder, fc.deadline, fc.status, fc.amount,
                             fc.topics AS fc_topics, fc.geography AS fc_geo
                      FROM match_scores ms
@@ -176,6 +176,7 @@ function dispatch_job(mysqli $conn, array $job, string $appUrl): void {
                      WHERE ms.funding_call_id = ?
                        AND r.status = "active" AND r.deleted_at IS NULL
                        AND r.notify_matches = 1
+                       AND r.notify_frequency IN ("immediate", "weekly")
                        AND (ms.score_ai >= 60 OR (ms.score_ai IS NULL AND ms.score_keyword >= 3))
                        AND ms.notified_at IS NULL'
                 );
@@ -214,11 +215,14 @@ function dispatch_job(mysqli $conn, array $job, string $appUrl): void {
                     $updateStmt->bind_param('ii', $fcId, $rid);
                     $updateStmt->execute();
 
-                    enqueue_job($conn, 'send_notification', [
-                        'to'      => $n['email'],
-                        'subject' => 'New funding match: ' . $n['title'],
-                        'html'    => $html,
-                    ]);
+                    // Send immediately if set to immediate, otherwise mark for weekly digest
+                    if ($n['notify_frequency'] === 'immediate') {
+                        enqueue_job($conn, 'send_notification', [
+                            'to'      => $n['email'],
+                            'subject' => 'New funding match: ' . $n['title'],
+                            'html'    => $html,
+                        ]);
+                    }
                 }
 
                 echo "[" . date('Y-m-d H:i:s') . "] Job {$jobId} (compute_matches) done" . PHP_EOL;

@@ -582,6 +582,18 @@ function apply_security_schema_updates(mysqli $conn): void {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
     }
+
+    // Add notify_frequency column to researchers table
+    $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='researchers' AND COLUMN_NAME='notify_frequency' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("ALTER TABLE researchers ADD COLUMN notify_frequency ENUM('immediate','weekly','never') NOT NULL DEFAULT 'immediate'");
+    }
+
+    // Add last_notification_sent_at column to researchers for weekly digest tracking
+    $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='researchers' AND COLUMN_NAME='last_notification_sent_at' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("ALTER TABLE researchers ADD COLUMN last_notification_sent_at TIMESTAMP NULL DEFAULT NULL");
+    }
     } catch (Throwable $e) {
         error_log('[Schema Migration] Error: ' . $e->getMessage());
         // Continue anyway - some tables may not exist yet

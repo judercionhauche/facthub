@@ -75,9 +75,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $orcidId      = trim($_POST['orcid_id']             ?? '');
             $googleScholarUrl = trim($_POST['google_scholar_url'] ?? '');
             $notifyMatches    = isset($_POST['notify_matches']) ? 1 : 0;
+            $notifyFrequency  = trim($_POST['notify_frequency'] ?? 'immediate');
+            if (!in_array($notifyFrequency, ['immediate', 'weekly', 'never'], true)) {
+                $notifyFrequency = 'immediate';
+            }
 
             // For registration errors, store form data and error to show form inline
-            $storeFormDataForRegistrationError = function($errorMsg) use ($first, $last, $email, $institution, $department, $title, $bio, $focusAreaArr, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches) {
+            $storeFormDataForRegistrationError = function($errorMsg) use ($first, $last, $email, $institution, $department, $title, $bio, $focusAreaArr, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency) {
                 global $registrationError, $registrationFormData;
                 $registrationError = $errorMsg;
                 $registrationFormData = [
@@ -99,6 +103,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'orcid_id' => $orcidId,
                     'google_scholar_url' => $googleScholarUrl,
                     'notify_matches' => $notifyMatches,
+                    'notify_frequency' => $notifyFrequency,
                     'password' => $_POST['password'] ?? '',
                     'confirm_password' => $_POST['confirm_password'] ?? ''
                 ];
@@ -179,10 +184,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ensure_tags($conn, $topics, 'topic');
                     ensure_tags($conn, $geography, 'geography');
 
-                    $stmt = $conn->prepare('INSERT INTO researchers (user_id, first_name, last_name, email, institution, department, title, bio, focus_area, focus_area_detail, topics, geography, co_advising, co_advising_details, profile_url, website_url, orcid_id, google_scholar_url, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                    $stmt = $conn->prepare('INSERT INTO researchers (user_id, first_name, last_name, email, institution, department, title, bio, focus_area, focus_area_detail, topics, geography, co_advising, co_advising_details, profile_url, website_url, orcid_id, google_scholar_url, status, notify_matches, notify_frequency) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                     if (!$stmt) throw new Exception('Prepare researchers failed: ' . $conn->error);
                     $status_researcher = 'active';
-                    $stmt->bind_param('isssssssssssissssss', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher);
+                    $stmt->bind_param('issssssssssissssssis', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher, $notifyMatches, $notifyFrequency);
                     if (!$stmt->execute()) {
                         throw new Exception('Error creating researcher profile: ' . $stmt->error);
                     }
@@ -215,9 +220,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             // EXISTING RESEARCHER: update profile
             else if ($id > 0) {
-                $stmt = $conn->prepare('UPDATE researchers SET first_name=?, last_name=?, email=?, institution=?, department=?, title=?, bio=?, focus_area=?, focus_area_detail=?, topics=?, geography=?, co_advising=?, co_advising_details=?, profile_url=?, website_url=?, orcid_id=?, google_scholar_url=?, notify_matches=? WHERE id=?');
+                $stmt = $conn->prepare('UPDATE researchers SET first_name=?, last_name=?, email=?, institution=?, department=?, title=?, bio=?, focus_area=?, focus_area_detail=?, topics=?, geography=?, co_advising=?, co_advising_details=?, profile_url=?, website_url=?, orcid_id=?, google_scholar_url=?, notify_matches=?, notify_frequency=? WHERE id=?');
                 if (!$stmt) throw new Exception('Prepare update failed: ' . $conn->error);
-                $stmt->bind_param('sssssssssssisssssii', $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $id);
+                $stmt->bind_param('sssssssssssisssssssi', $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency, $id);
                 if (!$stmt->execute()) throw new Exception('Error updating profile: ' . $stmt->error);
                 enqueue_job($conn, 'generate_summary', ['entity_type' => 'researcher', 'entity_id' => $id]);
                 if ($orcidId) {
@@ -266,10 +271,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 // Create researcher profile
-                $stmt = $conn->prepare('INSERT INTO researchers (user_id, first_name, last_name, email, institution, department, title, bio, focus_area, focus_area_detail, topics, geography, co_advising, co_advising_details, profile_url, website_url, orcid_id, google_scholar_url, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                $stmt = $conn->prepare('INSERT INTO researchers (user_id, first_name, last_name, email, institution, department, title, bio, focus_area, focus_area_detail, topics, geography, co_advising, co_advising_details, profile_url, website_url, orcid_id, google_scholar_url, status, notify_matches, notify_frequency) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                 if (!$stmt) throw new Exception('Prepare researchers failed: ' . $conn->error);
                 $status_researcher = 'active';
-                $stmt->bind_param('isssssssssssissssss', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher);
+                $stmt->bind_param('issssssssssissssssis', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher, $notifyMatches, $notifyFrequency);
                 if (!$stmt->execute()) throw new Exception('Error creating profile: ' . $stmt->error);
                 $newResearcherId = $conn->insert_id;
 
@@ -678,10 +683,20 @@ if (is_array($focusDetailRaw)) {
                 <input type="checkbox" id="notify_matches" name="notify_matches"
                        <?= !empty($editing['notify_matches']) ? 'checked' : '' ?>
                        style="width:17px;height:17px;accent-color:#1a6b5a;flex-shrink:0;cursor:pointer">
-                <label for="notify_matches" style="margin:0;font-size:13.5px;font-weight:600;color:#374151;cursor:pointer;line-height:1.4">
-                    Email me when new funding calls match my research profile
-                    <span style="display:block;font-weight:400;color:#9aaba4;font-size:12.5px;margin-top:1px">You can unsubscribe at any time via the link in the email.</span>
-                </label>
+                <div style="flex:1">
+                    <label for="notify_matches" style="margin:0;font-size:13.5px;font-weight:600;color:#374151;cursor:pointer;line-height:1.4">
+                        Email me when new funding calls match my research profile
+                        <span style="display:block;font-weight:400;color:#9aaba4;font-size:12.5px;margin-top:1px">You can unsubscribe at any time via the link in the email.</span>
+                    </label>
+                    <div style="margin-top:12px;padding-top:12px;border-top:1px solid #dde6dd">
+                        <label for="notify_frequency" style="font-size:12.5px;font-weight:600;color:#374151;display:block;margin-bottom:6px">Notification frequency:</label>
+                        <select id="notify_frequency" name="notify_frequency" style="padding:8px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:13px;background:white;color:#374151;cursor:pointer;width:100%;max-width:220px">
+                            <option value="immediate" <?= ($editing['notify_frequency'] ?? 'immediate') === 'immediate' ? 'selected' : '' ?>>Immediately</option>
+                            <option value="weekly" <?= ($editing['notify_frequency'] ?? 'immediate') === 'weekly' ? 'selected' : '' ?>>Weekly digest</option>
+                            <option value="never" <?= ($editing['notify_frequency'] ?? 'immediate') === 'never' ? 'selected' : '' ?>>Never</option>
+                        </select>
+                    </div>
+                </div>
             </div>
         </div>
 
