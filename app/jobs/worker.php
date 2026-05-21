@@ -208,14 +208,17 @@ function dispatch_job(mysqli $conn, array $job, string $appUrl): void {
                         $unsubUrl
                     );
 
+                    // Mark as notified BEFORE queuing to prevent duplicates on retry
+                    $rid = (int)$n['rid'];
+                    $updateStmt = $conn->prepare('UPDATE match_scores SET notified_at=NOW() WHERE funding_call_id=? AND researcher_id=?');
+                    $updateStmt->bind_param('ii', $fcId, $rid);
+                    $updateStmt->execute();
+
                     enqueue_job($conn, 'send_notification', [
                         'to'      => $n['email'],
                         'subject' => 'New funding match: ' . $n['title'],
                         'html'    => $html,
                     ]);
-
-                    $rid = (int)$n['rid'];
-                    $conn->query("UPDATE match_scores SET notified_at=NOW() WHERE funding_call_id={$fcId} AND researcher_id={$rid}");
                 }
 
                 echo "[" . date('Y-m-d H:i:s') . "] Job {$jobId} (compute_matches) done" . PHP_EOL;
