@@ -265,7 +265,7 @@ function generate_researcher_summary(mysqli $conn, int $researcherId): void {
 }
 
 function send_admin_notification_email(string $email, string $action, string $name, string $reason = ''): void {
-    @$mailCfg = require __DIR__ . '/../../../config/mail.php';
+    @$mailCfg = require __DIR__ . '/../../config/mail.php';
     if (!is_array($mailCfg)) $mailCfg = [];
     $appUrl = rtrim($mailCfg['app_url'] ?? 'http://localhost', '/');
     $firstName = explode(' ', trim($name))[0] ?: 'there';
@@ -305,7 +305,7 @@ function notify_admins_of_new_registration(string $email, string $name, string $
     $admins = $conn->query("SELECT email FROM users WHERE role='admin' AND status='active' LIMIT 10");
 
     if ($admins && $admins->num_rows > 0) {
-        @$mailCfg = require __DIR__ . '/../../../config/mail.php';
+        @$mailCfg = require __DIR__ . '/../../config/mail.php';
         if (!is_array($mailCfg)) $mailCfg = [];
         $appUrl = rtrim($mailCfg['app_url'] ?? 'http://localhost', '/');
 

@@ -1349,7 +1349,7 @@ if ($fSearch) {
     $fWhere .= " AND (CONCAT(first_name,' ',last_name) LIKE ? OR organization LIKE ? OR email LIKE ?)";
 }
 
-$fSql    = "SELECT * FROM funders $fWhere ORDER BY name ASC";
+$fSql    = "SELECT * FROM funders $fWhere ORDER BY first_name ASC, last_name ASC";
 $fStmt   = $conn->prepare($fSql);
 if ($fSearch) {
     $fLike = '%' . $fSearch . '%';
