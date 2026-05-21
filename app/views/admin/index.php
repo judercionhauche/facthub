@@ -591,7 +591,7 @@ foreach (['total' => null, 'admin' => 'admin', 'researcher' => 'researcher', 'fu
 
 /* Status counts */
 $statusCounts = [];
-foreach (['active' => 'active', 'inactive' => 'inactive', 'trash' => 'deleted'] as $tab => $status) {
+foreach (['active' => 'active', 'pending' => 'pending_approval', 'inactive' => 'inactive', 'trash' => 'deleted'] as $tab => $status) {
     $sq = $conn->prepare('SELECT COUNT(*) c FROM users WHERE status = ?');
     $sq->bind_param('s', $status); $sq->execute();
     $statusCounts[$tab] = (int)$sq->get_result()->fetch_assoc()['c'];
@@ -609,7 +609,7 @@ if (in_array($roleFilter, ['admin','researcher','funder'])) {
     $params[] = $roleFilter; $types .= 's';
 }
 // Status tab filter
-$statusMap = ['active' => 'active', 'inactive' => 'inactive', 'trash' => 'deleted'];
+$statusMap = ['active' => 'active', 'pending' => 'pending_approval', 'inactive' => 'inactive', 'trash' => 'deleted'];
 $conditions[] = 'status = ?';
 $params[] = $statusMap[$statusTab];
 $types .= 's';
@@ -939,6 +939,7 @@ $recentAudit = $conn->query(
     </form>
     <div class="role-tabs">
         <a class="role-tab <?= $statusTab==='active' ? 'active' : '' ?>" href="index.php?page=admin&section=users&utab=active<?= $roleFilter ? '&role='.$roleFilter : '' ?><?= $search ? '&search='.urlencode($search) : '' ?>">Active <?php if ($statusCounts['active'] > 0): ?><span style="margin-left:4px;opacity:.7">(<?= $statusCounts['active'] ?>)</span><?php endif; ?></a>
+        <a class="role-tab <?= $statusTab==='pending' ? 'active' : '' ?>" href="index.php?page=admin&section=users&utab=pending<?= $roleFilter ? '&role='.$roleFilter : '' ?><?= $search ? '&search='.urlencode($search) : '' ?>">⏳ Pending <?php if ($statusCounts['pending'] > 0): ?><span style="margin-left:4px;opacity:.7">(<?= $statusCounts['pending'] ?>)</span><?php endif; ?></a>
         <a class="role-tab <?= $statusTab==='inactive' ? 'active' : '' ?>" href="index.php?page=admin&section=users&utab=inactive<?= $roleFilter ? '&role='.$roleFilter : '' ?><?= $search ? '&search='.urlencode($search) : '' ?>">Inactive <?php if ($statusCounts['inactive'] > 0): ?><span style="margin-left:4px;opacity:.7">(<?= $statusCounts['inactive'] ?>)</span><?php endif; ?></a>
         <a class="role-tab <?= $statusTab==='trash' ? 'active' : '' ?>" href="index.php?page=admin&section=users&utab=trash<?= $roleFilter ? '&role='.$roleFilter : '' ?><?= $search ? '&search='.urlencode($search) : '' ?>">Trash <?php if ($statusCounts['trash'] > 0): ?><span style="margin-left:4px;opacity:.7">(<?= $statusCounts['trash'] ?>)</span><?php endif; ?></a>
         <div style="flex:1;border-left:1px solid var(--line);margin-left:12px;padding-left:12px;display:flex;gap:6px;flex-wrap:wrap">
@@ -1093,6 +1094,10 @@ $recentAudit = $conn->query(
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                     Active
                 </span>
+            <?php elseif ($editUser['status'] === 'pending_approval'): ?>
+                <span style="display:inline-flex;align-items:center;gap:6px;background:#fef3c7;border:1px solid #f0d080;border-radius:6px;padding:6px 12px;font-size:13px;font-weight:600;color:#b45309">
+                    ⏳ Pending Approval
+                </span>
             <?php elseif ($editUser['status'] === 'inactive'): ?>
                 <span style="display:inline-flex;align-items:center;gap:6px;background:#fef9ec;border:1px solid #f0d080;border-radius:6px;padding:6px 12px;font-size:13px;font-weight:600;color:#c8a85a">
                     ⊘ Inactive
@@ -1114,6 +1119,18 @@ $recentAudit = $conn->query(
                     <input type="hidden" name="action" value="delete_user">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="danger-btn" type="submit" style="font-size:13px;padding:8px 14px">Move to Trash</button>
+                </form>
+            <?php elseif ($editUser['status'] === 'pending_approval'): ?>
+                <form method="post" style="display:inline">
+                    <input type="hidden" name="action" value="approve_user">
+                    <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
+                    <button class="primary-btn" type="submit" style="font-size:13px;padding:8px 14px">✓ Approve</button>
+                </form>
+                <form method="post" style="display:inline">
+                    <input type="hidden" name="action" value="reject_user">
+                    <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
+                    <input type="text" name="rejection_reason" placeholder="Reason (optional)" maxlength="500" style="padding:8px 10px;font-size:13px;border:1px solid var(--line);border-radius:4px;width:200px">
+                    <button class="danger-btn" type="submit" style="font-size:13px;padding:8px 14px">✗ Reject</button>
                 </form>
             <?php elseif ($editUser['status'] === 'inactive'): ?>
                 <form method="post" style="display:inline">
@@ -1157,6 +1174,8 @@ $recentAudit = $conn->query(
                 <span class="role-badge role-badge-<?= h($u['role']) ?>"><?= h(ucfirst($u['role'])) ?></span>
                 <?php if ($u['status'] === 'active'): ?>
                     <span style="display:inline-flex;align-items:center;gap:3px;background:#eef9f6;border:1px solid #c3dfd0;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;color:#1a6b5a;letter-spacing:.04em">✓ Active</span>
+                <?php elseif ($u['status'] === 'pending_approval'): ?>
+                    <span style="display:inline-flex;align-items:center;gap:3px;background:#fef3c7;border:1px solid #f0d080;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;color:#b45309;letter-spacing:.04em">⏳ Pending</span>
                 <?php elseif ($u['status'] === 'inactive'): ?>
                     <span style="display:inline-flex;align-items:center;gap:3px;background:#fef9ec;border:1px solid #f0d080;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;color:#c8a85a;letter-spacing:.04em">⊘ Inactive</span>
                 <?php elseif ($u['status'] === 'deleted'): ?>
@@ -1179,6 +1198,18 @@ $recentAudit = $conn->query(
                             <input type="hidden" name="action" value="deactivate_user">
                             <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                             <button class="ghost-btn" type="submit">Deactivate</button>
+                        </form>
+                    <?php elseif ($u['status'] === 'pending_approval'): ?>
+                        <form method="post" style="display:inline">
+                            <input type="hidden" name="action" value="approve_user">
+                            <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                            <button class="primary-btn" type="submit">✓ Approve</button>
+                        </form>
+                        <form method="post" style="display:inline">
+                            <input type="hidden" name="action" value="reject_user">
+                            <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                            <input type="text" name="rejection_reason" placeholder="Reason (optional)" maxlength="500" style="padding:6px 10px;font-size:12px;border:1px solid var(--line);border-radius:4px;width:180px;min-width:180px">
+                            <button class="danger-btn" type="submit">✗ Reject</button>
                         </form>
                     <?php elseif ($u['status'] === 'inactive'): ?>
                         <form method="post" style="display:inline">
