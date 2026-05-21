@@ -1059,12 +1059,14 @@ $recentAudit = $conn->query(
         <div style="display:flex;gap:8px;flex-wrap:wrap">
             <?php if (!$isVerified): ?>
             <form method="post" style="display:inline">
+                <?= csrf_input() ?>
                 <input type="hidden" name="action" value="verify_user">
                 <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                 <button class="primary-btn" type="submit" style="font-size:13px;padding:8px 14px">✓ Manually Verify</button>
             </form>
             <?php else: ?>
             <form method="post" style="display:inline" onsubmit="return confirm('Mark this account as unverified? The user will not be able to sign in until they verify again.')">
+                <?= csrf_input() ?>
                 <input type="hidden" name="action" value="unverify_user">
                 <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                 <button class="ghost-btn" type="submit" style="font-size:13px">Mark Unverified</button>
@@ -1078,6 +1080,7 @@ $recentAudit = $conn->query(
         <div class="edit-section-title">Password Reset Link</div>
         <p class="muted small" style="margin-bottom:10px">Generate and email a secure reset link to this user (expires in 1 hour).</p>
         <form method="post">
+            <?= csrf_input() ?>
             <input type="hidden" name="action" value="send_reset">
             <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
             <button class="ghost-btn" type="submit">Send Reset Email</button>
@@ -1111,22 +1114,26 @@ $recentAudit = $conn->query(
         <div style="display:flex;gap:8px;flex-wrap:wrap">
             <?php if ($editUser['status'] === 'active'): ?>
                 <form method="post" style="display:inline">
+                    <?= csrf_input() ?>
                     <input type="hidden" name="action" value="deactivate_user">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="ghost-btn" type="submit" style="font-size:13px;padding:8px 14px">Deactivate</button>
                 </form>
                 <form method="post" style="display:inline" onsubmit="return prompt('Reason for deletion (optional):', '') !== null || false;">
+                    <?= csrf_input() ?>
                     <input type="hidden" name="action" value="delete_user">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="danger-btn" type="submit" style="font-size:13px;padding:8px 14px">Move to Trash</button>
                 </form>
             <?php elseif ($editUser['status'] === 'pending_approval'): ?>
                 <form method="post" style="display:inline">
+                    <?= csrf_input() ?>
                     <input type="hidden" name="action" value="approve_user">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="primary-btn" type="submit" style="font-size:13px;padding:8px 14px">✓ Approve</button>
                 </form>
                 <form method="post" style="display:inline">
+                    <?= csrf_input() ?>
                     <input type="hidden" name="action" value="reject_user">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <input type="text" name="rejection_reason" placeholder="Reason (optional)" maxlength="500" style="padding:8px 10px;font-size:13px;border:1px solid var(--line);border-radius:4px;width:200px">
@@ -1134,17 +1141,20 @@ $recentAudit = $conn->query(
                 </form>
             <?php elseif ($editUser['status'] === 'inactive'): ?>
                 <form method="post" style="display:inline">
+                    <?= csrf_input() ?>
                     <input type="hidden" name="action" value="activate_user">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="primary-btn" type="submit" style="font-size:13px;padding:8px 14px">Activate</button>
                 </form>
                 <form method="post" style="display:inline" onsubmit="return prompt('Reason for deletion (optional):', '') !== null || false;">
+                    <?= csrf_input() ?>
                     <input type="hidden" name="action" value="delete_user">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="danger-btn" type="submit" style="font-size:13px;padding:8px 14px">Move to Trash</button>
                 </form>
             <?php elseif ($editUser['status'] === 'deleted'): ?>
                 <form method="post" style="display:inline">
+                    <?= csrf_input() ?>
                     <input type="hidden" name="action" value="restore_user">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="primary-btn" type="submit" style="font-size:13px;padding:8px 14px">Restore</button>
