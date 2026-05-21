@@ -164,7 +164,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $skipCsrf = in_array($page, $publicPages, true)
         || ($page === 'researchers' && !is_logged_in() && ($_POST['mode'] ?? '') === 'add');
 
+    error_log("[CSRF CHECK] page=$page, skipCsrf=" . ($skipCsrf ? 'yes' : 'no'));
+
     if (!$skipCsrf && !is_csrf_valid()) {
+        error_log("[CSRF FAILED] POST action: " . ($_POST['action'] ?? 'unknown'));
         if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) {
             header('Content-Type: application/json', true, 403);
             echo json_encode(['error' => 'csrf_invalid']);
