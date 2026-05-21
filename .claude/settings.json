@@ -165,7 +165,8 @@
       "Bash(head -20 /var/www/html/facthub/app/views/funding/index.php)",
       "Read(//var/www/html/facthub/app/views/funding/**)",
       "Bash(grep -n 'funderCandidates\\\\|funderResults\\\\|funderJson\\\\|$f\\\\[\\\\|Funder' /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/public/chat_search.php)",
-      "Bash(grep -n '$editing\\\\s*=' /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/app/views/researchers/index.php)"
+      "Bash(grep -n '$editing\\\\s*=' /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/app/views/researchers/index.php)",
+      "Bash(grep -n 'if \\($action ===' /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/app/views/admin/index.php)"
     ],
     "additionalDirectories": [
       "/tmp"

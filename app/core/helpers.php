@@ -263,5 +263,64 @@ function generate_researcher_summary(mysqli $conn, int $researcherId): void {
         @$insert->execute();
     }
 }
+
+function send_admin_notification_email(string $email, string $action, string $name, string $reason = ''): void {
+    @$mailCfg = require __DIR__ . '/../../../config/mail.php';
+    if (!is_array($mailCfg)) $mailCfg = [];
+    $appUrl = rtrim($mailCfg['app_url'] ?? 'http://localhost', '/');
+    $firstName = explode(' ', trim($name))[0] ?: 'there';
+
+    if ($action === 'approved') {
+        $subject = 'Your FACT Alliance Hub account has been approved!';
+        $html = "
+            <p>Hi $firstName,</p>
+            <p>Great news! Your account has been approved by our admin team.</p>
+            <p>You can now access all platform features:</p>
+            <ul>
+                <li>Browse and save funding opportunities</li>
+                <li>Chat with other researchers</li>
+                <li>Get AI-powered research recommendations</li>
+            </ul>
+            <p><a href='$appUrl/index.php?page=login'>Log in now →</a></p>
+            <p>Questions? Contact us at support@factalliance.org</p>
+        ";
+    } elseif ($action === 'rejected') {
+        $subject = 'FACT Alliance Hub application decision';
+        $html = "
+            <p>Hi $firstName,</p>
+            <p>Thank you for your interest in the FACT Alliance Hub.</p>
+            <p>Unfortunately, your application was not approved at this time." .
+            ($reason ? "<br/>Reason: " . htmlspecialchars($reason) : "") . "</p>
+            <p>You're welcome to contact us at support@factalliance.org if you have questions.</p>
+        ";
+    } else {
+        return;
+    }
+
+    @send_notification_email($email, $subject, $html);
+}
+
+function notify_admins_of_new_registration(string $email, string $name, string $institution = ''): void {
+    global $conn;
+    $admins = $conn->query("SELECT email FROM users WHERE role='admin' AND status='active' LIMIT 10");
+
+    if ($admins && $admins->num_rows > 0) {
+        @$mailCfg = require __DIR__ . '/../../../config/mail.php';
+        if (!is_array($mailCfg)) $mailCfg = [];
+        $appUrl = rtrim($mailCfg['app_url'] ?? 'http://localhost', '/');
+
+        while ($admin = $admins->fetch_assoc()) {
+            $subject = "New registration pending approval: $name";
+            $html = "
+                <p>A new researcher has registered and needs approval.</p>
+                <p><strong>Name:</strong> $name</p>
+                <p><strong>Email:</strong> $email</p>
+                <p><strong>Institution:</strong> " . htmlspecialchars($institution) . "</p>
+                <p><a href='$appUrl/index.php?page=admin&section=users&utab=pending'>Review pending users →</a></p>
+            ";
+            @send_notification_email($admin['email'], $subject, $html);
+        }
+    }
+}
 ?>
 

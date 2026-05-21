@@ -486,6 +486,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         set_flash('success', 'Balance check queued. Will complete within minutes.');
         redirect_to('admin', ['section' => 'dashboard']);
     }
+
+    /* Approve pending user */
+    if ($action === 'approve_user') {
+        $uid = (int)($_POST['user_id'] ?? 0);
+        if ($uid) {
+            $uq = $conn->prepare('SELECT email, name FROM users WHERE id = ? AND status = ? LIMIT 1');
+            $status_check = 'pending_approval';
+            $uq->bind_param('is', $uid, $status_check);
+            $uq->execute();
+            $uRow = $uq->get_result()->fetch_assoc();
+
+            if ($uRow) {
+                // Approve user
+                $upd = $conn->prepare("UPDATE users SET status='active', last_status_change_at=NOW(), status_changed_by=? WHERE id=?");
+                $upd->bind_param('si', $adminUser['email'], $uid);
+                $upd->execute();
+
+                // Also approve linked researcher/funder profiles
+                $uprof = $conn->prepare("UPDATE researchers SET status='active' WHERE user_id=? AND status != 'deleted'");
+                $uprof->bind_param('i', $uid); $uprof->execute();
+
+                $fprof = $conn->prepare("UPDATE funders SET status='active' WHERE user_id=? AND status != 'deleted'");
+                $fprof->bind_param('i', $uid); $fprof->execute();
+
+                // Log approval
+                audit($conn, 'approve_user', [
+                    'type' => 'user', 'id' => $uid, 'email' => $uRow['email'],
+                    'detail' => 'User approved and can now access platform'
+                ]);
+
+                // Email user that they're approved
+                send_admin_notification_email($uRow['email'], 'approved', $uRow['name']);
+
+                set_flash('success', 'User approved. They can now access the platform.');
+            }
+        }
+        redirect_to('admin', ['section' => 'users', 'utab' => 'pending']);
+    }
+
+    /* Reject pending user */
+    if ($action === 'reject_user') {
+        $uid = (int)($_POST['user_id'] ?? 0);
+        $reason = trim($_POST['rejection_reason'] ?? '');
+
+        if ($uid) {
+            $uq = $conn->prepare('SELECT email, name FROM users WHERE id = ? AND status = ? LIMIT 1');
+            $status_check = 'pending_approval';
+            $uq->bind_param('is', $uid, $status_check);
+            $uq->execute();
+            $uRow = $uq->get_result()->fetch_assoc();
+
+            if ($uRow) {
+                // Set to inactive instead of deletion (gives user chance to reapply)
+                $upd = $conn->prepare("UPDATE users SET status='inactive', deactivated_at=NOW(), session_token=NULL, status_changed_by=?, last_status_change_at=NOW() WHERE id=?");
+                $upd->bind_param('si', $adminUser['email'], $uid);
+                $upd->execute();
+
+                // Also deactivate linked profiles
+                $uprof = $conn->prepare("UPDATE researchers SET status='inactive', deactivated_at=NOW() WHERE user_id=? AND status != 'deleted'");
+                $uprof->bind_param('i', $uid); $uprof->execute();
+
+                // Log rejection
+                audit($conn, 'reject_user', [
+                    'type' => 'user', 'id' => $uid, 'email' => $uRow['email'],
+                    'detail' => 'Application rejected. ' . ($reason ? 'Reason: ' . $reason : 'No reason provided')
+                ]);
+
+                // Email user that application was rejected
+                send_admin_notification_email($uRow['email'], 'rejected', $uRow['name'], $reason);
+
+                set_flash('success', 'Application rejected. User has been notified.');
+            }
+        }
+        redirect_to('admin', ['section' => 'users', 'utab' => 'pending']);
+    }
 }
 
 /* ── LOAD DATA ── */
@@ -493,7 +568,7 @@ $editId   = (int)($_GET['edit']   ?? 0);
 $search   = trim($_GET['search']  ?? '');
 $roleFilter = $_GET['role']        ?? '';
 $statusTab = $_GET['utab']         ?? 'active';
-if (!in_array($statusTab, ['active', 'inactive', 'trash'])) { $statusTab = 'active'; }
+if (!in_array($statusTab, ['active', 'pending', 'inactive', 'trash'])) { $statusTab = 'active'; }
 
 $editUser = null;
 if ($editId > 0) {
