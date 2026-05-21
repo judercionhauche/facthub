@@ -452,11 +452,16 @@ if ($editId > 0 && !is_admin()) {
 
 $topicTags   = get_all_tags($conn, 'topic');
 $researchers = [];
+// For viewing own profile or editing: include pending_approval
+// For public browse: only active
+$profileLookupStatuses = "('active', 'pending_approval')";
+$publicBrowseStatuses = "'active'";
+
 // Try with deleted_at column first, fall back if it doesn't exist
-$res = @$conn->query("SELECT * FROM researchers WHERE status = 'active' AND deleted_at IS NULL ORDER BY first_name ASC, last_name ASC");
+$res = @$conn->query("SELECT * FROM researchers WHERE status IN {$profileLookupStatuses} AND deleted_at IS NULL ORDER BY first_name ASC, last_name ASC");
 if (!$res) {
     // Fallback if deleted_at column doesn't exist yet
-    $res = @$conn->query("SELECT * FROM researchers WHERE status = 'active' ORDER BY first_name ASC, last_name ASC");
+    $res = @$conn->query("SELECT * FROM researchers WHERE status IN {$profileLookupStatuses} ORDER BY first_name ASC, last_name ASC");
 }
 if (!$res) {
     // Further fallback if status column doesn't exist
@@ -465,6 +470,11 @@ if (!$res) {
 if ($res) {
     while ($row = $res->fetch_assoc()) $researchers[] = $row;
 }
+
+// For public display, filter to only active
+$publicResearchers = array_filter($researchers, function($r) {
+    return ($r['status'] ?? 'active') === 'active';
+});
 
 // Unique non-empty institutions (sorted)
 $institutions = array_values(array_unique(array_filter(array_map(fn($r) => trim($r['institution'] ?? ''), $researchers))));
@@ -1082,7 +1092,7 @@ document.addEventListener('DOMContentLoaded', function() {
         <div class="empty-state panel">No researchers found.</div>
         <?php endif; ?>
 
-        <?php foreach ($researchers as $r):
+        <?php foreach ($publicResearchers as $r):
             $rCats    = array_values(array_filter(array_map('trim', explode('|', $r['focus_area'] ?? ''))));
             $rSubcats = array_values(array_filter(array_map('trim', explode(',', $r['focus_area_detail'] ?? ''))));
             $rTopics  = parse_tags($r['topics'] ?? '');
