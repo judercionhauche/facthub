@@ -8,7 +8,7 @@ if (!$email) {
     die("Not logged in. Email not in session.");
 }
 
-$dbConfig = require_once __DIR__ . '/config/database.php';
+$dbConfig = require_once __DIR__ . '/../config/database.php';
 $conn = new mysqli($dbConfig['db_host'], $dbConfig['db_user'], $dbConfig['db_pass'], $dbConfig['db_name']);
 
 if ($conn->connect_error) {
