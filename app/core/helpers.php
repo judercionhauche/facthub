@@ -7,11 +7,16 @@ function csrf_token(): string {
     if (empty($_SESSION['csrf_token'])) {
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
     }
-    return $_SESSION['csrf_token'];
+    $token = $_SESSION['csrf_token'];
+    error_log("[CSRF TOKEN] Generated/retrieved: " . substr($token, 0, 10) . "...");
+    return $token;
 }
 
 function csrf_input(): string {
-    return '<input type="hidden" name="_csrf" value="' . h(csrf_token()) . '">';
+    $token = csrf_token();
+    $html = '<input type="hidden" name="_csrf" value="' . h($token) . '">';
+    error_log("[CSRF INPUT] Output HTML: " . substr($html, 0, 80) . "...");
+    return $html;
 }
 
 function verify_csrf(): bool {
