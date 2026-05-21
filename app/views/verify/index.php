@@ -25,6 +25,15 @@ if (isset($_GET['token'])) {
         $now = date('Y-m-d H:i:s');
         $mu  = $conn->prepare('UPDATE email_verifications SET verified_at = NOW() WHERE token = ?');
         $mu->bind_param('s', $token); $mu->execute();
+
+        // Notify admins of new registration
+        $rq = $conn->prepare('SELECT first_name, institution FROM researchers WHERE email = ? LIMIT 1');
+        $rq->bind_param('s', $ev['email']);
+        $rq->execute();
+        $rRow = $rq->get_result()->fetch_assoc();
+        $userName = $rRow['first_name'] ?? explode('@', $ev['email'])[0];
+        notify_admins_of_new_registration($ev['email'], $userName, $rRow['institution'] ?? '');
+
         set_flash('success', 'Your account has been verified. An admin will review your profile soon. You can edit your profile while you wait.');
         redirect_to('login');
     }

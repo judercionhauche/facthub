@@ -118,6 +118,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             // Validation for registration only
             if ($isNewRegistration) {
+                // Rate limit registration by IP
+                $rateLimiter = new RateLimiter($conn);
+                $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+
+                if (!$rateLimiter->check('register_' . $ip, 5, 3600)) {
+                    $storeFormDataForRegistrationError('Too many registration attempts from your IP. Please try again in an hour.');
+                }
+
+                // Also rate limit by email domain
+                if (!$registrationError && preg_match('/@(.+)$/i', $email, $m)) {
+                    $domain = strtolower($m[1]);
+                    if (!$rateLimiter->check('register_domain_' . $domain, 20, 3600)) {
+                        $storeFormDataForRegistrationError('Too many registrations from this email domain. Please try again later.');
+                    }
+                }
+
                 if ($first === '' || $last === '') {
                     $storeFormDataForRegistrationError('First and last name are required.');
                 }
@@ -226,6 +242,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             // EXISTING RESEARCHER: update profile
             else if ($id > 0) {
+                // Check if email changed and require re-verification
+                $existingResearcher = null;
+                $check = $conn->prepare('SELECT email FROM researchers WHERE id = ? LIMIT 1');
+                $check->bind_param('i', $id);
+                $check->execute();
+                $existingResearcher = $check->get_result()->fetch_assoc();
+
+                $emailChanged = $existingResearcher && (strtolower($email) !== strtolower($existingResearcher['email']));
+
+                if ($emailChanged) {
+                    // Email changed - require reverification
+                    $token = bin2hex(random_bytes(32));
+                    $expiresAt = date('Y-m-d H:i:s', time() + 86400);
+                    $evStmt = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)');
+                    $evStmt->bind_param('sss', $email, $token, $expiresAt);
+                    @$evStmt->execute();
+
+                    // Send verification email
+                    @$mailCfg = require __DIR__ . '/../../../config/mail.php';
+                    if (!is_array($mailCfg)) $mailCfg = [];
+                    $appUrl = rtrim($mailCfg['app_url'] ?? ('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')), '/');
+                    $verifyUrl = $appUrl . '/index.php?page=verify&token=' . urlencode($token);
+                    $html = mail_tpl_verify_email($verifyUrl, $first);
+                    enqueue_job($conn, 'send_notification', [
+                        'to' => $email,
+                        'subject' => 'Verify your new email address',
+                        'html' => $html
+                    ]);
+
+                    set_flash('info', 'Your email address has been changed. Please verify your new email by clicking the link sent to ' . h($email));
+                    redirect_to('researchers', ['edit' => $id]);
+                }
+
                 $stmt = $conn->prepare('UPDATE researchers SET first_name=?, last_name=?, email=?, institution=?, department=?, title=?, bio=?, focus_area=?, focus_area_detail=?, topics=?, geography=?, co_advising=?, co_advising_details=?, profile_url=?, website_url=?, orcid_id=?, google_scholar_url=?, notify_matches=?, notify_frequency=? WHERE id=?');
                 if (!$stmt) throw new Exception('Prepare update failed: ' . $conn->error);
                 $stmt->bind_param('sssssssssssisssssssi', $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency, $id);
