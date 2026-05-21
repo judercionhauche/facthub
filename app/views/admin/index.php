@@ -1,4 +1,5 @@
 <?php
+error_log("[ADMIN PAGE] Loading admin view");
 require_admin();
 
 $mailCfg = @include __DIR__ . '/../../config/mail.php';
