@@ -209,7 +209,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt = $conn->prepare('INSERT INTO researchers (user_id, first_name, last_name, email, institution, department, title, bio, focus_area, focus_area_detail, topics, geography, co_advising, co_advising_details, profile_url, website_url, orcid_id, google_scholar_url, status, notify_matches, notify_frequency) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                     if (!$stmt) throw new Exception('Prepare researchers failed: ' . $conn->error);
                     $status_researcher = 'pending_approval';
-                    $stmt->bind_param('issssssssssissssssis', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher, $notifyMatches, $notifyFrequency);
+                    $stmt->bind_param('isssssssssssissssssis', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher, $notifyMatches, $notifyFrequency);
                     if (!$stmt->execute()) {
                         throw new Exception('Error creating researcher profile: ' . $stmt->error);
                     }
