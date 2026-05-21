@@ -1,4 +1,7 @@
 <?php
+// Set timezone to New York (Eastern Time)
+date_default_timezone_set('America/New_York');
+
 ob_start();
 
 // ── Security: Enforce HTTPS & set security headers ──
