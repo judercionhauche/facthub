@@ -215,14 +215,13 @@ function dispatch_job(mysqli $conn, array $job, string $appUrl): void {
                     $updateStmt->bind_param('ii', $fcId, $rid);
                     $updateStmt->execute();
 
-                    // Send immediately if set to immediate, otherwise mark for weekly digest
-                    if ($n['notify_frequency'] === 'immediate') {
-                        enqueue_job($conn, 'send_notification', [
-                            'to'      => $n['email'],
-                            'subject' => 'New funding match: ' . $n['title'],
-                            'html'    => $html,
-                        ]);
-                    }
+                    // Send notification (immediate and weekly both send right now)
+                    // TODO: Implement true weekly digest that aggregates and sends once per week
+                    enqueue_job($conn, 'send_notification', [
+                        'to'      => $n['email'],
+                        'subject' => 'New funding match: ' . $n['title'],
+                        'html'    => $html,
+                    ]);
                 }
 
                 echo "[" . date('Y-m-d H:i:s') . "] Job {$jobId} (compute_matches) done" . PHP_EOL;
