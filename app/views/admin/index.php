@@ -1115,7 +1115,7 @@ $recentAudit = $conn->query(
         <div style="display:flex;gap:8px;flex-wrap:wrap">
             <?php if ($editUser['status'] === 'active'): ?>
                 <form method="post" style="display:inline">
-                    <?= csrf_input() ?>
+                    <?php error_log("[ADMIN] About to call csrf_input() for active user"); echo csrf_input(); ?>
                     <input type="hidden" name="action" value="deactivate_user">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="ghost-btn" type="submit" style="font-size:13px;padding:8px 14px">Deactivate</button>
