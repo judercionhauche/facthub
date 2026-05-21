@@ -18,20 +18,68 @@ if (!in_array($tab, $validTabs)) {
 try {
     // Fetch detailed profile data based on user role
     if ($user['role'] === 'researcher') {
+        error_log("[PROFILE DEBUG] Looking for researcher with email: " . $user['email']);
         $stmt = $conn->prepare("SELECT * FROM researchers WHERE email = ? AND status IN ('active', 'pending_approval') AND deleted_at IS NULL LIMIT 1");
         $stmt->bind_param('s', $user['email']);
         $stmt->execute();
         $profile = $stmt->get_result()->fetch_assoc();
+        error_log("[PROFILE DEBUG] Query result: " . ($profile ? "FOUND (ID: " . $profile['id'] . ")" : "NOT FOUND"));
+
+        // If not found with exact email, try case-insensitive search
         if (!$profile) {
+            error_log("[PROFILE DEBUG] Trying case-insensitive search for: " . strtolower($user['email']));
+            $stmt2 = $conn->prepare("SELECT * FROM researchers WHERE LOWER(email) = LOWER(?) AND status IN ('active', 'pending_approval') AND deleted_at IS NULL LIMIT 1");
+            $stmt2->bind_param('s', $user['email']);
+            $stmt2->execute();
+            $profile = $stmt2->get_result()->fetch_assoc();
+            error_log("[PROFILE DEBUG] Case-insensitive result: " . ($profile ? "FOUND (ID: " . $profile['id'] . ")" : "NOT FOUND"));
+        }
+
+        if (!$profile) {
+            // Debug: Show all researchers with similar email
+            $debug = $conn->query("SELECT id, email, status FROM researchers WHERE email LIKE '%" . addslashes(substr($user['email'], 0, 5)) . "%' LIMIT 5");
+            if ($debug && $debug->num_rows > 0) {
+                error_log("[PROFILE DEBUG] Found similar researchers:");
+                while ($row = $debug->fetch_assoc()) {
+                    error_log("  - " . $row['email'] . " (Status: " . $row['status'] . ")");
+                }
+            } else {
+                error_log("[PROFILE DEBUG] No similar researchers found at all");
+            }
+
             set_flash('error', 'Your researcher profile was not found. Please contact an administrator.');
             redirect_to('researchers');
         }
     } elseif ($user['role'] === 'funder') {
+        error_log("[PROFILE DEBUG] Looking for funder with email: " . $user['email']);
         $stmt = $conn->prepare("SELECT * FROM funders WHERE email = ? AND status IN ('active', 'pending_approval') AND deleted_at IS NULL LIMIT 1");
         $stmt->bind_param('s', $user['email']);
         $stmt->execute();
         $profile = $stmt->get_result()->fetch_assoc();
+        error_log("[PROFILE DEBUG] Query result: " . ($profile ? "FOUND (ID: " . $profile['id'] . ")" : "NOT FOUND"));
+
+        // If not found with exact email, try case-insensitive search
         if (!$profile) {
+            error_log("[PROFILE DEBUG] Trying case-insensitive search for: " . strtolower($user['email']));
+            $stmt2 = $conn->prepare("SELECT * FROM funders WHERE LOWER(email) = LOWER(?) AND status IN ('active', 'pending_approval') AND deleted_at IS NULL LIMIT 1");
+            $stmt2->bind_param('s', $user['email']);
+            $stmt2->execute();
+            $profile = $stmt2->get_result()->fetch_assoc();
+            error_log("[PROFILE DEBUG] Case-insensitive result: " . ($profile ? "FOUND (ID: " . $profile['id'] . ")" : "NOT FOUND"));
+        }
+
+        if (!$profile) {
+            // Debug: Show all funders with similar email
+            $debug = $conn->query("SELECT id, email, status FROM funders WHERE email LIKE '%" . addslashes(substr($user['email'], 0, 5)) . "%' LIMIT 5");
+            if ($debug && $debug->num_rows > 0) {
+                error_log("[PROFILE DEBUG] Found similar funders:");
+                while ($row = $debug->fetch_assoc()) {
+                    error_log("  - " . $row['email'] . " (Status: " . $row['status'] . ")");
+                }
+            } else {
+                error_log("[PROFILE DEBUG] No similar funders found at all");
+            }
+
             set_flash('error', 'Your funder profile was not found. Please contact an administrator.');
             redirect_to('funding');
         }
