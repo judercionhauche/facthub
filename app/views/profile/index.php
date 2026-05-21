@@ -18,7 +18,7 @@ if (!in_array($tab, $validTabs)) {
 try {
     // Fetch detailed profile data based on user role
     if ($user['role'] === 'researcher') {
-        $stmt = $conn->prepare("SELECT * FROM researchers WHERE email = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1");
+        $stmt = $conn->prepare("SELECT * FROM researchers WHERE email = ? AND status IN ('active', 'pending_approval') AND deleted_at IS NULL LIMIT 1");
         $stmt->bind_param('s', $user['email']);
         $stmt->execute();
         $profile = $stmt->get_result()->fetch_assoc();
@@ -27,7 +27,7 @@ try {
             redirect_to('researchers');
         }
     } elseif ($user['role'] === 'funder') {
-        $stmt = $conn->prepare("SELECT * FROM funders WHERE email = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1");
+        $stmt = $conn->prepare("SELECT * FROM funders WHERE email = ? AND status IN ('active', 'pending_approval') AND deleted_at IS NULL LIMIT 1");
         $stmt->bind_param('s', $user['email']);
         $stmt->execute();
         $profile = $stmt->get_result()->fetch_assoc();
@@ -75,7 +75,7 @@ try {
                 if (!empty($updates)) {
                     $types .= 's'; // for email in WHERE clause
                     $params[] = $user['email'];
-                    $sql = 'UPDATE researchers SET ' . implode(', ', $updates) . " WHERE email = ? AND status = 'active' AND deleted_at IS NULL";
+                    $sql = 'UPDATE researchers SET ' . implode(', ', $updates) . " WHERE email = ? AND status IN ('active', 'pending_approval') AND deleted_at IS NULL";
                     $stmt = $conn->prepare($sql);
                     if (!$stmt) {
                         throw new Exception('Prepare failed: ' . $conn->error);
@@ -90,7 +90,7 @@ try {
                         audit($conn, 'update_profile', ['type' => 'researcher', 'id' => $profile['id']]);
 
                         // Refresh profile data
-                        $stmt2 = $conn->prepare("SELECT * FROM researchers WHERE email = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1");
+                        $stmt2 = $conn->prepare("SELECT * FROM researchers WHERE email = ? AND status IN ('active', 'pending_approval') AND deleted_at IS NULL LIMIT 1");
                         $stmt2->bind_param('s', $user['email']);
                         $stmt2->execute();
                         $profile = $stmt2->get_result()->fetch_assoc();
@@ -131,7 +131,7 @@ try {
                 if (!empty($updates)) {
                     $types .= 's'; // for email in WHERE clause
                     $params[] = $user['email'];
-                    $sql = 'UPDATE funders SET ' . implode(', ', $updates) . " WHERE email = ? AND status = 'active' AND deleted_at IS NULL";
+                    $sql = 'UPDATE funders SET ' . implode(', ', $updates) . " WHERE email = ? AND status IN ('active', 'pending_approval') AND deleted_at IS NULL";
                     $stmt = $conn->prepare($sql);
                     if (!$stmt) {
                         throw new Exception('Prepare failed: ' . $conn->error);
@@ -145,7 +145,7 @@ try {
                         $success_message = 'Profile updated successfully!';
                         audit($conn, 'update_profile', ['type' => 'funder', 'id' => $profile['id']]);
                         // Refresh profile data
-                        $stmt2 = $conn->prepare("SELECT * FROM funders WHERE email = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1");
+                        $stmt2 = $conn->prepare("SELECT * FROM funders WHERE email = ? AND status IN ('active', 'pending_approval') AND deleted_at IS NULL LIMIT 1");
                         $stmt2->bind_param('s', $user['email']);
                         $stmt2->execute();
                         $profile = $stmt2->get_result()->fetch_assoc();

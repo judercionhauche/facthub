@@ -166,7 +166,25 @@
       "Read(//var/www/html/facthub/app/views/funding/**)",
       "Bash(grep -n 'funderCandidates\\\\|funderResults\\\\|funderJson\\\\|$f\\\\[\\\\|Funder' /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/public/chat_search.php)",
       "Bash(grep -n '$editing\\\\s*=' /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/app/views/researchers/index.php)",
-      "Bash(grep -n 'if \\($action ===' /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/app/views/admin/index.php)"
+      "Bash(grep -n 'if \\($action ===' /Applications/XAMPP/xamppfiles/htdocs/fact_hub2/app/views/admin/index.php)",
+      "Bash(grep -E \"\\\\.\\(php|html\\)$\")",
+      "Bash(curl -X POST 'http://54.221.189.212/index.php?page=researchers&mode=add' -d 'action=save&mode=add&id=0&first_name=Test&last_name=CSRFTest&email=csrf-test-__CMDSUB_OUTPUT__@example.com&institution=TestU&title=Researcher&password=TestPass123&confirm_password=TestPass123&focus_area=&topics=&geography=&co_advising=&co_advising_details=&profile_url=&website_url=&orcid_id=&google_scholar_url=&notify_matches=1&notify_frequency=immediate' -H 'Content-Type: application/x-www-form-urlencoded' -L --cookie-jar /tmp/cookies.txt)",
+      "Bash(curl -s \"http://54.221.189.212/phpmyadmin/index.php?route=/sql&pos=0&db=fact_hub2&table=users\")",
+      "Bash(chmod +x /tmp/test_registration.sh)",
+      "Bash(/tmp/test_registration.sh)",
+      "Bash(curl -s \"http://54.221.189.212/phpmyadmin/index.php?route=/sql\" -d \"sql_query=DESCRIBE%20researchers;\")",
+      "Bash(curl -s \"http://54.221.189.212/index.php\")",
+      "Bash(chmod +x /tmp/test_email_revert.sh)",
+      "Bash(/tmp/test_email_revert.sh)",
+      "Bash(chmod +x /tmp/test_password_reset.sh)",
+      "Bash(/tmp/test_password_reset.sh)",
+      "Bash(chmod +x /tmp/test_admin_rejection.sh)",
+      "Bash(/tmp/test_admin_rejection.sh)",
+      "Bash(curl -s http://54.221.189.212/phpmyadmin/index.php -X POST -d 'route=/sql&db=fact_hub2' -d 'sql_query=DELETE FROM rate_limits WHERE `key` LIKE '\\\\''register_%'\\\\'';')",
+      "Bash(chmod +x /tmp/check_rate_limits.sh)",
+      "Bash(/tmp/check_rate_limits.sh)",
+      "Bash(/Applications/XAMPP/bin/mysql -u root fact_hub2 -e \"DELETE FROM rate_limits WHERE \\\\`key\\\\` LIKE 'register%';\")",
+      "Bash(/Applications/XAMPP/bin/mysql -u root fact_hub2 -e \"TRUNCATE TABLE rate_limits;\")"
     ],
     "additionalDirectories": [
       "/tmp"

@@ -549,10 +549,10 @@ $myMatches    = [];
 $myResearcher = null;
 if (!is_admin() && is_approved()) {
     // Try with deleted_at column first, fall back if it doesn't exist
-    $meStmt = @$conn->prepare("SELECT id FROM researchers WHERE LOWER(email) = ? AND status = 'active' AND deleted_at IS NULL LIMIT 1");
+    $meStmt = @$conn->prepare("SELECT id FROM researchers WHERE LOWER(email) = ? AND status IN ('active', 'pending_approval') AND deleted_at IS NULL LIMIT 1");
     if (!$meStmt) {
         // Fallback if deleted_at column doesn't exist
-        $meStmt = $conn->prepare("SELECT id FROM researchers WHERE LOWER(email) = ? AND status = 'active' LIMIT 1");
+        $meStmt = $conn->prepare("SELECT id FROM researchers WHERE LOWER(email) = ? AND status IN ('active', 'pending_approval') LIMIT 1");
     }
     if (!$meStmt) {
         // Further fallback if status column doesn't exist
