@@ -194,18 +194,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 // Only proceed with user creation if no validation errors
                 if (!$registrationError) {
-                    // Create user account
-                    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-                    $userStmt = $conn->prepare('INSERT INTO users (email, password, name, role, status) VALUES (?, ?, ?, ?, ?)');
-                    if (!$userStmt) throw new Exception('Prepare user failed: ' . $conn->error);
-                    $role = 'researcher';
-                    $status = 'unverified';
-                    $fullName = trim("$first $last");
-                    $userStmt->bind_param('sssss', $email, $passwordHash, $fullName, $role, $status);
-                    if (!$userStmt->execute()) {
-                        throw new Exception('Error creating account: ' . $userStmt->error);
-                    }
-                    $userId = $conn->insert_id;
+                    // Start transaction — rollback on ANY error
+                    $conn->begin_transaction();
+
+                    try {
+                        // Create user account
+                        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+                        $userStmt = $conn->prepare('INSERT INTO users (email, password, name, role, status) VALUES (?, ?, ?, ?, ?)');
+                        if (!$userStmt) throw new Exception('Prepare user failed: ' . $conn->error);
+                        $role = 'researcher';
+                        $status = 'unverified';
+                        $fullName = trim("$first $last");
+                        $userStmt->bind_param('sssss', $email, $passwordHash, $fullName, $role, $status);
+                        if (!$userStmt->execute()) {
+                            throw new Exception('Error creating account: ' . $userStmt->error);
+                        }
+                        $userId = $conn->insert_id;
 
                     // Create email verification token
                     $token = bin2hex(random_bytes(32));
@@ -250,9 +254,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'html' => $html
                     ]);
 
-                    audit($conn, 'researcher_signup', ['type' => 'user', 'id' => $userId, 'email' => $email, 'detail' => "New researcher registration: $fullName"]);
-                    set_flash('success', 'Account created! Check your email to verify your account.');
-                    redirect_to('verify', ['e' => $email, 'pending' => '1']);
+                        audit($conn, 'researcher_signup', ['type' => 'user', 'id' => $userId, 'email' => $email, 'detail' => "New researcher registration: $fullName"]);
+
+                        // Commit transaction — all operations succeeded
+                        $conn->commit();
+
+                        set_flash('success', 'Account created! Check your email to verify your account.');
+                        redirect_to('verify', ['e' => $email, 'pending' => '1']);
+                    } catch (Exception $e) {
+                        // Rollback transaction on ANY error — no user/researcher created
+                        $conn->rollback();
+                        $storeFormDataForRegistrationError('Registration failed: ' . $e->getMessage());
+                    }
                 }
             }
             // EXISTING RESEARCHER: update profile
