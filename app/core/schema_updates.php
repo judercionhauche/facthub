@@ -595,10 +595,40 @@ function apply_security_schema_updates(mysqli $conn): void {
         @$conn->query("ALTER TABLE researchers ADD COLUMN notify_frequency ENUM('immediate','weekly','never') NOT NULL DEFAULT 'immediate'");
     }
 
+    // Add notify_threshold column to researchers table for relevance filtering
+    $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='researchers' AND COLUMN_NAME='notify_threshold' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("ALTER TABLE researchers ADD COLUMN notify_threshold INT NOT NULL DEFAULT 60");
+    }
+
     // Add last_notification_sent_at column to researchers for weekly digest tracking
     $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='researchers' AND COLUMN_NAME='last_notification_sent_at' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
     if (!$result || $result->num_rows === 0) {
         @$conn->query("ALTER TABLE researchers ADD COLUMN last_notification_sent_at TIMESTAMP NULL DEFAULT NULL");
+    }
+
+    // Add quiet hours columns for researcher work-life balance
+    foreach (['quiet_hours_start', 'quiet_hours_end'] as $col) {
+        $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='researchers' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("ALTER TABLE researchers ADD COLUMN $col TIME NULL DEFAULT NULL");
+        }
+    }
+
+    // Create notification_queue table for batching weekly digests
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='notification_queue' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS notification_queue (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                researcher_email VARCHAR(255) NOT NULL,
+                funding_call_id INT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                sent_at TIMESTAMP NULL DEFAULT NULL,
+                INDEX idx_email_sent (researcher_email, sent_at),
+                INDEX idx_created (created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
     }
 
     // Create password_resets table for password reset tokens

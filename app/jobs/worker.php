@@ -298,6 +298,13 @@ function dispatch_job(mysqli $conn, array $job, string $appUrl): void {
                 echo "[" . date('Y-m-d H:i:s') . "] Job {$jobId} (fetch_orcid_publications) done" . PHP_EOL;
                 break;
 
+            case 'send_weekly_digests':
+                echo "[" . date('Y-m-d H:i:s') . "] Processing weekly digests" . PHP_EOL;
+                send_weekly_digest($conn);
+                mark_job_done($conn, $jobId);
+                echo "[" . date('Y-m-d H:i:s') . "] Job {$jobId} (send_weekly_digests) done" . PHP_EOL;
+                break;
+
             default:
                 throw new RuntimeException("Unknown job type: " . $job['job_type']);
         }

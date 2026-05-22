@@ -81,11 +81,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $notifySecret = $mailCfg['notify_secret'] ?? '';
                 $fundingUrl   = $appUrl . '/index.php?page=funding&view=' . $newFcId;
 
-                // Try with deleted_at column first, fall back if it doesn't exist
-                $rq = @$conn->prepare("SELECT first_name, email, topics, geography FROM researchers WHERE status = 'active' AND deleted_at IS NULL AND notify_matches = 1 AND email != '' AND email IS NOT NULL");
+                // Determine deadline urgency (< 30 days = force immediate notification)
+                $deadlineTs = strtotime($deadline);
+                $isUrgent = $deadlineTs && ($deadlineTs - time()) < (30 * 86400);
+
+                // Select researchers with notification preferences
+                $rq = @$conn->prepare("
+                    SELECT first_name, email, topics, geography, notify_threshold,
+                           COALESCE(notify_frequency, 'immediate') as notify_frequency,
+                           quiet_hours_start, quiet_hours_end
+                    FROM researchers
+                    WHERE status = 'active' AND deleted_at IS NULL AND notify_matches = 1
+                          AND email != '' AND email IS NOT NULL AND notify_frequency != 'never'
+                ");
                 if (!$rq) {
-                    // Fallback if deleted_at column doesn't exist
-                    $rq = $conn->prepare("SELECT first_name, email, topics, geography FROM researchers WHERE status = 'active' AND notify_matches = 1 AND email != '' AND email IS NOT NULL");
+                    $rq = $conn->prepare("
+                        SELECT first_name, email, topics, geography, COALESCE(notify_threshold, 60) as notify_threshold,
+                               'immediate' as notify_frequency, NULL as quiet_hours_start, NULL as quiet_hours_end
+                        FROM researchers
+                        WHERE status = 'active' AND notify_matches = 1
+                              AND email != '' AND email IS NOT NULL
+                    ");
                 }
                 if ($rq) {
                     $rq->execute();
@@ -94,33 +110,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $rqResult = null;
                 }
 
-                $notifications = [];
+                $immediateNotifications = [];
+                $weeklyQueuedCount = 0;
+
                 if ($rqResult) {
                 while ($r = $rqResult->fetch_assoc()) {
                     $rEmail = trim($r['email'] ?? '');
                     if (!$rEmail) continue;
-                    $score = compute_match_score($fcTopics, $fcGeo, parse_tags($r['topics'] ?? ''), parse_tags($r['geography'] ?? ''));
-                    if ($score['totalScore'] < 1) continue;
 
-                    $unsubToken = generate_unsubscribe_token($rEmail, $notifySecret);
-                    $unsubUrl   = $appUrl . '/index.php?page=unsubscribe&e=' . urlencode($rEmail) . '&t=' . $unsubToken;
-                    $firstName  = $r['first_name'] ?: 'Researcher';
+                    $rTopics = parse_tags($r['topics'] ?? '');
+                    $rGeo = parse_tags($r['geography'] ?? '');
+                    $score = compute_match_score($fcTopics, $fcGeo, $rTopics, $rGeo);
 
-                    $notifications[] = [
-                        'to'      => $rEmail,
-                        'subject' => 'New funding match: ' . $title,
-                        'html'    => mail_tpl_match_notify(
-                            $firstName, $title, $funder, $deadline, $status, $amount,
-                            $score['matchedTopics'], $score['matchedGeographies'],
-                            $fundingUrl, $unsubUrl
-                        ),
-                    ];
+                    // Calculate match percentage based on researcher's threshold
+                    $totalPossible = count($rTopics) + count($rGeo);
+                    $matchPercentage = $totalPossible > 0 ? (($score['topicMatches'] + $score['geographyMatches']) / $totalPossible) * 100 : 0;
+                    $notifyThreshold = (int)($r['notify_threshold'] ?? 60);
+
+                    // Skip if score too low or doesn't meet researcher's threshold
+                    if ($score['totalScore'] < 1 || $matchPercentage < $notifyThreshold) continue;
+
+                    // Determine delivery method
+                    $frequency = $r['notify_frequency'] ?? 'immediate';
+                    $shouldSendImmediate = ($frequency === 'immediate' || $isUrgent);
+                    $inQuietHours = false;
+
+                    // Check quiet hours (only for non-urgent notifications)
+                    if ($shouldSendImmediate && !$isUrgent && $r['quiet_hours_start'] && $r['quiet_hours_end']) {
+                        $currentTime = date('H:i', time());
+                        $startTime = $r['quiet_hours_start'];
+                        $endTime = $r['quiet_hours_end'];
+
+                        // If quiet hours span midnight (e.g. 22:00 to 08:00)
+                        if ($startTime > $endTime) {
+                            if ($currentTime >= $startTime || $currentTime < $endTime) {
+                                $inQuietHours = true;
+                            }
+                        } else {
+                            if ($currentTime >= $startTime && $currentTime < $endTime) {
+                                $inQuietHours = true;
+                            }
+                        }
+                    }
+
+                    if ($shouldSendImmediate && !$inQuietHours) {
+                        // Send immediately
+                        $unsubToken = generate_unsubscribe_token($rEmail, $notifySecret);
+                        $unsubUrl   = $appUrl . '/index.php?page=unsubscribe&e=' . urlencode($rEmail) . '&t=' . $unsubToken;
+                        $firstName  = $r['first_name'] ?: 'Researcher';
+
+                        $immediateNotifications[] = [
+                            'to'      => $rEmail,
+                            'subject' => 'New funding match: ' . $title,
+                            'html'    => mail_tpl_match_notify(
+                                $firstName, $title, $funder, $deadline, $status, $amount,
+                                $score['matchedTopics'], $score['matchedGeographies'],
+                                $fundingUrl, $unsubUrl
+                            ),
+                        ];
+                    } else {
+                        // Queue for weekly digest (either frequency=weekly or in quiet hours)
+                        $qStmt = $conn->prepare('INSERT INTO notification_queue (researcher_email, funding_call_id) VALUES (?, ?)');
+                        $qStmt->bind_param('si', $rEmail, $newFcId);
+                        @$qStmt->execute();
+                        $weeklyQueuedCount++;
+                    }
                 }
                 }
 
-                if (!empty($notifications)) {
-                    $notifiedCount = count($notifications);
-                    enqueue_job($conn, 'send_digest', ['messages' => $notifications]);
+                if (!empty($immediateNotifications)) {
+                    $notifiedCount = count($immediateNotifications);
+                    enqueue_job($conn, 'send_digest', ['messages' => $immediateNotifications]);
+                }
+
+                if ($weeklyQueuedCount > 0) {
+                    $notifiedCount += $weeklyQueuedCount;
                 }
             }
             // ────────────────────────────────────────────────────────
@@ -203,20 +267,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute();
         set_flash('success', 'Note saved.');
         redirect_to('funding', ['tab' => 'saved']);
-    }
-    if ($action === 'share') {
-        $subject = 'Opportunity: ' . trim($_POST['funding_call_title'] ?? '');
-        $body = trim($_POST['share_body'] ?? '');
-        $fid = (int)($_POST['funding_call_id'] ?? 0);
-        $ftitle = trim($_POST['funding_call_title'] ?? '');
-        $senderEmail = $user['email'];
-        $senderName = $user['name'];
-        $recipientType = 'network'; $recipientEmail = ''; $recipientName = ''; $messageType = 'opportunity-share'; $isRead = 0;
-        $stmt = $conn->prepare('INSERT INTO messages (sender_email, sender_name, recipient_type, recipient_email, recipient_name, subject, body, message_type, funding_call_id, funding_call_title, is_read) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-        $stmt->bind_param('ssssssssisi', $senderEmail, $senderName, $recipientType, $recipientEmail, $recipientName, $subject, $body, $messageType, $fid, $ftitle, $isRead);
-        $stmt->execute();
-        set_flash('success', 'Opportunity shared with network.');
-        redirect_to('funding');
     }
 }
 
@@ -441,14 +491,6 @@ $hasFilters = $search !== '' || !empty($topicFilters) || !empty($geoFilters) || 
     <?php foreach ($filtered as $fc): ?>
     <div class="panel list-card">
         <div class="card-row"><div class="card-main"><div class="title-line"><h3><?= h($fc['title']) ?></h3><span class="badge <?= status_class($fc['status']) ?>"><?= h($fc['status'] ?: 'n/a') ?></span></div><div class="muted">Funder: <?= h($fc['funder']) ?><?php if($fc['deadline']): ?> · Deadline: <?= h(format_deadline($fc['deadline'])) ?><?php endif; ?><?php if($fc['amount']): ?> · <?= h($fc['amount']) ?><?php endif; ?></div><div class="mini-label">Topics:</div><div class="tag-row"><?php foreach(array_slice(parse_tags($fc['topics']),0,4) as $tag): ?><span class="tag topic-tag"><?= h($tag) ?></span><?php endforeach; ?></div><div class="mini-label">Geography:</div><div class="tag-row"><?php foreach(array_slice(parse_tags($fc['geography']),0,3) as $tag): ?><span class="tag geo-tag"><?= h($tag) ?></span><?php endforeach; ?></div></div><div class="card-actions wrap-actions"><form method="post"><input type="hidden" name="action" value="save_opportunity"><input type="hidden" name="_csrf" value="<?= csrf_token() ?>"><input type="hidden" name="funding_call_id" value="<?= (int)$fc['id'] ?>"><input type="hidden" name="funding_call_title" value="<?= h($fc['title']) ?>"><button class="ghost-btn" type="submit"><?= isset($savedMap[$fc['id']]) ? 'Unsave' : 'Save' ?></button></form><a class="ghost-btn" href="index.php?page=funding&view=<?= (int)$fc['id'] ?>">View</a><?php if ($canManage($fc)): ?><a class="ghost-btn" href="index.php?page=funding&edit=<?= (int)$fc['id'] ?>">Edit</a><form method="post" onsubmit="return confirm('Delete funding call?');"><input type="hidden" name="action" value="delete"><input type="hidden" name="_csrf" value="<?= csrf_token() ?>"><input type="hidden" name="id" value="<?= (int)$fc['id'] ?>"><button class="danger-btn" type="submit">Delete</button></form><?php endif; ?></div></div>
-        <details class="share-box"><summary>Share with network</summary><form method="post" class="inline-form"><input type="hidden" name="action" value="share"><input type="hidden" name="_csrf" value="<?= csrf_token() ?>"><input type="hidden" name="funding_call_id" value="<?= (int)$fc['id'] ?>"><input type="hidden" name="funding_call_title" value="<?= h($fc['title']) ?>"><textarea name="share_body">I wanted to share this funding opportunity with the network:
-
-Title: <?= h($fc['title']) ?>
-Funder: <?= h($fc['funder'] ?: 'N/A') ?>
-Deadline: <?= h(format_deadline($fc['deadline'])) ?>
-Status: <?= h($fc['status'] ?: 'N/A') ?>
-
-More info: <?= h($fc['url'] ?: 'N/A') ?></textarea><button class="primary-btn" type="submit">Send to network</button></form></details>
     </div>
     <?php endforeach; ?>
 <?php endif; ?>

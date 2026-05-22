@@ -178,7 +178,7 @@ function ensure_tags($conn, $csv, $type) {
 }
 
 function enqueue_job(mysqli $conn, string $jobType, array $payload, int $delaySec = 0): int {
-    $allowed = ['compute_matches','generate_summary','send_notification','send_digest','check_balance','fetch_orcid_publications'];
+    $allowed = ['compute_matches','generate_summary','send_notification','send_digest','check_balance','fetch_orcid_publications','send_weekly_digests'];
     if (!in_array($jobType, $allowed, true)) {
         error_log('[enqueue_job] Invalid job type: ' . $jobType);
         return 0;
@@ -319,6 +319,101 @@ function notify_admins_of_new_registration(string $email, string $name, string $
                 <p><a href='$appUrl/index.php?page=admin&section=users&utab=pending'>Review pending users →</a></p>
             ";
             @send_notification_email($admin['email'], $subject, $html);
+        }
+    }
+}
+
+function is_in_quiet_hours(string $quietStart = null, string $quietEnd = null): bool {
+    if (!$quietStart || !$quietEnd) return false;
+
+    $currentTime = date('H:i', time());
+
+    // If quiet hours span midnight (e.g. 22:00 to 08:00)
+    if ($quietStart > $quietEnd) {
+        return $currentTime >= $quietStart || $currentTime < $quietEnd;
+    }
+
+    // Normal quiet hours (e.g. 22:00 to 06:00)
+    return $currentTime >= $quietStart && $currentTime < $quietEnd;
+}
+
+function send_weekly_digest(mysqli $conn): void {
+    // Find all researchers with weekly frequency who haven't been sent in the last 7 days
+    $weekAgo = date('Y-m-d H:i:s', time() - (7 * 86400));
+
+    $rq = $conn->prepare("
+        SELECT DISTINCT r.id, r.email, r.first_name
+        FROM researchers r
+        WHERE r.status = 'active' AND r.deleted_at IS NULL
+              AND r.notify_matches = 1 AND r.notify_frequency = 'weekly'
+              AND (r.last_notification_sent_at IS NULL OR r.last_notification_sent_at < ?)
+        LIMIT 100
+    ");
+    $rq->bind_param('s', $weekAgo);
+    $rq->execute();
+    $researcherResult = $rq->get_result();
+
+    while ($researcher = $researcherResult->fetch_assoc()) {
+        $rId = (int)$researcher['id'];
+        $rEmail = trim($researcher['email'] ?? '');
+        if (!$rEmail) continue;
+
+        // Get all queued notifications for this researcher
+        $nq = $conn->prepare("
+            SELECT fc.title, fc.funder, fc.deadline, fc.status, fc.amount, fc.topics, fc.geography, nq.funding_call_id
+            FROM notification_queue nq
+            JOIN funding_calls fc ON fc.id = nq.funding_call_id
+            WHERE nq.researcher_email = ? AND nq.sent_at IS NULL
+            ORDER BY fc.deadline ASC, fc.created_at DESC
+            LIMIT 50
+        ");
+        $nq->bind_param('s', $rEmail);
+        $nq->execute();
+        $notifResult = $nq->get_result();
+
+        $notifications = [];
+        while ($row = $notifResult->fetch_assoc()) {
+            $notifications[] = $row;
+        }
+
+        if (!empty($notifications)) {
+            // Build digest email
+            @$mailCfg = require __DIR__ . '/../config/mail.php';
+            if (!is_array($mailCfg)) $mailCfg = [];
+            $appUrl = rtrim($mailCfg['app_url'] ?? ('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')), '/');
+            $notifySecret = $mailCfg['notify_secret'] ?? '';
+
+            $firstName = $researcher['first_name'] ?: 'Researcher';
+            $unsubToken = generate_unsubscribe_token($rEmail, $notifySecret);
+            $unsubUrl = $appUrl . '/index.php?page=unsubscribe&e=' . urlencode($rEmail) . '&t=' . $unsubToken;
+
+            $html = "<p>Hi $firstName,</p><p>Here are your funding matches from this week:</p><ul>";
+
+            foreach ($notifications as $n) {
+                $title = htmlspecialchars($n['title'] ?? '');
+                $funder = htmlspecialchars($n['funder'] ?? '');
+                $deadline = format_deadline($n['deadline'] ?? '');
+                $fundingUrl = $appUrl . '/index.php?page=funding&view=' . (int)$n['funding_call_id'];
+
+                $html .= "<li><strong><a href='$fundingUrl'>$title</a></strong> — $funder ($deadline)</li>";
+            }
+
+            $html .= "</ul><p><a href='$unsubUrl'>Unsubscribe</a></p>";
+
+            enqueue_job($conn, 'send_notification', [
+                'to' => $rEmail,
+                'subject' => 'Your weekly funding matches (' . count($notifications) . ' matches)',
+                'html' => $html
+            ]);
+
+            // Mark as sent
+            $upd = $conn->prepare("UPDATE notification_queue SET sent_at = NOW() WHERE researcher_email = ? AND sent_at IS NULL");
+            $upd->bind_param('s', $rEmail);
+            @$upd->execute();
+
+            $updResearcher = $conn->prepare("UPDATE researchers SET last_notification_sent_at = NOW() WHERE id = ?");
+            $updResearcher->bind_param('i', $rId);
+            @$updResearcher->execute();
         }
     }
 }

@@ -85,9 +85,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!in_array($notifyFrequency, ['immediate', 'weekly', 'never'], true)) {
                 $notifyFrequency = 'immediate';
             }
+            $notifyThreshold  = (int)($_POST['notify_threshold'] ?? 60);
+            if (!in_array($notifyThreshold, [40, 60, 80], true)) {
+                $notifyThreshold = 60;
+            }
+            $quietHoursStart = trim($_POST['quiet_hours_start'] ?? '');
+            if ($quietHoursStart && !preg_match('/^\d{2}:\d{2}$/', $quietHoursStart)) {
+                $quietHoursStart = null;
+            }
+            $quietHoursEnd = trim($_POST['quiet_hours_end'] ?? '');
+            if ($quietHoursEnd && !preg_match('/^\d{2}:\d{2}$/', $quietHoursEnd)) {
+                $quietHoursEnd = null;
+            }
 
             // For registration errors, store form data and error to show form inline
-            $storeFormDataForRegistrationError = function($errorMsg) use ($first, $last, $email, $institution, $department, $title, $bio, $focusAreaArr, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency) {
+            $storeFormDataForRegistrationError = function($errorMsg) use ($first, $last, $email, $institution, $department, $title, $bio, $focusAreaArr, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd) {
                 global $registrationError, $registrationFormData;
                 $registrationError = $errorMsg;
                 $registrationFormData = [
@@ -110,6 +122,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'google_scholar_url' => $googleScholarUrl,
                     'notify_matches' => $notifyMatches,
                     'notify_frequency' => $notifyFrequency,
+                    'notify_threshold' => $notifyThreshold,
+                    'quiet_hours_start' => $quietHoursStart,
+                    'quiet_hours_end' => $quietHoursEnd,
                     'password' => $_POST['password'] ?? '',
                     'confirm_password' => $_POST['confirm_password'] ?? ''
                 ];
@@ -206,10 +221,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ensure_tags($conn, $topics, 'topic');
                     ensure_tags($conn, $geography, 'geography');
 
-                    $stmt = $conn->prepare('INSERT INTO researchers (user_id, first_name, last_name, email, institution, department, title, bio, focus_area, focus_area_detail, topics, geography, co_advising, co_advising_details, profile_url, website_url, orcid_id, google_scholar_url, status, notify_matches, notify_frequency) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                    $stmt = $conn->prepare('INSERT INTO researchers (user_id, first_name, last_name, email, institution, department, title, bio, focus_area, focus_area_detail, topics, geography, co_advising, co_advising_details, profile_url, website_url, orcid_id, google_scholar_url, status, notify_matches, notify_frequency, notify_threshold, quiet_hours_start, quiet_hours_end) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                     if (!$stmt) throw new Exception('Prepare researchers failed: ' . $conn->error);
                     $status_researcher = 'pending_approval';
-                    $stmt->bind_param('isssssssssssissssssis', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher, $notifyMatches, $notifyFrequency);
+                    $stmt->bind_param('isssssssssssisssssisssss', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd);
                     if (!$stmt->execute()) {
                         throw new Exception('Error creating researcher profile: ' . $stmt->error);
                     }
@@ -275,9 +290,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     redirect_to('researchers', ['edit' => $id]);
                 }
 
-                $stmt = $conn->prepare('UPDATE researchers SET first_name=?, last_name=?, email=?, institution=?, department=?, title=?, bio=?, focus_area=?, focus_area_detail=?, topics=?, geography=?, co_advising=?, co_advising_details=?, profile_url=?, website_url=?, orcid_id=?, google_scholar_url=?, notify_matches=?, notify_frequency=? WHERE id=?');
+                $stmt = $conn->prepare('UPDATE researchers SET first_name=?, last_name=?, email=?, institution=?, department=?, title=?, bio=?, focus_area=?, focus_area_detail=?, topics=?, geography=?, co_advising=?, co_advising_details=?, profile_url=?, website_url=?, orcid_id=?, google_scholar_url=?, notify_matches=?, notify_frequency=?, notify_threshold=?, quiet_hours_start=?, quiet_hours_end=? WHERE id=?');
                 if (!$stmt) throw new Exception('Prepare update failed: ' . $conn->error);
-                $stmt->bind_param('sssssssssssisssssssi', $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency, $id);
+                $stmt->bind_param('sssssssssissssssssssssi', $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd, $id);
                 if (!$stmt->execute()) throw new Exception('Error updating profile: ' . $stmt->error);
                 enqueue_job($conn, 'generate_summary', ['entity_type' => 'researcher', 'entity_id' => $id]);
                 if ($orcidId) {
@@ -326,10 +341,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 // Create researcher profile
-                $stmt = $conn->prepare('INSERT INTO researchers (user_id, first_name, last_name, email, institution, department, title, bio, focus_area, focus_area_detail, topics, geography, co_advising, co_advising_details, profile_url, website_url, orcid_id, google_scholar_url, status, notify_matches, notify_frequency) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                $stmt = $conn->prepare('INSERT INTO researchers (user_id, first_name, last_name, email, institution, department, title, bio, focus_area, focus_area_detail, topics, geography, co_advising, co_advising_details, profile_url, website_url, orcid_id, google_scholar_url, status, notify_matches, notify_frequency, notify_threshold) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                 if (!$stmt) throw new Exception('Prepare researchers failed: ' . $conn->error);
                 $status_researcher = 'active';
-                $stmt->bind_param('issssssssssissssssis', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher, $notifyMatches, $notifyFrequency);
+                $stmt->bind_param('isssssssssisssssssiss', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher, $notifyMatches, $notifyFrequency, $notifyThreshold);
                 if (!$stmt->execute()) throw new Exception('Error creating profile: ' . $stmt->error);
                 $newResearcherId = $conn->insert_id;
 
@@ -761,6 +776,28 @@ if (is_array($focusDetailRaw)) {
                             <option value="weekly" <?= ($editing['notify_frequency'] ?? 'immediate') === 'weekly' ? 'selected' : '' ?>>Weekly digest</option>
                             <option value="never" <?= ($editing['notify_frequency'] ?? 'immediate') === 'never' ? 'selected' : '' ?>>Never</option>
                         </select>
+                    </div>
+                    <div style="margin-top:12px">
+                        <label for="notify_threshold" style="font-size:12.5px;font-weight:600;color:#374151;display:block;margin-bottom:6px">Match relevance threshold:</label>
+                        <select id="notify_threshold" name="notify_threshold" style="padding:8px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:13px;background:white;color:#374151;cursor:pointer;width:100%;max-width:220px">
+                            <option value="40" <?= ($editing['notify_threshold'] ?? '60') === '40' ? 'selected' : '' ?>>40% (more matches)</option>
+                            <option value="60" <?= ($editing['notify_threshold'] ?? '60') === '60' ? 'selected' : '' ?>>60% (balanced)</option>
+                            <option value="80" <?= ($editing['notify_threshold'] ?? '60') === '80' ? 'selected' : '' ?>>80% (high relevance only)</option>
+                        </select>
+                        <div style="font-size:11.5px;color:#9aaba4;margin-top:4px">Only get notified about funding calls that match this well</div>
+                    </div>
+                    <div style="margin-top:12px">
+                        <label style="font-size:12.5px;font-weight:600;color:#374151;display:block;margin-bottom:8px">Quiet hours <span style="color:#9aaba4;font-weight:400">(optional)</span></label>
+                        <div style="display:flex;gap:8px;align-items:center">
+                            <input type="time" id="quiet_hours_start" name="quiet_hours_start"
+                                   value="<?= $editing['quiet_hours_start'] ? h($editing['quiet_hours_start']) : '' ?>"
+                                   style="padding:8px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:13px;background:white;color:#374151;flex:1">
+                            <span style="color:#9aaba4">to</span>
+                            <input type="time" id="quiet_hours_end" name="quiet_hours_end"
+                                   value="<?= $editing['quiet_hours_end'] ? h($editing['quiet_hours_end']) : '' ?>"
+                                   style="padding:8px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:13px;background:white;color:#374151;flex:1">
+                        </div>
+                        <div style="font-size:11.5px;color:#9aaba4;margin-top:4px">Notifications won't be sent outside these hours (urgent calls with < 30 days override this)</div>
                     </div>
                 </div>
             </div>
