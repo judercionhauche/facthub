@@ -19,23 +19,42 @@ if (isset($_GET['token'])) {
         $del->bind_param('s', $token); $del->execute();
         $state = 'expired';
     } else {
-        // Valid — mark account as pending approval
-        $upd = $conn->prepare("UPDATE users SET status = 'pending_approval' WHERE email = ? AND status = 'unverified'");
-        $upd->bind_param('s', $ev['email']); $upd->execute();
-        $now = date('Y-m-d H:i:s');
-        $mu  = $conn->prepare('UPDATE email_verifications SET verified_at = NOW() WHERE token = ?');
+        // Check if domain is trusted for auto-approval
+        $isTrustedDomain = is_trusted_domain($conn, $ev['email']);
+        $newStatus = $isTrustedDomain ? 'active' : 'pending_approval';
+
+        // Update user status
+        $upd = $conn->prepare("UPDATE users SET status = ? WHERE email = ? AND status = 'unverified'");
+        $upd->bind_param('ss', $newStatus, $ev['email']);
+        $upd->execute();
+
+        // Also update researcher profile status to match
+        $rupd = $conn->prepare("UPDATE researchers SET status = ? WHERE email = ?");
+        $rupd->bind_param('ss', $newStatus, $ev['email']);
+        @$rupd->execute();
+
+        // Mark email as verified
+        $mu = $conn->prepare('UPDATE email_verifications SET verified_at = NOW() WHERE token = ?');
         $mu->bind_param('s', $token); $mu->execute();
 
-        // Notify admins of new registration
+        // Get researcher info
         $rq = $conn->prepare('SELECT first_name, institution FROM researchers WHERE email = ? LIMIT 1');
         $rq->bind_param('s', $ev['email']);
         $rq->execute();
         $rRow = $rq->get_result()->fetch_assoc();
         $userName = $rRow['first_name'] ?? explode('@', $ev['email'])[0];
-        notify_admins_of_new_registration($ev['email'], $userName, $rRow['institution'] ?? '');
 
-        set_flash('success', 'Your account has been verified. An admin will review your profile soon. You can edit your profile while you wait.');
-        redirect_to('login');
+        if ($isTrustedDomain) {
+            // Auto-approved from trusted domain
+            audit($conn, 'auto_approve_trusted_domain', ['type' => 'user', 'email' => $ev['email'], 'detail' => "Auto-approved from trusted institution domain"]);
+            set_flash('success', 'Welcome! Your account has been verified and automatically approved. You can now access the platform.');
+            redirect_to('login');
+        } else {
+            // Notify admins for manual review
+            notify_admins_of_new_registration($ev['email'], $userName, $rRow['institution'] ?? '');
+            set_flash('success', 'Your account has been verified. An admin will review your profile soon. You can edit your profile while you wait.');
+            redirect_to('login');
+        }
     }
 }
 

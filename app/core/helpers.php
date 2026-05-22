@@ -337,6 +337,21 @@ function is_in_quiet_hours(string $quietStart = null, string $quietEnd = null): 
     return $currentTime >= $quietStart && $currentTime < $quietEnd;
 }
 
+function is_trusted_domain(mysqli $conn, string $email): bool {
+    if (!preg_match('/@(.+)$/', strtolower(trim($email)), $m)) {
+        return false;
+    }
+    $domain = $m[1];
+
+    $stmt = $conn->prepare('SELECT 1 FROM trusted_domains WHERE domain = ? AND auto_approve = 1 LIMIT 1');
+    if (!$stmt) return false;
+
+    $stmt->bind_param('s', $domain);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    return $result->num_rows > 0;
+}
+
 function send_weekly_digest(mysqli $conn): void {
     // Find all researchers with weekly frequency who haven't been sent in the last 7 days
     $weekAgo = date('Y-m-d H:i:s', time() - (7 * 86400));

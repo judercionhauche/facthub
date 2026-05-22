@@ -648,6 +648,69 @@ function apply_security_schema_updates(mysqli $conn): void {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
     }
+
+    // Create trusted_domains table for auto-approval of researchers from trusted institutions
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='trusted_domains' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS trusted_domains (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                domain VARCHAR(255) NOT NULL UNIQUE,
+                institution_name VARCHAR(255) NOT NULL,
+                country VARCHAR(100),
+                tier ENUM('tier1','tier2','tier3') DEFAULT 'tier2',
+                auto_approve TINYINT DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_by VARCHAR(255),
+                INDEX idx_domain (domain),
+                INDEX idx_tier (tier)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        // Seed with major research institutions
+        $trustedDomains = [
+            ['mit.edu', 'Massachusetts Institute of Technology', 'USA', 'tier1'],
+            ['harvard.edu', 'Harvard University', 'USA', 'tier1'],
+            ['stanford.edu', 'Stanford University', 'USA', 'tier1'],
+            ['caltech.edu', 'California Institute of Technology', 'USA', 'tier1'],
+            ['yale.edu', 'Yale University', 'USA', 'tier1'],
+            ['princeton.edu', 'Princeton University', 'USA', 'tier1'],
+            ['columbia.edu', 'Columbia University', 'USA', 'tier1'],
+            ['upenn.edu', 'University of Pennsylvania', 'USA', 'tier1'],
+            ['berkeley.edu', 'UC Berkeley', 'USA', 'tier1'],
+            ['ucla.edu', 'UCLA', 'USA', 'tier1'],
+            ['cornell.edu', 'Cornell University', 'USA', 'tier1'],
+            ['northwestern.edu', 'Northwestern University', 'USA', 'tier1'],
+            ['duke.edu', 'Duke University', 'USA', 'tier1'],
+            ['cmu.edu', 'Carnegie Mellon University', 'USA', 'tier1'],
+            ['jhu.edu', 'Johns Hopkins University', 'USA', 'tier1'],
+            ['ox.ac.uk', 'University of Oxford', 'UK', 'tier1'],
+            ['cam.ac.uk', 'University of Cambridge', 'UK', 'tier1'],
+            ['ucl.ac.uk', 'UCL', 'UK', 'tier1'],
+            ['imperial.ac.uk', 'Imperial College London', 'UK', 'tier1'],
+            ['ethz.ch', 'ETH Zurich', 'Switzerland', 'tier1'],
+            ['epfl.ch', 'EPFL', 'Switzerland', 'tier1'],
+            ['universite-paris-saclay.fr', 'Université Paris-Saclay', 'France', 'tier2'],
+            ['sorbonne-universite.fr', 'Sorbonne Université', 'France', 'tier2'],
+            ['edu.sg', 'National University of Singapore', 'Singapore', 'tier2'],
+            ['ac.jp', 'University of Tokyo', 'Japan', 'tier2'],
+        ];
+
+        foreach ($trustedDomains as [$domain, $name, $country, $tier]) {
+            $check = $conn->prepare('SELECT 1 FROM trusted_domains WHERE domain = ? LIMIT 1');
+            if ($check) {
+                $check->bind_param('s', $domain);
+                $check->execute();
+                if ($check->get_result()->num_rows === 0) {
+                    $insert = $conn->prepare('INSERT INTO trusted_domains (domain, institution_name, country, tier, auto_approve) VALUES (?, ?, ?, ?, 1)');
+                    if ($insert) {
+                        $insert->bind_param('ssss', $domain, $name, $country, $tier);
+                        @$insert->execute();
+                    }
+                }
+            }
+        }
+    }
     } catch (Throwable $e) {
         error_log('[Schema Migration] Error: ' . $e->getMessage());
         // Continue anyway - some tables may not exist yet

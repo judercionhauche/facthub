@@ -8,7 +8,7 @@ if (!is_array($mailCfg)) {
 $appUrl  = rtrim($mailCfg['app_url'] ?? 'http://localhost/facthub/public', '/');
 
 $adminUser   = current_user();
-$adminSection = in_array($_GET['section'] ?? '', ['dashboard','users','researchers','funders','audit','api_usage','jobs'])
+$adminSection = in_array($_GET['section'] ?? '', ['dashboard','users','researchers','funders','audit','api_usage','jobs','settings'])
                ? $_GET['section'] : 'dashboard';
 
 /* ── POST ACTIONS ── */
@@ -561,6 +561,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         redirect_to('admin', ['section' => 'users', 'utab' => 'pending']);
     }
+
+    // Add trusted domain
+    if ($action === 'add_domain') {
+        $domain = strtolower(trim($_POST['domain'] ?? ''));
+        $institution = trim($_POST['institution'] ?? '');
+        $country = trim($_POST['country'] ?? '');
+        $tier = in_array($_POST['tier'] ?? '', ['tier1', 'tier2', 'tier3']) ? $_POST['tier'] : 'tier2';
+
+        if ($domain && $institution) {
+            $check = $conn->prepare('SELECT 1 FROM trusted_domains WHERE domain = ? LIMIT 1');
+            $check->bind_param('s', $domain);
+            $check->execute();
+            if ($check->get_result()->num_rows === 0) {
+                $ins = $conn->prepare('INSERT INTO trusted_domains (domain, institution_name, country, tier, created_by) VALUES (?, ?, ?, ?, ?)');
+                $ins->bind_param('sssss', $domain, $institution, $country, $tier, $adminUser['email']);
+                $ins->execute();
+                set_flash('success', 'Domain added to trusted list.');
+            } else {
+                set_flash('error', 'This domain is already in the trusted list.');
+            }
+        } else {
+            set_flash('error', 'Domain and institution name are required.');
+        }
+        redirect_to('admin', ['section' => 'settings']);
+    }
+
+    // Remove trusted domain
+    if ($action === 'remove_domain') {
+        $domainId = (int)($_POST['domain_id'] ?? 0);
+        if ($domainId) {
+            $del = $conn->prepare('DELETE FROM trusted_domains WHERE id = ?');
+            $del->bind_param('i', $domainId);
+            $del->execute();
+            set_flash('success', 'Domain removed from trusted list.');
+        }
+        redirect_to('admin', ['section' => 'settings']);
+    }
 }
 
 /* ── LOAD DATA ── */
@@ -701,6 +738,7 @@ $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         <a class="admin-stab <?= $adminSection==='audit'       ? 'active' : '' ?>" href="index.php?page=admin&section=audit">Audit Log</a>
         <a class="admin-stab <?= $adminSection==='api_usage'   ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">API Usage</a>
         <a class="admin-stab <?= $adminSection==='jobs'        ? 'active' : '' ?>" href="index.php?page=admin&section=jobs">Job Queue</a>
+        <a class="admin-stab <?= $adminSection==='settings'    ? 'active' : '' ?>" href="index.php?page=admin&section=settings">Settings</a>
     </div>
 </div>
 
@@ -1913,7 +1951,93 @@ $recentJobRows = $recentJobStmt->get_result()->fetch_all(MYSQLI_ASSOC);
         </table>
     </div>
     <?php endif; ?>
-</div>
+
+<?php elseif ($adminSection === 'settings'): ?>
+    <div class="admin-section">
+        <h2>Settings</h2>
+        <p class="text-muted">Manage auto-approval rules and trusted institution domains</p>
+
+        <div style="max-width:900px;margin-top:24px">
+            <h3 style="margin-bottom:16px">Trusted Institution Domains</h3>
+            <p style="color:#666;margin-bottom:16px;font-size:13px">Researchers from these domains are automatically approved after email verification:</p>
+
+            <?php
+                // Fetch trusted domains
+                $domainQ = $conn->query("SELECT * FROM trusted_domains ORDER BY tier ASC, institution_name ASC");
+                $domainsByTier = ['tier1' => [], 'tier2' => [], 'tier3' => []];
+                while ($d = $domainQ->fetch_assoc()) {
+                    $domainsByTier[$d['tier']][] = $d;
+                }
+            ?>
+
+            <!-- Add new domain form -->
+            <div style="background:#f8fafb;border:1px solid #dde6dd;border-radius:10px;padding:16px;margin-bottom:24px">
+                <h4 style="margin:0 0 12px 0;font-size:14px">Add New Domain</h4>
+                <form method="post" style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:12px;align-items:flex-end">
+                    <input type="hidden" name="action" value="add_domain">
+                    <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                    <div>
+                        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:#374151">Domain</label>
+                        <input type="text" name="domain" placeholder="example.edu" required style="width:100%;padding:8px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:13px">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:#374151">Institution</label>
+                        <input type="text" name="institution" placeholder="Institution Name" required style="width:100%;padding:8px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:13px">
+                    </div>
+                    <div>
+                        <label style="display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:#374151">Country</label>
+                        <input type="text" name="country" placeholder="Country" style="width:100%;padding:8px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:13px">
+                    </div>
+                    <div>
+                        <select name="tier" style="padding:8px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:13px;background:white;cursor:pointer">
+                            <option value="tier1">Tier 1</option>
+                            <option value="tier2" selected>Tier 2</option>
+                            <option value="tier3">Tier 3</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="primary-btn" style="white-space:nowrap">Add Domain</button>
+                </form>
+            </div>
+
+            <!-- Display by tier -->
+            <?php foreach (['tier1' => 'Tier 1 (Top Universities)', 'tier2' => 'Tier 2 (Major Institutions)', 'tier3' => 'Tier 3 (Other Institutions)'] as $tier => $tierLabel): ?>
+                <div style="margin-bottom:24px">
+                    <h4 style="margin:0 0 12px 0;font-size:13px;color:#1a6b5a;font-weight:600"><?= $tierLabel ?></h4>
+                    <?php if (!empty($domainsByTier[$tier])): ?>
+                        <table style="width:100%;border-collapse:collapse;border:1px solid #dde6dd;border-radius:8px;overflow:hidden">
+                            <thead style="background:#f3f4f3;border-bottom:1.5px solid #dde6dd">
+                                <tr style="text-align:left">
+                                    <th style="padding:10px 14px;font-weight:600;font-size:12px;color:#374151">Domain</th>
+                                    <th style="padding:10px 14px;font-weight:600;font-size:12px;color:#374151">Institution</th>
+                                    <th style="padding:10px 14px;font-weight:600;font-size:12px;color:#374151">Country</th>
+                                    <th style="padding:10px 14px;font-weight:600;font-size:12px;color:#374151;text-align:right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($domainsByTier[$tier] as $d): ?>
+                                    <tr style="border-bottom:1px solid #eee;hover:background:#fafafa">
+                                        <td style="padding:10px 14px;font-family:monospace;font-size:13px;color:#1a6b5a"><?= h($d['domain']) ?></td>
+                                        <td style="padding:10px 14px;font-size:13px;color:#374151"><?= h($d['institution_name']) ?></td>
+                                        <td style="padding:10px 14px;font-size:13px;color:#666"><?= $d['country'] ? h($d['country']) : '—' ?></td>
+                                        <td style="padding:10px 14px;text-align:right">
+                                            <form method="post" style="display:inline">
+                                                <input type="hidden" name="action" value="remove_domain">
+                                                <input type="hidden" name="domain_id" value="<?= (int)$d['id'] ?>">
+                                                <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                                                <button type="submit" class="ghost-btn" style="font-size:12px;color:#d97706;padding:4px 8px;border:1px solid #fed7aa;border-radius:4px;background:#fef3c7;cursor:pointer" onclick="return confirm('Remove this domain from trusted list?')">Remove</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    <?php else: ?>
+                        <p style="color:#9aaba4;font-size:12px;margin:0">No domains in this tier</p>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
 
 <?php endif; /* end section switch */ ?>
 
