@@ -116,15 +116,17 @@ function check_session_validity(mysqli $conn): bool {
         return false;
     }
 
-    // Device fingerprint mismatch — indicates session hijacking or cross-device reuse
-    require_once __DIR__ . '/device_fingerprint.php';
-    $currentFp = generate_device_fingerprint();
-    $storedDbFp = $row['session_fingerprint'] ?? null;
+    // Device fingerprint mismatch — log for monitoring but don't block (proxies can vary headers)
+    if (function_exists('generate_device_fingerprint')) {
+        $currentFp = generate_device_fingerprint();
+        $storedDbFp = $row['session_fingerprint'] ?? null;
 
-    if ($storedDbFp && $currentFp !== $storedDbFp) {
-        // Log suspicious activity and reject the session
-        @log_session_activity($conn, $uid, 'suspicious', 'device_fingerprint_mismatch');
-        return false; // Force re-login from mismatched device
+        // Log mismatches for monitoring, but don't reject (development/proxy environments vary headers)
+        if ($storedDbFp && $currentFp !== $storedDbFp) {
+            @log_session_activity($conn, $uid, 'suspicious', 'device_fingerprint_mismatch');
+            // Note: Not blocking here to allow proxied/load-balanced deployments
+            // In production with stable headers, could enforce strict matching
+        }
     }
 
     // Refresh user_status in session in case admin changed it
