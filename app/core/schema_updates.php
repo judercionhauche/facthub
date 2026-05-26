@@ -711,6 +711,88 @@ function apply_security_schema_updates(mysqli $conn): void {
             }
         }
     }
+
+    // ════════════════════════════════════════════════════════════════
+    // Session Management System — Device Fingerprinting & Remember Me
+    // ════════════════════════════════════════════════════════════════
+
+    // Add device fingerprinting columns to users table
+    $deviceFingerCols = [
+        'session_fingerprint' => 'VARCHAR(64) NULL DEFAULT NULL COMMENT "Device fingerprint from last login"',
+        'session_ip' => 'VARCHAR(45) NULL DEFAULT NULL COMMENT "Last known IP address"',
+        'session_user_agent' => 'VARCHAR(255) NULL DEFAULT NULL COMMENT "Last known browser/OS"',
+        'session_created_at' => 'TIMESTAMP NULL DEFAULT NULL COMMENT "When current session began"'
+    ];
+    foreach ($deviceFingerCols as $col => $type) {
+        $res = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='users' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$res || $res->num_rows === 0) {
+            @$conn->query("ALTER TABLE users ADD COLUMN $col $type");
+        }
+    }
+
+    // Create trusted_devices table for device management
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='trusted_devices' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS trusted_devices (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                device_fingerprint VARCHAR(64) NOT NULL,
+                device_name VARCHAR(100) DEFAULT NULL,
+                ip_address VARCHAR(45) NOT NULL,
+                user_agent VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                is_active TINYINT(1) DEFAULT 1,
+                revoked_at TIMESTAMP NULL DEFAULT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                INDEX idx_user_device (user_id, device_fingerprint),
+                INDEX idx_user_active (user_id, is_active)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
+    // Create session_activity table for anomaly detection
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='session_activity' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS session_activity (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                action VARCHAR(50) NOT NULL COMMENT 'login|logout|page_view|api_call|suspicious',
+                ip_address VARCHAR(45) NOT NULL,
+                user_agent VARCHAR(255) NOT NULL,
+                device_fingerprint VARCHAR(64) NULL,
+                page_or_endpoint VARCHAR(255) NULL,
+                suspicious_reason VARCHAR(100) NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                INDEX idx_user_action (user_id, action),
+                INDEX idx_user_time (user_id, created_at),
+                INDEX idx_suspicious (user_id, action, created_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
+    // Create remember_tokens table for persistent login
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='remember_tokens' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS remember_tokens (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                token VARCHAR(64) NOT NULL UNIQUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL,
+                used_at TIMESTAMP NULL DEFAULT NULL,
+                revoked_at TIMESTAMP NULL DEFAULT NULL,
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                INDEX idx_token (token),
+                INDEX idx_user_expires (user_id, expires_at)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
     } catch (Throwable $e) {
         error_log('[Schema Migration] Error: ' . $e->getMessage());
         // Continue anyway - some tables may not exist yet

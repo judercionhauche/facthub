@@ -53,22 +53,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $login_error = 'This account has been deactivated. Please contact your administrator.';
                     } else {
                         error_log("[LOGIN] Creating session");
-                        // Generate session token and store in database
+                        // Load device fingerprinting helper
+                        require_once __DIR__ . '/../../core/device_fingerprint.php';
+
+                        // Generate session token and device fingerprint
                         $sessionToken = bin2hex(random_bytes(32));
-                        $tStmt = $conn->prepare('UPDATE users SET session_token = ? WHERE id = ?');
+                        $deviceFingerprint = generate_device_fingerprint();
+                        $clientIp = get_client_ip();
+                        $userAgent = get_user_agent();
+                        $now = date('Y-m-d H:i:s');
+
+                        // Store device info in database
+                        $tStmt = $conn->prepare(
+                            'UPDATE users SET
+                              session_token = ?,
+                              session_fingerprint = ?,
+                              session_ip = ?,
+                              session_user_agent = ?,
+                              session_created_at = ?
+                             WHERE id = ?'
+                        );
                         if ($tStmt) {
-                            $tStmt->bind_param('si', $sessionToken, $userRow['id']);
+                            $tStmt->bind_param('issssi', $sessionToken, $deviceFingerprint, $clientIp, $userAgent, $now, $userRow['id']);
                             $tStmt->execute();
                         }
 
+                        // Log successful login
+                        @log_session_activity($conn, $userRow['id'], 'login');
+
                         session_regenerate_id(true);
-                        $_SESSION['user_id']       = $userRow['id'];
-                        $_SESSION['session_token'] = $sessionToken;
-                        $_SESSION['user_email']    = $userRow['email'];
-                        $_SESSION['user_name']     = $userRow['name'] ?: $userRow['email'];
-                        $_SESSION['user_role']     = $userRow['role'] ?? 'researcher';
-                        $_SESSION['user_status']   = $userRow['status'];
-                        $_SESSION['last_activity'] = time();
+                        $_SESSION['user_id']           = $userRow['id'];
+                        $_SESSION['session_token']     = $sessionToken;
+                        $_SESSION['device_fingerprint'] = $deviceFingerprint;
+                        $_SESSION['user_email']        = $userRow['email'];
+                        $_SESSION['user_name']         = $userRow['name'] ?: $userRow['email'];
+                        $_SESSION['user_role']         = $userRow['role'] ?? 'researcher';
+                        $_SESSION['user_status']       = $userRow['status'];
+                        $_SESSION['last_activity']     = time();
+
+                        // Handle "Remember me" checkbox
+                        $rememberMe = isset($_POST['remember_me']) && $_POST['remember_me'] === '1';
+                        if ($rememberMe) {
+                            $rememberToken = bin2hex(random_bytes(32));
+                            $expiresAt = date('Y-m-d H:i:s', time() + (30 * 24 * 3600));
+
+                            $rStmt = $conn->prepare('INSERT INTO remember_tokens (user_id, token, expires_at) VALUES (?, ?, ?)');
+                            if ($rStmt) {
+                                $rStmt->bind_param('iss', $userRow['id'], $rememberToken, $expiresAt);
+                                @$rStmt->execute();
+                            }
+
+                            // Set persistent HTTP-only cookie (30 days)
+                            setcookie('remember_token', $rememberToken, [
+                                'expires' => time() + (30 * 24 * 3600),
+                                'path'    => '/',
+                                'secure'  => (getenv('APP_ENV') === 'production'),
+                                'httponly' => true,
+                                'samesite' => 'Lax'
+                            ]);
+                        }
 
                         $firstName = explode(' ', trim($userRow['name'] ?: 'there'))[0];
                         if ($userRow['status'] === 'pending_approval') {
@@ -172,6 +215,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
         </script>
+        <div style="margin-top:12px;margin-bottom:14px">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
+                <input type="checkbox" name="remember_me" value="1">
+                <span style="font-size:14px;color:#555">Remember me for 30 days</span>
+            </label>
+        </div>
         <button class="primary-btn" type="submit" style="width:100%;padding:12px">Sign In</button>
     </form>
 

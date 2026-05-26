@@ -17,8 +17,108 @@ if (is_logged_in()) {
     <title>FACT Alliance Hub</title>
     <link rel="stylesheet" href="assets/style.css">
     <script src="assets/app.js"></script>
+
+    <?php if (is_logged_in()): ?>
+    <script>
+    // Session timeout warning + cross-tab logout sync
+    (function() {
+        const SESSION_TIMEOUT = 30 * 60;        // 30 minutes in seconds
+        const WARNING_BEFORE = 5 * 60;          // Warn 5 min before timeout
+        let warningShown = false;
+        let timeoutHandle = null;
+
+        // Listen for logout events from other tabs (via storage events)
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'logout_event' && e.newValue === 'true') {
+                // Another tab logged out — refresh to redirect to login
+                window.location.reload();
+            }
+            if (e.key === 'session_warning_shown' && e.newValue === 'true') {
+                // Another tab showed warning — sync to this tab too
+                warningShown = true;
+            }
+        });
+
+        function showLogoutWarning() {
+            if (warningShown) return;
+            warningShown = true;
+            localStorage.setItem('session_warning_shown', 'true');
+
+            // Create modal overlay
+            const modal = document.createElement('div');
+            modal.id = 'session-warning-modal';
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+                z-index: 10000;
+            `;
+            modal.innerHTML = `
+                <div style="background: white; padding: 30px; border-radius: 8px; max-width: 400px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h2 style="margin: 0 0 10px 0; font-size: 20px;">Session Expiring Soon</h2>
+                    <p style="color: #666; margin: 10px 0;">Your session will expire in 5 minutes due to inactivity.</p>
+                    <p style="color: #666; margin: 10px 0;">Would you like to continue working?</p>
+                    <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                        <button id="continue-session" style="padding: 10px 20px; background: #1a6b5a; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                            Continue Session
+                        </button>
+                        <button id="logout-now" style="padding: 10px 20px; background: #dc2626; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600;">
+                            Logout Now
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            document.getElementById('continue-session').onclick = () => {
+                modal.remove();
+                warningShown = false;
+                localStorage.removeItem('session_warning_shown');
+                resetTimeout();  // Reset the timeout
+                // Make a request to refresh activity
+                fetch('index.php?page=ping');
+            };
+
+            document.getElementById('logout-now').onclick = () => {
+                localStorage.setItem('logout_event', 'true');
+                window.location.href = 'index.php?page=logout';
+            };
+        }
+
+        function resetTimeout() {
+            clearTimeout(timeoutHandle);
+            timeoutHandle = setTimeout(() => {
+                showLogoutWarning();
+                setTimeout(() => {
+                    // Hard logout after another 5 minutes
+                    localStorage.setItem('logout_event', 'true');
+                    window.location.href = 'index.php?page=logout';
+                }, WARNING_BEFORE * 1000);
+            }, (SESSION_TIMEOUT - WARNING_BEFORE) * 1000);
+        }
+
+        // Start timeout on page load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', resetTimeout);
+        } else {
+            resetTimeout();
+        }
+
+        // Reset timeout on any user activity
+        ['click', 'keypress', 'scroll', 'touchstart', 'mousemove'].forEach(event => {
+            document.addEventListener(event, resetTimeout, true);
+        });
+
+        // Cleanup on logout (other tabs see this via storage event)
+        window.addEventListener('unload', () => {
+            if (document.body.classList.contains('logged-in')) {
+                localStorage.setItem('logout_event', 'true');
+            }
+        });
+    })();
+    </script>
+    <?php endif; ?>
 </head>
-<body>
+<body class="<?= is_logged_in() ? 'logged-in' : 'logged-out' ?>">
 <div class="site-shell">
     <header class="topbar">
         <div class="topbar-inner">

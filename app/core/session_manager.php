@@ -82,9 +82,7 @@ function is_user_logged_in(): bool {
 
 /**
  * Verify session is still valid according to database.
- * Checks: user status, deleted_at, session_token revocation.
- * Call this on protected pages and AJAX endpoints.
- *
+ * Checks: user status, deleted_at, session_token, AND device fingerprint.
  * Returns true if valid, false if session should be invalidated.
  */
 function check_session_validity(mysqli $conn): bool {
@@ -94,12 +92,13 @@ function check_session_validity(mysqli $conn): bool {
 
     $uid = (int)($_SESSION['user_id'] ?? 0);
     $tok = $_SESSION['session_token'] ?? null;
+    $storedFp = $_SESSION['device_fingerprint'] ?? null;
 
     if (!$uid) {
         return false;
     }
 
-    $stmt = $conn->prepare('SELECT status, deleted_at, session_token FROM users WHERE id = ? LIMIT 1');
+    $stmt = $conn->prepare('SELECT status, deleted_at, session_token, session_fingerprint FROM users WHERE id = ? LIMIT 1');
     $stmt->bind_param('i', $uid);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
@@ -112,6 +111,21 @@ function check_session_validity(mysqli $conn): bool {
     $valid = in_array($row['status'], ['active', 'pending_approval'], true)
         && $row['deleted_at'] === null
         && ($tok === null || $row['session_token'] === $tok);
+
+    if (!$valid) {
+        return false;
+    }
+
+    // Device fingerprint mismatch — indicates session hijacking or cross-device reuse
+    require_once __DIR__ . '/device_fingerprint.php';
+    $currentFp = generate_device_fingerprint();
+    $storedDbFp = $row['session_fingerprint'] ?? null;
+
+    if ($storedDbFp && $currentFp !== $storedDbFp) {
+        // Log suspicious activity and reject the session
+        @log_session_activity($conn, $uid, 'suspicious', 'device_fingerprint_mismatch');
+        return false; // Force re-login from mismatched device
+    }
 
     // Refresh user_status in session in case admin changed it
     if ($valid) {
@@ -157,5 +171,53 @@ function regenerate_session_id(): void {
     if (session_status() !== PHP_SESSION_NONE) {
         session_regenerate_id(true);
     }
+}
+
+/**
+ * Detect impossible travel: user logged in from vastly different locations
+ * within a short time window (would require unrealistic speed).
+ * Returns true if suspicious activity is detected.
+ */
+function check_impossible_travel(mysqli $conn, int $userId, string $currentIp): bool {
+    // Get last activity in past hour
+    $stmt = $conn->prepare(
+        'SELECT ip_address, created_at FROM session_activity
+         WHERE user_id = ? AND action = "login" AND created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
+         ORDER BY created_at DESC LIMIT 2'
+    );
+    if (!$stmt) {
+        return false; // Query error, don't block
+    }
+
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    if ($result->num_rows < 2) {
+        return false; // Not enough data
+    }
+
+    $rows = [];
+    while ($row = $result->fetch_assoc()) {
+        $rows[] = $row;
+    }
+
+    if (count($rows) < 2) {
+        return false;
+    }
+
+    // Check if IPs are different and logins occurred within 5 minutes
+    $prevIp = $rows[1]['ip_address'];
+    $currIp = $currentIp;
+    $prevTime = strtotime($rows[1]['created_at']);
+    $currTime = time();
+    $timeDiff = $currTime - $prevTime; // seconds
+
+    // If IPs differ and less than 5 minutes apart, flag as suspicious
+    if ($prevIp !== $currIp && $timeDiff < 300 && $prevIp !== '0.0.0.0' && $currIp !== '0.0.0.0') {
+        return true; // Impossible travel detected
+    }
+
+    return false;
 }
 ?>

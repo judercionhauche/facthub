@@ -41,6 +41,7 @@ init_session();
 require_once __DIR__ . '/../app/core/mailer.php';
 require_once __DIR__ . '/../app/services/RateLimiter.php';
 require_once __DIR__ . '/../app/core/schema_updates.php';
+require_once __DIR__ . '/../app/core/device_fingerprint.php';
 
 // Apply schema updates safely
 try {
@@ -48,6 +49,71 @@ try {
 } catch (Throwable $e) {
     error_log('[Schema Updates Error] ' . $e->getMessage());
     // Continue anyway - schema might already be in place
+}
+
+// Auto-login from remember_token cookie if no current session
+if (!is_logged_in() && isset($_COOKIE['remember_token'])) {
+    $token = trim($_COOKIE['remember_token']);
+    $stmt = $conn->prepare(
+        'SELECT user_id, expires_at, used_at, revoked_at, id
+         FROM remember_tokens
+         WHERE token = ? AND expires_at > NOW() LIMIT 1'
+    );
+    if ($stmt) {
+        $stmt->bind_param('s', $token);
+        $stmt->execute();
+        $rtRow = $stmt->get_result()->fetch_assoc();
+
+        if ($rtRow && $rtRow['used_at'] === null && $rtRow['revoked_at'] === null) {
+            // Token valid — auto-login this user
+            $uid = (int)$rtRow['user_id'];
+            $userStmt = $conn->prepare('SELECT id, email, name, role, status FROM users WHERE id = ? AND status IN (?, ?) LIMIT 1');
+            $active = 'active'; $pending = 'pending_approval';
+            if ($userStmt) {
+                $userStmt->bind_param('iss', $uid, $active, $pending);
+                $userStmt->execute();
+                $user = $userStmt->get_result()->fetch_assoc();
+
+                if ($user) {
+                    $sessionToken = bin2hex(random_bytes(32));
+                    $deviceFingerprint = generate_device_fingerprint();
+                    $clientIp = get_client_ip();
+                    $userAgent = get_user_agent();
+                    $now = date('Y-m-d H:i:s');
+
+                    // Update users table
+                    $upd = $conn->prepare(
+                        'UPDATE users SET session_token = ?, session_fingerprint = ?,
+                          session_ip = ?, session_user_agent = ?, session_created_at = ? WHERE id = ?'
+                    );
+                    if ($upd) {
+                        $upd->bind_param('issssi', $sessionToken, $deviceFingerprint, $clientIp, $userAgent, $now, $uid);
+                        $upd->execute();
+                    }
+
+                    // Mark remember token as used
+                    $used = $conn->prepare('UPDATE remember_tokens SET used_at = NOW() WHERE id = ?');
+                    if ($used) {
+                        $used->bind_param('i', $rtRow['id']);
+                        $used->execute();
+                    }
+
+                    // Create session
+                    session_regenerate_id(true);
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['session_token'] = $sessionToken;
+                    $_SESSION['device_fingerprint'] = $deviceFingerprint;
+                    $_SESSION['user_email'] = $user['email'];
+                    $_SESSION['user_name'] = $user['name'];
+                    $_SESSION['user_role'] = $user['role'];
+                    $_SESSION['user_status'] = $user['status'];
+                    $_SESSION['last_activity'] = time();
+
+                    log_session_activity($conn, $uid, 'login', 'via_remember_token');
+                }
+            }
+        }
+    }
 }
 
 define('SESSION_TIMEOUT', 1800); // 30 minutes
@@ -74,6 +140,17 @@ if (is_logged_in()) {
 if (is_logged_in()) {
     if (!check_session_validity($conn)) {
         expire_session('Your account access has been changed. Please contact an administrator.');
+        header('Location: index.php?page=login');
+        ob_end_clean();
+        exit;
+    }
+}
+
+// Anomaly Detection — Check for impossible travel (suspicious activity)
+if (is_logged_in()) {
+    if (check_impossible_travel($conn, (int)$_SESSION['user_id'], get_client_ip())) {
+        @log_session_activity($conn, (int)$_SESSION['user_id'], 'suspicious', 'impossible_travel');
+        expire_session('Suspicious activity detected. Please log in again.');
         header('Location: index.php?page=login');
         ob_end_clean();
         exit;
