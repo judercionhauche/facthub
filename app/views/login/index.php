@@ -53,33 +53,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $login_error = 'This account has been deactivated. Please contact your administrator.';
                     } else {
                         error_log("[LOGIN] Creating session");
-                        // Load device fingerprinting helper
-                        require_once __DIR__ . '/../../core/device_fingerprint.php';
 
-                        // Generate session token and device fingerprint
-                        $sessionToken = bin2hex(random_bytes(32));
-                        $deviceFingerprint = generate_device_fingerprint();
-                        $clientIp = get_client_ip();
-                        $userAgent = get_user_agent();
-                        $now = date('Y-m-d H:i:s');
+                        try {
+                            // Generate session token and device fingerprint
+                            $sessionToken = bin2hex(random_bytes(32));
+                            $deviceFingerprint = (function_exists('generate_device_fingerprint')) ? generate_device_fingerprint() : bin2hex(random_bytes(16));
+                            $clientIp = (function_exists('get_client_ip')) ? get_client_ip() : ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
+                            $userAgent = (function_exists('get_user_agent')) ? get_user_agent() : substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 255);
+                            $now = date('Y-m-d H:i:s');
 
-                        // Store device info in database
-                        $tStmt = $conn->prepare(
-                            'UPDATE users SET
-                              session_token = ?,
-                              session_fingerprint = ?,
-                              session_ip = ?,
-                              session_user_agent = ?,
-                              session_created_at = ?
-                             WHERE id = ?'
-                        );
-                        if ($tStmt) {
-                            $tStmt->bind_param('issssi', $sessionToken, $deviceFingerprint, $clientIp, $userAgent, $now, $userRow['id']);
-                            $tStmt->execute();
+                            // Store device info in database (with fallback for missing columns)
+                            $tStmt = $conn->prepare(
+                                'UPDATE users SET
+                                  session_token = ?,
+                                  session_fingerprint = ?,
+                                  session_ip = ?,
+                                  session_user_agent = ?,
+                                  session_created_at = ?
+                                 WHERE id = ?'
+                            );
+                            if ($tStmt) {
+                                $tStmt->bind_param('issssi', $sessionToken, $deviceFingerprint, $clientIp, $userAgent, $now, $userRow['id']);
+                                if (!$tStmt->execute()) {
+                                    // If UPDATE fails (columns might not exist yet), just store token
+                                    error_log("[LOGIN] Device columns missing, trying basic update");
+                                    $tStmt2 = $conn->prepare('UPDATE users SET session_token = ? WHERE id = ?');
+                                    if ($tStmt2) {
+                                        $tStmt2->bind_param('si', $sessionToken, $userRow['id']);
+                                        $tStmt2->execute();
+                                    }
+                                }
+                            }
+
+                            // Log successful login (gracefully fail if table doesn't exist)
+                            if (function_exists('log_session_activity')) {
+                                @log_session_activity($conn, $userRow['id'], 'login');
+                            }
+                        } catch (Exception $e) {
+                            error_log("[LOGIN] Device fingerprint error: " . $e->getMessage());
+                            // Continue with basic session creation
+                            $sessionToken = bin2hex(random_bytes(32));
+                            $tStmt = $conn->prepare('UPDATE users SET session_token = ? WHERE id = ?');
+                            if ($tStmt) {
+                                $tStmt->bind_param('si', $sessionToken, $userRow['id']);
+                                $tStmt->execute();
+                            }
                         }
-
-                        // Log successful login
-                        @log_session_activity($conn, $userRow['id'], 'login');
 
                         session_regenerate_id(true);
                         $_SESSION['user_id']           = $userRow['id'];
@@ -91,26 +110,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $_SESSION['user_status']       = $userRow['status'];
                         $_SESSION['last_activity']     = time();
 
-                        // Handle "Remember me" checkbox
+                        // Handle "Remember me" checkbox (gracefully skip if table doesn't exist)
                         $rememberMe = isset($_POST['remember_me']) && $_POST['remember_me'] === '1';
                         if ($rememberMe) {
-                            $rememberToken = bin2hex(random_bytes(32));
-                            $expiresAt = date('Y-m-d H:i:s', time() + (30 * 24 * 3600));
+                            try {
+                                $rememberToken = bin2hex(random_bytes(32));
+                                $expiresAt = date('Y-m-d H:i:s', time() + (30 * 24 * 3600));
 
-                            $rStmt = $conn->prepare('INSERT INTO remember_tokens (user_id, token, expires_at) VALUES (?, ?, ?)');
-                            if ($rStmt) {
-                                $rStmt->bind_param('iss', $userRow['id'], $rememberToken, $expiresAt);
-                                @$rStmt->execute();
+                                $rStmt = $conn->prepare('INSERT INTO remember_tokens (user_id, token, expires_at) VALUES (?, ?, ?)');
+                                if ($rStmt) {
+                                    $rStmt->bind_param('iss', $userRow['id'], $rememberToken, $expiresAt);
+                                    if ($rStmt->execute()) {
+                                        // Set persistent HTTP-only cookie (30 days)
+                                        setcookie('remember_token', $rememberToken, [
+                                            'expires' => time() + (30 * 24 * 3600),
+                                            'path'    => '/',
+                                            'secure'  => (getenv('APP_ENV') === 'production'),
+                                            'httponly' => true,
+                                            'samesite' => 'Lax'
+                                        ]);
+                                    }
+                                }
+                            } catch (Exception $e) {
+                                error_log("[LOGIN] Remember me error: " . $e->getMessage());
+                                // Continue - feature is optional
                             }
-
-                            // Set persistent HTTP-only cookie (30 days)
-                            setcookie('remember_token', $rememberToken, [
-                                'expires' => time() + (30 * 24 * 3600),
-                                'path'    => '/',
-                                'secure'  => (getenv('APP_ENV') === 'production'),
-                                'httponly' => true,
-                                'samesite' => 'Lax'
-                            ]);
                         }
 
                         $firstName = explode(' ', trim($userRow['name'] ?: 'there'))[0];
