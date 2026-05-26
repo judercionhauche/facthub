@@ -61,11 +61,37 @@ try {
                     'website_url' => 's',
                     'orcid_id' => 's',
                     'google_scholar_url' => 's',
+                    'notify_matches' => 'i',
+                    'notify_frequency' => 's',
+                    'notify_threshold' => 'i',
+                    'quiet_hours_start' => 's',
+                    'quiet_hours_end' => 's',
                 ];
 
                 foreach ($fields as $field => $type) {
                     if (isset($_POST[$field])) {
                         $value = trim($_POST[$field]);
+                        // Handle checkbox fields (notify_matches)
+                        if ($field === 'notify_matches') {
+                            $value = isset($_POST[$field]) && $_POST[$field] === '1' ? 1 : 0;
+                        }
+                        // Handle threshold (convert to int)
+                        if ($field === 'notify_threshold') {
+                            $value = (int)$value;
+                        }
+                        // Handle quiet hours - allow null/empty
+                        if (in_array($field, ['quiet_hours_start', 'quiet_hours_end'])) {
+                            if ($value === '' || !preg_match('/^\d{2}:\d{2}$/', $value)) {
+                                $value = null;
+                            }
+                        }
+                        // Validate notify_frequency
+                        if ($field === 'notify_frequency') {
+                            if (!in_array($value, ['immediate', 'weekly', 'never'], true)) {
+                                continue; // Skip invalid values
+                            }
+                        }
+
                         $updates[] = "$field = ?";
                         $params[] = $value;
                         $types .= $type;
@@ -439,6 +465,63 @@ button.save-btn:hover { background: #155043; transform: translateY(-2px); box-sh
         <?php elseif ($tab === 'preferences'): ?>
         <!-- Preferences Tab -->
         <div class="profile-section">
+            <?php if ($user['role'] === 'researcher' && $profile): ?>
+            <!-- Notification Preferences for Researchers -->
+            <h2 style="margin-bottom: 8px">Funding Call Notifications</h2>
+            <p style="color: var(--muted); margin-bottom: 20px">Customize how you receive funding opportunities that match your profile</p>
+
+            <form method="post" class="form-grid two" style="margin-bottom: 32px">
+                <?= csrf_input() ?>
+                <input type="hidden" name="update_profile" value="1">
+
+                <div class="span-2" style="background:#f8fafb;border:1.5px solid #dde6dd;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px">
+                    <input type="checkbox" id="notify_matches" name="notify_matches"
+                           <?= !empty($profile['notify_matches']) ? 'checked' : '' ?>
+                           style="width:17px;height:17px;accent-color:#1a6b5a;flex-shrink:0;cursor:pointer">
+                    <div style="flex:1">
+                        <label for="notify_matches" style="margin:0;font-size:13.5px;font-weight:600;color:#374151;cursor:pointer;line-height:1.4">
+                            Email me when new funding calls match my research profile
+                            <span style="display:block;font-weight:400;color:#9aaba4;font-size:12.5px;margin-top:1px">You can unsubscribe at any time via the link in the email.</span>
+                        </label>
+                        <div style="margin-top:12px;padding-top:12px;border-top:1px solid #dde6dd">
+                            <label for="notify_frequency" style="font-size:12.5px;font-weight:600;color:#374151;display:block;margin-bottom:6px">Notification frequency:</label>
+                            <select id="notify_frequency" name="notify_frequency" style="padding:8px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:13px;background:white;color:#374151;cursor:pointer;width:100%;max-width:220px">
+                                <option value="immediate" <?= ($profile['notify_frequency'] ?? 'immediate') === 'immediate' ? 'selected' : '' ?>>Immediately</option>
+                                <option value="weekly" <?= ($profile['notify_frequency'] ?? 'immediate') === 'weekly' ? 'selected' : '' ?>>Weekly digest</option>
+                                <option value="never" <?= ($profile['notify_frequency'] ?? 'immediate') === 'never' ? 'selected' : '' ?>>Never</option>
+                            </select>
+                        </div>
+                        <div style="margin-top:12px">
+                            <label for="notify_threshold" style="font-size:12.5px;font-weight:600;color:#374151;display:block;margin-bottom:6px">Match relevance threshold:</label>
+                            <select id="notify_threshold" name="notify_threshold" style="padding:8px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:13px;background:white;color:#374151;cursor:pointer;width:100%;max-width:220px">
+                                <option value="40" <?= ($profile['notify_threshold'] ?? '60') === '40' ? 'selected' : '' ?>>40% (more matches)</option>
+                                <option value="60" <?= ($profile['notify_threshold'] ?? '60') === '60' ? 'selected' : '' ?>>60% (balanced)</option>
+                                <option value="80" <?= ($profile['notify_threshold'] ?? '60') === '80' ? 'selected' : '' ?>>80% (high relevance only)</option>
+                            </select>
+                            <div style="font-size:11.5px;color:#9aaba4;margin-top:4px">Only get notified about funding calls that match this well</div>
+                        </div>
+                        <div style="margin-top:12px">
+                            <label style="font-size:12.5px;font-weight:600;color:#374151;display:block;margin-bottom:8px">Quiet hours <span style="color:#9aaba4;font-weight:400">(optional)</span></label>
+                            <div style="display:flex;gap:8px;align-items:center">
+                                <input type="time" id="quiet_hours_start" name="quiet_hours_start"
+                                       value="<?= $profile['quiet_hours_start'] ? h($profile['quiet_hours_start']) : '' ?>"
+                                       style="padding:8px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:13px;background:white;color:#374151;flex:1">
+                                <span style="color:#9aaba4">to</span>
+                                <input type="time" id="quiet_hours_end" name="quiet_hours_end"
+                                       value="<?= $profile['quiet_hours_end'] ? h($profile['quiet_hours_end']) : '' ?>"
+                                       style="padding:8px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:13px;background:white;color:#374151;flex:1">
+                            </div>
+                            <div style="font-size:11.5px;color:#9aaba4;margin-top:4px">Notifications won't be sent outside these hours (urgent calls with < 30 days override this)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="span-2" style="margin-top:16px">
+                    <button class="save-btn" type="submit" style="width:100%">Save Notification Preferences</button>
+                </div>
+            </form>
+            <?php endif; ?>
+
             <h2>Security & Account Settings</h2>
             <p style="color: var(--muted); margin-bottom: 20px">Manage your account security and email</p>
 
