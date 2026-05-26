@@ -291,6 +291,8 @@ if ($res) {
     while ($row = $res->fetch_assoc()) $fundingCalls[] = $row;
 }
 
+require_once __DIR__ . '/../../core/Paginator.php';
+
 $filtered = array_values(array_filter($fundingCalls, function($fc) use ($search, $topicFilters, $geoFilters, $statusFilter) {
     $q = strtolower($search);
     $matchesSearch  = $q === ''
@@ -306,6 +308,13 @@ $filtered = array_values(array_filter($fundingCalls, function($fc) use ($search,
     $matchesStatus = $statusFilter === '' || ($fc['status'] ?? '') === $statusFilter;
     return $matchesSearch && $matchesTopic && $matchesGeo && $matchesStatus;
 }));
+
+// Pagination for filtered results
+$page = max(1, (int)($_GET['p'] ?? 1));
+$itemsPerPage = 20;
+$fundingPaginator = new Paginator(count($filtered), $itemsPerPage, $page);
+$paginatedFiltered = array_slice($filtered, $fundingPaginator->getOffset(), $fundingPaginator->getLimit());
+
 $editing = null; foreach ($fundingCalls as $fc) if ((int)$fc['id'] === $editId) $editing = $fc;
 $viewing = null; foreach ($fundingCalls as $fc) if ((int)$fc['id'] === $viewId) $viewing = $fc;
 $saved = [];
@@ -488,9 +497,19 @@ $hasFilters = $search !== '' || !empty($topicFilters) || !empty($geoFilters) || 
     <?php endforeach; ?>
 <?php else: ?>
     <?php if (!$filtered): ?><div class="empty-state panel">No funding calls found.</div><?php endif; ?>
-    <?php foreach ($filtered as $fc): ?>
+    <?php foreach ($paginatedFiltered as $fc): ?>
     <div class="panel list-card">
         <div class="card-row"><div class="card-main"><div class="title-line"><h3><?= h($fc['title']) ?></h3><span class="badge <?= status_class($fc['status']) ?>"><?= h($fc['status'] ?: 'n/a') ?></span></div><div class="muted">Funder: <?= h($fc['funder']) ?><?php if($fc['deadline']): ?> · Deadline: <?= h(format_deadline($fc['deadline'])) ?><?php endif; ?><?php if($fc['amount']): ?> · <?= h($fc['amount']) ?><?php endif; ?></div><div class="mini-label">Topics:</div><div class="tag-row"><?php foreach(array_slice(parse_tags($fc['topics']),0,4) as $tag): ?><span class="tag topic-tag"><?= h($tag) ?></span><?php endforeach; ?></div><div class="mini-label">Geography:</div><div class="tag-row"><?php foreach(array_slice(parse_tags($fc['geography']),0,3) as $tag): ?><span class="tag geo-tag"><?= h($tag) ?></span><?php endforeach; ?></div></div><div class="card-actions wrap-actions"><form method="post"><input type="hidden" name="action" value="save_opportunity"><input type="hidden" name="_csrf" value="<?= csrf_token() ?>"><input type="hidden" name="funding_call_id" value="<?= (int)$fc['id'] ?>"><input type="hidden" name="funding_call_title" value="<?= h($fc['title']) ?>"><button class="ghost-btn" type="submit"><?= isset($savedMap[$fc['id']]) ? 'Unsave' : 'Save' ?></button></form><a class="ghost-btn" href="index.php?page=funding&view=<?= (int)$fc['id'] ?>">View</a><?php if ($canManage($fc)): ?><a class="ghost-btn" href="index.php?page=funding&edit=<?= (int)$fc['id'] ?>">Edit</a><form method="post" onsubmit="return confirm('Delete funding call?');"><input type="hidden" name="action" value="delete"><input type="hidden" name="_csrf" value="<?= csrf_token() ?>"><input type="hidden" name="id" value="<?= (int)$fc['id'] ?>"><button class="danger-btn" type="submit">Delete</button></form><?php endif; ?></div></div>
     </div>
     <?php endforeach; ?>
+
+    <!-- Pagination -->
+    <?php if ($filtered && $fundingPaginator->getTotalPages() > 1): ?>
+    <div style="margin-top:20px">
+        <?php require __DIR__ . '/../components/pagination.php';
+        $extraParams = array_filter($_GET, fn($k) => !in_array($k, ['page', 'p']), ARRAY_FILTER_USE_KEY);
+        render_pagination($fundingPaginator, 'p', 'index.php?page=funding', $extraParams);
+        ?>
+    </div>
+    <?php endif; ?>
 <?php endif; ?>

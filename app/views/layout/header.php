@@ -18,6 +18,16 @@ if (is_logged_in()) {
     <link rel="stylesheet" href="assets/style.css">
     <script src="assets/app.js"></script>
 
+    <!-- Global CMD+K search shortcut -->
+    <script>
+    document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+            e.preventDefault();
+            window.location.href = 'index.php?page=search';
+        }
+    });
+    </script>
+
     <?php if (is_logged_in()): ?>
     <script>
     // Session timeout warning + cross-tab logout sync
@@ -120,9 +130,16 @@ if (is_logged_in()) {
 </head>
 <body class="<?= is_logged_in() ? 'logged-in' : 'logged-out' ?>">
 <div class="site-shell">
+    <!-- Mobile Navigation Drawer -->
+    <?php require __DIR__ . '/../components/nav-drawer.php'; ?>
+
     <header class="topbar">
         <div class="topbar-inner">
             <div class="brand-wrap">
+                <?php if (is_logged_in()): ?>
+                <button id="hamburger" onclick="document.getElementById('nav-drawer').style.display='flex'"
+                        style="display:none;background:none;border:none;font-size:24px;cursor:pointer;padding:8px;margin-right:8px">☰</button>
+                <?php endif; ?>
                 <img src="assets/fact-alliance-logo.png" alt="FACT Alliance" class="brand-logo">
             </div>
             <?php if (is_logged_in()): ?>

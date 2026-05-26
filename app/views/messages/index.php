@@ -322,8 +322,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 /* ── LOAD DATA ────────────────────────────────────────────────────── */
+require_once __DIR__ . '/../../core/Paginator.php';
+
 $tab      = $_GET['tab']    ?? 'inbox';
 $threadId = (int)($_GET['thread'] ?? 0);
+$page     = max(1, (int)($_GET['p'] ?? 1));
+$itemsPerPage = 30;
 
 // Auto-switch to compose if contact params present
 if (isset($_GET['recipient_email']) || isset($_GET['compose'])) {
@@ -350,6 +354,25 @@ if ($threadId > 0) {
        AND m.thread_id != m.id"
 );
 
+/* Inbox threads — count total */
+$inboxCountSql = "
+    SELECT COUNT(DISTINCT m.id) c
+    FROM messages m
+    WHERE (m.thread_id = m.id OR m.thread_id IS NULL)
+      AND m.is_deleted = 0
+      AND (
+        (m.sender_email != ? AND (m.recipient_type = 'network' OR m.recipient_email = ?))
+        OR
+        (m.sender_email = ? AND EXISTS (SELECT 1 FROM messages r WHERE r.thread_id = m.id AND r.id != m.id AND r.sender_email != ? AND r.is_deleted = 0))
+      )
+";
+$inboxCountStmt = $conn->prepare($inboxCountSql);
+$inboxCountStmt->bind_param('ssss', $user['email'], $user['email'], $user['email'], $user['email']);
+$inboxCountStmt->execute();
+$inboxCountRow = $inboxCountStmt->get_result()->fetch_assoc();
+$inboxTotal = (int)($inboxCountRow['c'] ?? 0);
+$inboxPaginator = new Paginator($inboxTotal, $itemsPerPage, $page);
+
 /* Inbox threads — root messages: either (1) received by user, or (2) sent by user with replies */
 $inboxSql = "
     SELECT m.*,
@@ -368,11 +391,27 @@ $inboxSql = "
         (m.sender_email = ? AND EXISTS (SELECT 1 FROM messages r WHERE r.thread_id = m.id AND r.id != m.id AND r.sender_email != ? AND r.is_deleted = 0))
       )
     ORDER BY last_at DESC
+    " . $inboxPaginator->getSQLLimit() . "
 ";
 $inboxStmt = $conn->prepare($inboxSql);
 $inboxStmt->bind_param('sssss', $user['email'], $user['email'], $user['email'], $user['email'], $user['email']);
 $inboxStmt->execute();
 $inboxThreads = $inboxStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+/* Sent threads — count total */
+$sentCountSql = "
+    SELECT COUNT(DISTINCT m.id) c
+    FROM messages m
+    WHERE (m.thread_id = m.id OR m.thread_id IS NULL)
+      AND m.is_deleted = 0
+      AND m.sender_email = ?
+";
+$sentCountStmt = $conn->prepare($sentCountSql);
+$sentCountStmt->bind_param('s', $user['email']);
+$sentCountStmt->execute();
+$sentCountRow = $sentCountStmt->get_result()->fetch_assoc();
+$sentTotal = (int)($sentCountRow['c'] ?? 0);
+$sentPaginator = new Paginator($sentTotal, $itemsPerPage, $page);
 
 /* Sent threads — root messages sent by this user */
 $sentSql = "
@@ -387,6 +426,7 @@ $sentSql = "
       AND m.is_deleted = 0
       AND m.sender_email = ?
     ORDER BY last_at DESC
+    " . $sentPaginator->getSQLLimit() . "
 ";
 $sentStmt = $conn->prepare($sentSql);
 $sentStmt->bind_param('s', $user['email']);
@@ -964,6 +1004,18 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
             </div>
         </a>
         <?php endforeach; ?>
+
+        <!-- Pagination -->
+        <?php
+        $activePaginator = $tab === 'sent' ? $sentPaginator : $inboxPaginator;
+        if ($activePaginator->getTotalPages() > 1):
+        ?>
+        <div style="border-top:1px solid var(--line);margin-top:16px;padding-top:16px">
+            <?php require __DIR__ . '/../components/pagination.php';
+            render_pagination($activePaginator, 'p', 'index.php?page=messages&tab=' . h($tab), array_filter($_GET, fn($k) => !in_array($k, ['page', 'p']), ARRAY_FILTER_USE_KEY));
+            ?>
+        </div>
+        <?php endif; ?>
     <?php endif; ?>
 </div>
 <?php endif; ?>

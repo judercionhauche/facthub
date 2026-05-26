@@ -478,31 +478,45 @@ if ($editId > 0 && !is_admin()) {
     }
 }
 
-$topicTags   = get_all_tags($conn, 'topic');
-$researchers = [];
-// For viewing own profile or editing: include pending_approval
-// For public browse: only active
-$profileLookupStatuses = "('active', 'pending_approval')";
-$publicBrowseStatuses = "'active'";
+require_once __DIR__ . '/../../core/Paginator.php';
 
-// Try with deleted_at column first, fall back if it doesn't exist
-$res = @$conn->query("SELECT * FROM researchers WHERE status IN {$profileLookupStatuses} AND deleted_at IS NULL ORDER BY first_name ASC, last_name ASC");
+$topicTags = get_all_tags($conn, 'topic');
+$researchers = [];
+
+// Pagination setup
+$page = max(1, (int)($_GET['p'] ?? 1));
+$itemsPerPage = 24;
+
+// Count total active researchers for public browse
+$countRes = @$conn->query("SELECT COUNT(*) c FROM researchers WHERE status = 'active' AND deleted_at IS NULL");
+if (!$countRes) {
+    $countRes = @$conn->query("SELECT COUNT(*) c FROM researchers WHERE status = 'active'");
+}
+if (!$countRes) {
+    $countRes = @$conn->query("SELECT COUNT(*) c FROM researchers");
+}
+$totalCount = 0;
+if ($countRes) {
+    $countRow = $countRes->fetch_assoc();
+    $totalCount = (int)($countRow['c'] ?? 0);
+}
+
+$paginator = new Paginator($totalCount, $itemsPerPage, $page);
+
+// Load current page of researchers (public browse: only active)
+$res = @$conn->query("SELECT * FROM researchers WHERE status = 'active' AND deleted_at IS NULL ORDER BY first_name ASC, last_name ASC " . $paginator->getSQLLimit());
 if (!$res) {
-    // Fallback if deleted_at column doesn't exist yet
-    $res = @$conn->query("SELECT * FROM researchers WHERE status IN {$profileLookupStatuses} ORDER BY first_name ASC, last_name ASC");
+    $res = @$conn->query("SELECT * FROM researchers WHERE status = 'active' ORDER BY first_name ASC, last_name ASC " . $paginator->getSQLLimit());
 }
 if (!$res) {
-    // Further fallback if status column doesn't exist
-    $res = @$conn->query("SELECT * FROM researchers ORDER BY first_name ASC, last_name ASC");
+    $res = @$conn->query("SELECT * FROM researchers ORDER BY first_name ASC, last_name ASC " . $paginator->getSQLLimit());
 }
 if ($res) {
     while ($row = $res->fetch_assoc()) $researchers[] = $row;
 }
 
-// For public display, filter to only active
-$publicResearchers = array_filter($researchers, function($r) {
-    return ($r['status'] ?? 'active') === 'active';
-});
+// For display, these are already active researchers
+$publicResearchers = $researchers;
 
 // Unique non-empty institutions (sorted)
 $institutions = array_values(array_unique(array_filter(array_map(fn($r) => trim($r['institution'] ?? ''), $researchers))));
@@ -1191,6 +1205,11 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         </div>
         <?php endforeach; ?>
+
+        <!-- Pagination -->
+        <?php require __DIR__ . '/../components/pagination.php';
+        render_pagination($paginator, 'p', 'index.php?page=researchers', array_filter($_GET, fn($k) => !in_array($k, ['page', 'p']), ARRAY_FILTER_USE_KEY));
+        ?>
     </div><!-- .lk-results -->
 </div><!-- .lk-layout -->
 
