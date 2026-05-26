@@ -239,10 +239,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             });
         </script>
-        <div style="margin-top:12px;margin-bottom:14px">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none">
-                <input type="checkbox" name="remember_me" value="1">
-                <span style="font-size:14px;color:#555">Remember me for 30 days</span>
+        <div style="margin-top:16px;margin-bottom:16px">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;padding:8px;border-radius:6px;transition:background-color 0.15s" onmouseover="this.style.backgroundColor='#f9faf8'" onmouseout="this.style.backgroundColor='transparent'">
+                <input type="checkbox" name="remember_me" value="1" style="width:18px;height:18px;cursor:pointer;accent-color:#1a6b5a">
+                <span style="font-size:14px;font-weight:500;color:#374151;letter-spacing:-0.01em">Remember me for 30 days</span>
             </label>
         </div>
         <button class="primary-btn" type="submit" style="width:100%;padding:12px">Sign In</button>
