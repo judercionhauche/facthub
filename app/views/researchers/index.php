@@ -873,7 +873,7 @@ const subcategories = <?= json_encode(array_combine(
         'Ecosystems & Biodiversity' => ['Orphan crops','Water management','Biome Specialization: Drylands','Biome Specialization: Forests','Biome Specialization: Aquatic','Biome Specialization: Grasslands','Biome Specialization: Wetlands','Biome Specialization: Other','Ecosystem services','Ecosystem restoration','Nexus approaches','Commercial forestry','Pests & diseases','Soils'],
         'Governance & Innovation' => ['Innovation and change','Political economy (practices, institutions, power and/or politics)','Human mobility','Geopolitical crises','Regulatory/reporting frameworks/standards & certification','Land use and land access'],
         'Markets & Trade' => ['Supply chain risks','Inclusive & resilient value chains','Food industry sustainability tracking','Trade networks & shock propagation','Food trade early warning systems','Energy use'],
-        'Crosscutting Themes' => ['Diversity, gender, equity, and inclusion','Social-ecological systems','Finance and resource mobilization','Co-development of knowledge/co-design','Data ecosystems','Business models','AI / machine learning and digital tools','Stress testing the global/national food system','Scenarios and storylines','Transition management'],
+        'Crosscutting Themes' => ['Climate change','Diversity, gender, equity, and inclusion','Social-ecological systems','Finance and resource mobilization','Co-development of knowledge/co-design','Data ecosystems','Business models','AI / machine learning and digital tools','Stress testing the global/national food system','Scenarios and storylines','Transition management'],
         default => []
     }, $FACT_CATEGORIES)
 )) ?>;
@@ -1076,7 +1076,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         'Ecosystems & Biodiversity' => ['Orphan crops','Water management','Biome Specialization: Drylands','Biome Specialization: Forests','Biome Specialization: Aquatic','Biome Specialization: Grasslands','Biome Specialization: Wetlands','Biome Specialization: Other','Ecosystem services','Ecosystem restoration','Nexus approaches','Commercial forestry','Pests & diseases','Soils'],
                         'Governance & Innovation' => ['Innovation and change','Political economy (practices, institutions, power and/or politics)','Human mobility','Geopolitical crises','Regulatory/reporting frameworks/standards & certification','Land use and land access'],
                         'Markets & Trade' => ['Supply chain risks','Inclusive & resilient value chains','Food industry sustainability tracking','Trade networks & shock propagation','Food trade early warning systems','Energy use'],
-                        'Crosscutting Themes' => ['Diversity, gender, equity, and inclusion','Social-ecological systems','Finance and resource mobilization','Co-development of knowledge/co-design','Data ecosystems','Business models','AI / machine learning and digital tools','Stress testing the global/national food system','Scenarios and storylines','Transition management'],
+                        'Crosscutting Themes' => ['Climate change','Diversity, gender, equity, and inclusion','Social-ecological systems','Finance and resource mobilization','Co-development of knowledge/co-design','Data ecosystems','Business models','AI / machine learning and digital tools','Stress testing the global/national food system','Scenarios and storylines','Transition management'],
                         default => []
                     };
                 ?>
