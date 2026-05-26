@@ -54,50 +54,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } else {
                         error_log("[LOGIN] Creating session");
 
-                        try {
-                            // Generate session token and device fingerprint
-                            $sessionToken = bin2hex(random_bytes(32));
-                            $deviceFingerprint = (function_exists('generate_device_fingerprint')) ? generate_device_fingerprint() : bin2hex(random_bytes(16));
-                            $clientIp = (function_exists('get_client_ip')) ? get_client_ip() : ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0');
-                            $userAgent = (function_exists('get_user_agent')) ? get_user_agent() : substr($_SERVER['HTTP_USER_AGENT'] ?? 'unknown', 0, 255);
-                            $now = date('Y-m-d H:i:s');
-
-                            // Store device info in database (with fallback for missing columns)
-                            $tStmt = $conn->prepare(
-                                'UPDATE users SET
-                                  session_token = ?,
-                                  session_fingerprint = ?,
-                                  session_ip = ?,
-                                  session_user_agent = ?,
-                                  session_created_at = ?
-                                 WHERE id = ?'
-                            );
-                            if ($tStmt) {
-                                $tStmt->bind_param('issssi', $sessionToken, $deviceFingerprint, $clientIp, $userAgent, $now, $userRow['id']);
-                                if (!$tStmt->execute()) {
-                                    // If UPDATE fails (columns might not exist yet), just store token
-                                    error_log("[LOGIN] Device columns missing, trying basic update");
-                                    $tStmt2 = $conn->prepare('UPDATE users SET session_token = ? WHERE id = ?');
-                                    if ($tStmt2) {
-                                        $tStmt2->bind_param('si', $sessionToken, $userRow['id']);
-                                        $tStmt2->execute();
-                                    }
-                                }
-                            }
-
-                            // Log successful login (gracefully fail if table doesn't exist)
-                            if (function_exists('log_session_activity')) {
-                                @log_session_activity($conn, $userRow['id'], 'login');
-                            }
-                        } catch (Exception $e) {
-                            error_log("[LOGIN] Device fingerprint error: " . $e->getMessage());
-                            // Continue with basic session creation
-                            $sessionToken = bin2hex(random_bytes(32));
-                            $tStmt = $conn->prepare('UPDATE users SET session_token = ? WHERE id = ?');
-                            if ($tStmt) {
-                                $tStmt->bind_param('si', $sessionToken, $userRow['id']);
-                                $tStmt->execute();
-                            }
+                        // Generate session token
+                        $sessionToken = bin2hex(random_bytes(32));
+                        $tStmt = $conn->prepare('UPDATE users SET session_token = ? WHERE id = ?');
+                        if ($tStmt) {
+                            $tStmt->bind_param('si', $sessionToken, $userRow['id']);
+                            $tStmt->execute();
                         }
 
                         session_regenerate_id(true);

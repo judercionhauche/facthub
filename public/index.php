@@ -146,16 +146,8 @@ if (is_logged_in()) {
     }
 }
 
-// Anomaly Detection — Check for impossible travel (suspicious activity)
-if (is_logged_in()) {
-    if (check_impossible_travel($conn, (int)$_SESSION['user_id'], get_client_ip())) {
-        @log_session_activity($conn, (int)$_SESSION['user_id'], 'suspicious', 'impossible_travel');
-        expire_session('Suspicious activity detected. Please log in again.');
-        header('Location: index.php?page=login');
-        ob_end_clean();
-        exit;
-    }
-}
+// Device fingerprinting/anomaly detection disabled on load-balanced deployments
+// (Kept for future implementation in stable network environments)
 
 // Lightweight JSON endpoint — returns unread message count for live polling
 if ($page === 'ping' && is_logged_in()) {
