@@ -395,16 +395,20 @@ $hasFilters = $search !== '' || !empty($topicFilters) || !empty($geoFilters) || 
     </div>
 </div>
 
-<div class="panel adv-filter">
-    <div class="adv-filter-hd">
-        <span class="adv-filter-title">Filter Funding Calls</span>
+<div class="lk-layout">
+    <!-- Filter Sidebar -->
+    <aside class="lk-sidebar">
+        <div class="lk-sidebar-head">
+            <span class="lk-sidebar-title">Filter Funding Calls</span>
+        </div>
+
+        <div class="panel adv-filter" style="border: none; box-shadow: none; padding: 0; margin: 0;">
         <?php if ($hasFilters): ?>
-        <div class="adv-filter-hd-right">
-            <span class="result-count"><?= count($filtered) ?> result<?= count($filtered) !== 1 ? 's' : '' ?></span>
-            <a href="index.php?page=funding&tab=<?= h($tab) ?>" class="adv-clear-all">Clear all filters</a>
+        <div style="padding: 12px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-size: 12px; color: #6b7280;">Active Filters</span>
+            <a href="index.php?page=funding&tab=<?= h($tab) ?>" class="adv-clear-all" style="font-size: 12px;">Clear all</a>
         </div>
         <?php endif; ?>
-    </div>
 
     <form method="get" id="funding-filter">
         <input type="hidden" name="page" value="funding">
@@ -482,7 +486,17 @@ $hasFilters = $search !== '' || !empty($topicFilters) || !empty($geoFilters) || 
         });
     });
     </script>
-</div>
+        </div>
+    </aside>
+
+    <!-- Results -->
+    <div class="lk-results">
+        <div class="lk-results-head">
+            <?php if ($hasFilters): ?>
+            <span><?= count($filtered) ?> result<?= count($filtered) !== 1 ? 's' : '' ?></span>
+            <?php endif; ?>
+        </div>
+
 <?php if ((is_admin() || is_funder()) && ($mode==='add' || $editing)): ?>
 <div class="panel modalish"><h2><?= $editing?'Edit Funding Call':'Add Funding Call' ?></h2><form method="post" class="form-grid two"><input type="hidden" name="action" value="save"><input type="hidden" name="_csrf" value="<?= csrf_token() ?>"><input type="hidden" name="id" value="<?= h($editing['id'] ?? '') ?>"><div class="span-2"><label>Title *</label><input name="title" value="<?= h($editing['title'] ?? '') ?>" required></div><div><label>Funder</label><input name="funder" value="<?= h($editing['funder'] ?? '') ?>"></div><div><label>Deadline</label><input type="date" name="deadline" value="<?= h($editing['deadline'] ?? '') ?>"></div><div><label>Status</label><select name="status"><option value="">-- status --</option><?php foreach(['open','rolling','closed','upcoming'] as $st): ?><option value="<?= $st ?>" <?= ($editing['status'] ?? '')===$st?'selected':'' ?>><?= ucfirst($st) ?></option><?php endforeach; ?></select></div><div><label>Amount</label><input name="amount" value="<?= h($editing['amount'] ?? '') ?>"></div><div class="span-2"><label>Description</label><textarea name="description"><?= h($editing['description'] ?? '') ?></textarea></div><div class="span-2"><label>External URL</label><input name="url" value="<?= h($editing['url'] ?? '') ?>"></div><div><label>Topics (comma-separated)</label><input name="topics" value="<?= h($editing['topics'] ?? '') ?>"></div><div><label>Geography (comma-separated)</label><input name="geography" value="<?= h($editing['geography'] ?? '') ?>"></div><div class="span-2 actions-row"><button class="primary-btn" type="submit">Save</button><a class="ghost-btn" href="index.php?page=funding">Cancel</a></div></form></div>
 <?php endif; ?>
@@ -513,3 +527,5 @@ $hasFilters = $search !== '' || !empty($topicFilters) || !empty($geoFilters) || 
     </div>
     <?php endif; ?>
 <?php endif; ?>
+    </div><!-- .lk-results -->
+</div><!-- .lk-layout -->
