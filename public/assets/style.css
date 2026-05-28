@@ -25,6 +25,7 @@ a:hover{text-decoration:underline}
 .userbox{display:flex;align-items:center;gap:10px;color:var(--muted)}
 .page-wrap{max-width:1280px;width:100%;margin:0 auto;padding:24px 20px;display:grid;grid-template-columns:220px 1fr;gap:24px;flex:1}
 .page-wrap.auth-wrap{display:block;max-width:860px;padding-top:56px}
+.auth-wrap .sidebar{display:none !important}
 .sidebar{display:block;position:sticky;top:76px;align-self:start;height:fit-content;max-height:calc(100vh - 100px);overflow-y:auto;z-index:15}
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;box-shadow:0 2px 10px rgba(22,37,30,.04)}
 .sidebar-panel{padding:18px}
