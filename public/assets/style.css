@@ -15,7 +15,7 @@
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 "Work Sans",Arial,sans-serif}
 a{color:var(--primary);text-decoration:none}
 a:hover{text-decoration:underline}
-.site-shell{min-height:100vh;display:flex;flex-direction:column}
+.site-shell{min-height:100vh;display:flex;flex-direction:column;padding-bottom:100px}
 .topbar{position:sticky;top:0;background:#fff;border-bottom:3px solid var(--primary);z-index:20}
 .topbar-inner{max-width:1280px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:18px}
 .brand-logo{height:42px;object-fit:contain}

@@ -1,6 +1,6 @@
         </main>
     </div>
-    <footer class="footer" style="margin-top: auto;">
+    <footer class="footer" style="position: fixed; bottom: 0; left: 0; right: 0; margin-top: auto; z-index: 10;">
         <div class="footer-inner">
             <img src="assets/jwafs-logo.svg" alt="J-WAFS" class="footer-logo">
             <div>
