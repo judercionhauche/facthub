@@ -140,11 +140,7 @@ if (is_logged_in()) {
                 <button id="hamburger" onclick="document.getElementById('nav-drawer').style.display='flex'"
                         style="display:none;background:none;border:none;font-size:24px;cursor:pointer;padding:8px;margin-right:8px">☰</button>
                 <?php endif; ?>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <img src="assets/fact-alliance-logo.png" alt="FACT Alliance" class="brand-logo" style="height: 36px; width: auto;">
-                    <div style="width: 1px; height: 24px; background: linear-gradient(180deg, rgba(26,107,90,0.2) 0%, rgba(26,107,90,0.6) 50%, rgba(26,107,90,0.2) 100%);"></div>
-                    <img src="assets/Massachusetts_Institute_of_Technology-Logo.wine.png" alt="MIT" style="height: 28px; width: auto; filter: brightness(0.9);">
-                </div>
+                <img src="assets/fact-alliance-logo.png" alt="FACT Alliance" class="brand-logo" style="height: 36px; width: auto;">
             </div>
             <?php if (is_logged_in()): ?>
             <nav class="topnav">
