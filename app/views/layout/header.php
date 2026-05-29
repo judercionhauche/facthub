@@ -140,7 +140,9 @@ if (is_logged_in()) {
                 <button id="hamburger" onclick="document.getElementById('nav-drawer').style.display='flex'"
                         style="display:none;background:none;border:none;font-size:24px;cursor:pointer;padding:8px;margin-right:8px">☰</button>
                 <?php endif; ?>
-                <img src="assets/fact-alliance-logo.png" alt="FACT Alliance" class="brand-logo" style="height: 36px; width: auto;">
+                <a href="https://jwafs.mit.edu/" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; text-decoration: none; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="FACT Alliance - MIT J-WAFS Initiative">
+                    <img src="assets/fact-alliance-logo.png" alt="FACT Alliance" class="brand-logo" style="height: 36px; width: auto;">
+                </a>
             </div>
             <?php if (is_logged_in()): ?>
             <nav class="topnav">
