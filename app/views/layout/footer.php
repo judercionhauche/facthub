@@ -11,8 +11,7 @@
             </a>
             <a href="https://web.mit.edu/" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 24px; flex-shrink: 0; padding-left: 24px; border-left: 1px solid rgba(26,107,90,0.1); text-decoration: none; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Massachusetts Institute of Technology">
                 <div style="text-align: right; font-size: 11px; color: #9aaba4; line-height: 1.4;">
-                    <div style="font-weight: 700; margin-bottom: 2px;">Partnership with</div>
-                    <div style="font-size: 10px;">MIT</div>
+
                 </div>
                 <img src="assets/mit_logo_std_rgb_silver-gray.png" alt="Massachusetts Institute of Technology" style="height: 36px; width: auto; opacity: 0.9;">
             </a>
