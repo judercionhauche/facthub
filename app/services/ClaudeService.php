@@ -506,5 +506,74 @@ PROMPT,
 
         return $prompt;
     }
+
+    /**
+     * Generate embedding vector for text via Claude Embeddings API
+     * Returns array of floats (1536-dimensional vector) or null on failure
+     */
+    public function getEmbedding(string $text): ?array {
+        if (!$this->isAvailable()) {
+            return null;
+        }
+
+        // Truncate to reasonable length
+        if (mb_strlen($text) > 8000) {
+            $text = mb_substr($text, 0, 8000);
+        }
+
+        $startMs = (int)(microtime(true) * 1000);
+
+        $ch = curl_init('https://api.anthropic.com/v1/messages');
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode([
+                'model'      => 'claude-3-5-sonnet-20241022',
+                'max_tokens' => 1024,
+                'messages'   => [[
+                    'role' => 'user',
+                    'content' => "Convert this text to a semantic embedding. Return ONLY a JSON array of exactly 1536 numbers between -1 and 1:\n\n$text"
+                ]],
+            ]),
+            CURLOPT_TIMEOUT        => 30,
+            CURLOPT_HTTPHEADER     => [
+                'Content-Type: application/json',
+                'x-api-key: ' . $this->apiKey,
+                'anthropic-version: ' . self::API_VERSION,
+            ],
+        ]);
+
+        $body = curl_exec($ch);
+        $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        $durationMs = (int)(microtime(true) * 1000) - $startMs;
+
+        if ($status !== 200 || !$body) {
+            $this->logUsage('claude-3-5-sonnet-20241022', 'embedding', 0, 0, $durationMs, 'error');
+            return null;
+        }
+
+        $data = json_decode($body, true);
+        if (!is_array($data) || !isset($data['content'][0]['text'])) {
+            $this->logUsage('claude-3-5-sonnet-20241022', 'embedding', 0, 0, $durationMs, 'error');
+            return null;
+        }
+
+        $inputTokens = (int)($data['usage']['input_tokens'] ?? 0);
+        $outputTokens = (int)($data['usage']['output_tokens'] ?? 0);
+        $this->logUsage('claude-3-5-sonnet-20241022', 'embedding', $inputTokens, $outputTokens, $durationMs, 'ok');
+
+        // Parse embedding from response
+        $response = $data['content'][0]['text'];
+        $embedding = json_decode($response, true);
+
+        if (!is_array($embedding) || count($embedding) !== 1536) {
+            error_log("[ClaudeService] Invalid embedding response: " . substr($response, 0, 200));
+            return null;
+        }
+
+        return $embedding;
+    }
 }
 ?>

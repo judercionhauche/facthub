@@ -798,6 +798,85 @@ function apply_security_schema_updates(mysqli $conn): void {
         ");
     }
 
+    // ════════════════════════════════════════════════════════════════
+    // Semantic Search — Embedding Storage for Vector Similarity
+    // ════════════════════════════════════════════════════════════════
+
+    // researcher_embeddings table for semantic search
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='researcher_embeddings' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS researcher_embeddings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                researcher_id INT NOT NULL,
+                embedding_type VARCHAR(50) NOT NULL COMMENT 'profile, bio, topics, expertise',
+                embedding LONGTEXT NOT NULL COMMENT 'JSON array of floats (1536-dim)',
+                content_hash VARCHAR(64) NOT NULL COMMENT 'SHA256 of source content',
+                model_used VARCHAR(100) DEFAULT 'claude-embeddings-v3.5',
+                generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (researcher_id) REFERENCES researchers(id) ON DELETE CASCADE,
+                INDEX idx_researcher (researcher_id),
+                INDEX idx_type (embedding_type),
+                INDEX idx_hash (content_hash),
+                UNIQUE KEY unique_researcher_embedding (researcher_id, embedding_type)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
+    // funding_call_embeddings table for semantic search
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='funding_call_embeddings' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS funding_call_embeddings (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                funding_call_id INT NOT NULL,
+                embedding_type VARCHAR(50) NOT NULL COMMENT 'full, title, description',
+                embedding LONGTEXT NOT NULL COMMENT 'JSON array of floats (1536-dim)',
+                content_hash VARCHAR(64) NOT NULL COMMENT 'SHA256 of source content',
+                model_used VARCHAR(100) DEFAULT 'claude-embeddings-v3.5',
+                generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (funding_call_id) REFERENCES funding_calls(id) ON DELETE CASCADE,
+                INDEX idx_funding_call (funding_call_id),
+                INDEX idx_type (embedding_type),
+                INDEX idx_hash (content_hash),
+                UNIQUE KEY unique_funding_embedding (funding_call_id, embedding_type)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
+    // Enhance search_sessions with embedding support
+    $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='search_sessions' AND COLUMN_NAME='query_embedding' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("ALTER TABLE search_sessions ADD COLUMN query_embedding LONGTEXT DEFAULT NULL COMMENT 'Query embedding for semantic search analysis'");
+    }
+
+    $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='search_sessions' AND COLUMN_NAME='expanded_concepts' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("ALTER TABLE search_sessions ADD COLUMN expanded_concepts JSON DEFAULT NULL COMMENT 'Expanded search concepts from query expansion'");
+    }
+
+    // search_explanations table for caching match explanations
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='search_explanations' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS search_explanations (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                entity_type VARCHAR(50) NOT NULL COMMENT 'researcher, funding_call',
+                entity_id INT NOT NULL,
+                query_hash VARCHAR(64) NOT NULL COMMENT 'Hash of search query',
+                explanation TEXT NOT NULL COMMENT 'Natural language explanation of why it matched',
+                similarity_score DECIMAL(5,4) DEFAULT NULL,
+                model_used VARCHAR(100) DEFAULT 'claude-haiku-4-5',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL DEFAULT (DATE_ADD(NOW(), INTERVAL 30 DAY)),
+                INDEX idx_entity (entity_type, entity_id),
+                INDEX idx_query (query_hash),
+                INDEX idx_expires (expires_at),
+                UNIQUE KEY unique_explanation (entity_type, entity_id, query_hash)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    }
+
     } catch (Throwable $e) {
         error_log('[Schema Migration] Error: ' . $e->getMessage());
         // Continue anyway - some tables may not exist yet
