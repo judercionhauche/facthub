@@ -1748,6 +1748,7 @@ $recentRows = $recentStmt->get_result()->fetch_all(MYSQLI_ASSOC);
         <?php endfor; ?>
     </div>
     <?php endif; ?>
+    <?php endif; ?>
 </div>
 
 <?php elseif ($adminSection === 'jobs'): ?>
@@ -2041,7 +2042,7 @@ $recentJobRows = $recentJobStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
 <?php endif; /* end settings section */ ?>
 
-<?php if ($adminSection === 'embeddings'): ?>
+<?php elseif ($adminSection === 'embeddings'): ?>
 <!-- ── Semantic Search Embeddings section ── -->
 <div class="panel">
     <h2>Semantic Search — Embedding Management</h2>
