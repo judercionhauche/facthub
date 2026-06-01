@@ -58,8 +58,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param('sssssssssi', $title, $funder, $deadline, $status, $description, $topics, $geography, $amount, $url, $id);
             $stmt->execute();
 
-            // Regenerate AI summary since funding call content changed
+            // Regenerate AI summary and embedding since content changed
             enqueue_job($conn, 'generate_summary', ['entity_type' => 'funding_call', 'entity_id' => $id]);
+            enqueue_job($conn, 'generate_embedding', ['entity_type' => 'funding_call', 'entity_id' => $id]);
 
             set_flash('success', 'Funding call updated.');
         } else {
@@ -191,6 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             enqueue_job($conn, 'compute_matches', ['funding_call_id' => $newFcId]);
             enqueue_job($conn, 'generate_summary', ['entity_type' => 'funding_call', 'entity_id' => $newFcId]);
+            enqueue_job($conn, 'generate_embedding', ['entity_type' => 'funding_call', 'entity_id' => $newFcId]);
 
             $flashMsg = 'Funding call added.';
             if ($notifiedCount > 0) {

@@ -305,6 +305,28 @@ function dispatch_job(mysqli $conn, array $job, string $appUrl): void {
                 echo "[" . date('Y-m-d H:i:s') . "] Job {$jobId} (send_weekly_digests) done" . PHP_EOL;
                 break;
 
+            case 'generate_embedding':
+                require_once __DIR__ . '/../services/EmbeddingService.php';
+                $entityType = $payload['entity_type'] ?? '';
+                $entityId = (int)($payload['entity_id'] ?? 0);
+                if ($entityType && $entityId) {
+                    echo "[" . date('Y-m-d H:i:s') . "] Generating embedding for {$entityType} (ID {$entityId})" . PHP_EOL;
+                    $embeddingService = new EmbeddingService($conn, $claude);
+                    if ($entityType === 'researcher') {
+                        $result = $embeddingService->generateResearcherEmbedding($entityId, 'profile');
+                    } elseif ($entityType === 'funding_call') {
+                        $result = $embeddingService->generateFundingCallEmbedding($entityId, 'full');
+                    } else {
+                        $result = false;
+                    }
+                    echo "[" . date('Y-m-d H:i:s') . "] Result: " . ($result ? 'SUCCESS' : 'FAILED') . PHP_EOL;
+                } else {
+                    echo "[" . date('Y-m-d H:i:s') . "] Missing entity_type or entity_id for generate_embedding" . PHP_EOL;
+                }
+                mark_job_done($conn, $jobId);
+                echo "[" . date('Y-m-d H:i:s') . "] Job {$jobId} (generate_embedding) done" . PHP_EOL;
+                break;
+
             default:
                 throw new RuntimeException("Unknown job type: " . $job['job_type']);
         }

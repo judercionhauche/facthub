@@ -233,9 +233,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         throw new Exception('Error creating researcher profile: ' . $stmt->error);
                     }
 
-                    // Generate AI summary immediately
+                    // Generate AI summary and semantic embedding
                     $newResearcherId = $conn->insert_id;
                     generate_researcher_summary($conn, $newResearcherId);
+
+                    // Generate embedding for semantic search (async via job queue)
+                    enqueue_job($conn, 'generate_embedding', [
+                        'entity_type' => 'researcher',
+                        'entity_id' => $newResearcherId
+                    ]);
 
                     // Enqueue ORCID publication fetch if provided
                     if ($orcidId) {
@@ -308,6 +314,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->bind_param('sssssssssissssssssssssi', $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd, $id);
                 if (!$stmt->execute()) throw new Exception('Error updating profile: ' . $stmt->error);
                 enqueue_job($conn, 'generate_summary', ['entity_type' => 'researcher', 'entity_id' => $id]);
+                enqueue_job($conn, 'generate_embedding', ['entity_type' => 'researcher', 'entity_id' => $id]);
                 if ($orcidId) {
                     enqueue_job($conn, 'fetch_orcid_publications', ['researcher_id' => $id, 'orcid_id' => $orcidId]);
                 }
@@ -361,8 +368,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$stmt->execute()) throw new Exception('Error creating profile: ' . $stmt->error);
                 $newResearcherId = $conn->insert_id;
 
-                // Generate AI summary immediately
+                // Generate AI summary and embedding
                 generate_researcher_summary($conn, $newResearcherId);
+                enqueue_job($conn, 'generate_embedding', [
+                    'entity_type' => 'researcher',
+                    'entity_id' => $newResearcherId
+                ]);
 
                 audit($conn, 'add_researcher', ['type' => 'researcher', 'id' => $newResearcherId, 'email' => $email]);
                 set_flash('success', 'Researcher added.' . ($userId ? ' A verification email has been sent.' : ''));
