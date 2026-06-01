@@ -333,7 +333,7 @@ if ($filterType !== 'funding' && $filterType !== 'institution' && !empty($q)) {
     try {
         $claudeService = new ClaudeService($conn, $_SESSION['email'] ?? 'guest');
         $semanticService = new SemanticSearchService($conn, $claudeService);
-        $semanticMatches = $semanticService->semanticSearchResearchers(
+        $semanticMatches = $semanticService->searchResearchers(
             $q,
             $topicFilters,
             $geoFilters,

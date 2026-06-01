@@ -1748,7 +1748,6 @@ $recentRows = $recentStmt->get_result()->fetch_all(MYSQLI_ASSOC);
         <?php endfor; ?>
     </div>
     <?php endif; ?>
-    <?php endif; ?>
 </div>
 
 <?php elseif ($adminSection === 'jobs'): ?>
