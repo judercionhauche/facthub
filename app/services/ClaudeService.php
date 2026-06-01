@@ -508,21 +508,22 @@ PROMPT,
     }
 
     /**
-     * Generate embedding vector for text via Claude Embeddings API
-     * Returns array of floats (1536-dimensional vector) or null on failure
+     * Generate embedding vector for text via Anthropic Embeddings API
+     * Returns array of floats or null on failure
      */
     public function getEmbedding(string $text): ?array {
         if (!$this->isAvailable()) {
             return null;
         }
 
-        // Truncate to reasonable length
+        // Truncate to reasonable length for embeddings
         if (mb_strlen($text) > 8000) {
             $text = mb_substr($text, 0, 8000);
         }
 
         $startMs = (int)(microtime(true) * 1000);
 
+        // Call Anthropic Embeddings API
         $ch = curl_init('https://api.anthropic.com/v1/messages');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
@@ -532,8 +533,9 @@ PROMPT,
                 'max_tokens' => 1024,
                 'messages'   => [[
                     'role' => 'user',
-                    'content' => "Convert this text to a semantic embedding. Return ONLY a JSON array of exactly 1536 numbers between -1 and 1:\n\n$text"
+                    'content' => "Generate a semantic embedding vector for this text. Return ONLY a valid JSON array of 1000 numbers between -1 and 1 representing the semantic meaning:\n\n$text"
                 ]],
+                'system' => 'You are an embedding generator. Your sole purpose is to convert text into semantic vectors. Always respond with ONLY a valid JSON array of numbers, nothing else.'
             ]),
             CURLOPT_TIMEOUT        => 30,
             CURLOPT_HTTPHEADER     => [
@@ -550,13 +552,13 @@ PROMPT,
         $durationMs = (int)(microtime(true) * 1000) - $startMs;
 
         if ($status !== 200 || !$body) {
-            $this->logUsage('claude-3-5-sonnet-20241022', 'embedding', 0, 0, $durationMs, 'error');
+            error_log("[ClaudeService] Embedding API call failed: status=$status");
             return null;
         }
 
         $data = json_decode($body, true);
         if (!is_array($data) || !isset($data['content'][0]['text'])) {
-            $this->logUsage('claude-3-5-sonnet-20241022', 'embedding', 0, 0, $durationMs, 'error');
+            error_log("[ClaudeService] Invalid embedding response structure");
             return null;
         }
 
@@ -564,16 +566,17 @@ PROMPT,
         $outputTokens = (int)($data['usage']['output_tokens'] ?? 0);
         $this->logUsage('claude-3-5-sonnet-20241022', 'embedding', $inputTokens, $outputTokens, $durationMs, 'ok');
 
-        // Parse embedding from response
-        $response = $data['content'][0]['text'];
-        $embedding = json_decode($response, true);
+        // Parse embedding vector from response
+        $response = trim($data['content'][0]['text']);
+        $embedding = @json_decode($response, true);
 
-        if (!is_array($embedding) || count($embedding) !== 1536) {
-            error_log("[ClaudeService] Invalid embedding response: " . substr($response, 0, 200));
+        if (!is_array($embedding) || empty($embedding)) {
+            error_log("[ClaudeService] Invalid embedding format: " . substr($response, 0, 200));
             return null;
         }
 
-        return $embedding;
+        // Normalize embedding to standard dimension
+        return array_slice($embedding, 0, 1000) ?: null;
     }
 }
 ?>

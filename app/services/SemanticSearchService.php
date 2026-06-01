@@ -14,8 +14,8 @@ class SemanticSearchService {
     }
 
     /**
-     * Semantic search for researchers
-     * Runs keyword search + semantic expansion + hybrid ranking
+     * Semantic search for researchers using vector embeddings
+     * Runs keyword search + vector similarity search + hybrid ranking
      */
     public function searchResearchers(
         string $query,
@@ -23,33 +23,134 @@ class SemanticSearchService {
         array $geoFilters = [],
         int $limit = 20
     ): array {
-        // Step 1: Parse and expand query via Claude
+        // Step 1: Generate query embedding
+        $queryEmbedding = $this->claudeService->getEmbedding($query);
+
+        // Step 2: Vector similarity search (if embeddings available)
+        $embeddingResults = [];
+        if ($queryEmbedding) {
+            $embeddingResults = $this->vectorSimilaritySearch($queryEmbedding, $limit * 2);
+        }
+
+        // Step 3: Run keyword search as fallback/complement
         $queryExpansion = $this->expandQuery($query);
         $expandedKeywords = $queryExpansion['keywords'] ?? [$query];
         $suggestedTopics = $queryExpansion['topics'] ?? [];
         $suggestedGeos = $queryExpansion['geographies'] ?? [];
 
-        // Step 2: Run keyword search
         $keywordResults = $this->keywordSearchResearchers(
             $query,
             $topicFilters ?: $suggestedTopics,
             $geoFilters ?: $suggestedGeos
         );
 
-        // Step 3: Run semantic search (concept-based)
-        $semanticResults = $this->semanticSearchResearchersConcepts(
-            $query,
-            $expandedKeywords,
-            $suggestedTopics,
-            $suggestedGeos,
-            $limit
-        );
-
-        // Step 4: Merge results with hybrid ranking
-        $merged = $this->mergeAndRankResults($keywordResults, $semanticResults, $query);
+        // Step 4: Merge embedding results with keyword results
+        $merged = $this->mergeEmbeddingAndKeywordResults($embeddingResults, $keywordResults, $query);
 
         // Step 5: Limit and return
         return array_slice($merged, 0, $limit);
+    }
+
+    /**
+     * Vector similarity search using stored researcher embeddings
+     */
+    private function vectorSimilaritySearch(array $queryEmbedding, int $limit): array {
+        $stmt = $this->conn->prepare(
+            "SELECT r.*, re.embedding
+             FROM researcher_embeddings re
+             JOIN researchers r ON r.id = re.researcher_id
+             WHERE re.embedding_type = 'profile'
+             AND r.status = 'active'
+             AND r.deleted_at IS NULL
+             LIMIT ?"
+        );
+        $stmt->bind_param('i', $limit);
+        $stmt->execute();
+        $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC) ?: [];
+
+        $scored = [];
+        foreach ($results as $row) {
+            $embedding = json_decode($row['embedding'], true);
+            if (!$embedding) continue;
+
+            $similarity = $this->cosineSimilarity($queryEmbedding, $embedding);
+            if ($similarity >= 0.65) { // Threshold for meaningful matches
+                $scored[] = [
+                    'researcher_id' => $row['id'],
+                    'similarity' => $similarity,
+                    'researcher' => $row
+                ];
+            }
+        }
+
+        usort($scored, fn($a, $b) => $b['similarity'] <=> $a['similarity']);
+        return $scored;
+    }
+
+    /**
+     * Calculate cosine similarity between two embeddings
+     */
+    private function cosineSimilarity(array $emb1, array $emb2): float {
+        if (count($emb1) !== count($emb2) || count($emb1) === 0) {
+            return 0.0;
+        }
+
+        $dotProduct = 0.0;
+        $norm1 = 0.0;
+        $norm2 = 0.0;
+
+        for ($i = 0; $i < count($emb1); $i++) {
+            $dotProduct += $emb1[$i] * $emb2[$i];
+            $norm1 += $emb1[$i] * $emb1[$i];
+            $norm2 += $emb2[$i] * $emb2[$i];
+        }
+
+        $magnitude = sqrt($norm1) * sqrt($norm2);
+        if ($magnitude === 0.0) {
+            return 0.0;
+        }
+
+        return $dotProduct / $magnitude;
+    }
+
+    /**
+     * Merge vector similarity results with keyword search results
+     */
+    private function mergeEmbeddingAndKeywordResults(array $embeddingResults, array $keywordResults, string $query): array {
+        $merged = [];
+        $seen = [];
+
+        // Add embedding results (primary)
+        foreach ($embeddingResults as $result) {
+            $rid = $result['researcher_id'];
+            $similarity = $result['similarity'];
+            $explanation = "Semantic match (vector similarity: " . round($similarity * 100, 1) . "%)";
+
+            $merged[$rid] = [
+                'researcher' => $result['researcher'],
+                'final_score' => $similarity,
+                'explanation' => $explanation,
+                'type' => 'embedding'
+            ];
+            $seen[$rid] = true;
+        }
+
+        // Add keyword results that weren't in embedding search
+        foreach ($keywordResults as $result) {
+            $rid = $result['researcher_id'];
+            if (isset($seen[$rid])) continue;
+
+            $keywordScore = $this->scoreKeywordMatch($query, $result);
+            $merged[$rid] = [
+                'researcher' => $result['researcher'],
+                'final_score' => $keywordScore / 100.0,
+                'explanation' => "Keyword match",
+                'type' => 'keyword'
+            ];
+        }
+
+        usort($merged, fn($a, $b) => $b['final_score'] <=> $a['final_score']);
+        return $merged;
     }
 
     /**

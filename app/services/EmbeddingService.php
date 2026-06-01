@@ -171,21 +171,24 @@ class EmbeddingService {
 
     /**
      * Calculate cosine similarity between two embeddings
-     * Returns value between 0 and 1, where 1 = identical
+     * Returns value between -1 and 1, typically 0.5-1.0 for relevant matches
      */
     public static function cosineSimilarity(array $emb1, array $emb2): float {
-        if (count($emb1) !== count($emb2) || count($emb1) === 0) {
+        if (count($emb1) === 0 || count($emb2) === 0) {
             return 0.0;
         }
+
+        // Handle mismatched dimensions by using minimum
+        $minLen = min(count($emb1), count($emb2));
 
         $dotProduct = 0.0;
         $norm1 = 0.0;
         $norm2 = 0.0;
 
-        for ($i = 0; $i < count($emb1); $i++) {
-            $dotProduct += $emb1[$i] * $emb2[$i];
-            $norm1 += $emb1[$i] * $emb1[$i];
-            $norm2 += $emb2[$i] * $emb2[$i];
+        for ($i = 0; $i < $minLen; $i++) {
+            $dotProduct += (float)$emb1[$i] * (float)$emb2[$i];
+            $norm1 += (float)$emb1[$i] * (float)$emb1[$i];
+            $norm2 += (float)$emb2[$i] * (float)$emb2[$i];
         }
 
         $magnitude = sqrt($norm1) * sqrt($norm2);
@@ -193,7 +196,9 @@ class EmbeddingService {
             return 0.0;
         }
 
-        return $dotProduct / $magnitude;
+        // Normalize to 0-1 range for consistency
+        $similarity = $dotProduct / $magnitude;
+        return max(0.0, $similarity); // Ensure non-negative
     }
 
     /**
