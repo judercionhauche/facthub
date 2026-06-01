@@ -24,6 +24,8 @@ $conn->set_charset('utf8mb4');
 require_once __DIR__ . '/../app/core/session_manager.php';
 require_once __DIR__ . '/../app/core/helpers.php';
 require_once __DIR__ . '/../app/services/ClaudeService.php';
+require_once __DIR__ . '/../app/services/EmbeddingService.php';
+require_once __DIR__ . '/../app/services/SemanticSearchService.php';
 
 init_session();
 
@@ -320,10 +322,37 @@ foreach ($topicFilters as $t) { if (isset($SYNONYMS[$t])) { $expandedTopics = ar
 foreach ($geoFilters as $g) { if (isset($SYNONYMS[$g])) { $expandedGeos = array_unique(array_merge($expandedGeos, array_map('strtolower', $SYNONYMS[$g]))); } }
 $allSearchTerms = array_unique(array_merge($expandedTopics, $expandedGeos, $keywords, $synonyms));
 
-// Step 4: Fetch candidates
+// Step 4: Fetch candidates (keyword + semantic search)
 // Funding calls are access-controlled: pending users cannot fetch them at all
 $fcCandidates = (is_approved() && $filterType !== 'researcher' && $filterType !== 'institution' && !empty($allSearchTerms)) ? fetchCandidates($conn, 'funding_calls', $allSearchTerms, $filterStatus, 'title,description,topics,geography') : [];
 $rCandidates = ($filterType !== 'funding' && $filterType !== 'institution' && !empty($allSearchTerms)) ? fetchCandidates($conn, 'researchers', $allSearchTerms, '', 'first_name,last_name,institution,bio,topics,geography') : [];
+
+// Step 4b: Semantic search for researchers (enhanced matching)
+$semanticResults = [];
+if ($filterType !== 'funding' && $filterType !== 'institution' && !empty($q)) {
+    try {
+        $claudeService = new ClaudeService($conn, $_SESSION['email'] ?? 'guest');
+        $semanticService = new SemanticSearchService($conn, $claudeService);
+        $semanticMatches = $semanticService->semanticSearchResearchers(
+            $q,
+            $topicFilters,
+            $geoFilters,
+            40
+        );
+        // Merge semantic results with keyword results
+        // Map semantic results to researcher data for merging
+        foreach ($semanticMatches as $match) {
+            $semanticResults[$match['researcher']['id']] = [
+                'semantic_score' => $match['final_score'],
+                'explanation' => $semanticService->explainMatch($match['researcher'], $q),
+                'researcher' => $match['researcher']
+            ];
+        }
+    } catch (Throwable $e) {
+        error_log('[semantic_search] Failed: ' . $e->getMessage());
+        // Fall back to keyword-only search silently
+    }
+}
 
 // Institution grouping: GROUP BY institution + aggregate metadata
 $institutionCandidates = [];
@@ -361,8 +390,25 @@ if (!is_approved()) {
 
 $rResults = [];
 foreach ($rCandidates as $r) {
-    $s = scoreResearcher($r, $topicFilters, $geoFilters, $keywords, $expandedTopics, $expandedGeos, $synonyms);
-    if ($s >= 0.5) $rResults[] = ['score' => $s, 'r' => $r];
+    $keywordScore = scoreResearcher($r, $topicFilters, $geoFilters, $keywords, $expandedTopics, $expandedGeos, $synonyms);
+
+    // If semantic search found this researcher, use hybrid scoring
+    $finalScore = $keywordScore;
+    $explanation = null;
+    if (isset($semanticResults[$r['id']])) {
+        $sem = $semanticResults[$r['id']];
+        // Hybrid score: 60% keyword + 40% semantic (semantic has richer understanding)
+        $finalScore = ($keywordScore * 0.6) + ($sem['semantic_score'] * 0.4);
+        $explanation = $sem['explanation'];
+    }
+
+    if ($finalScore >= 0.5) {
+        $rResults[] = [
+            'score' => $finalScore,
+            'r' => $r,
+            'semantic_explanation' => $explanation
+        ];
+    }
 }
 usort($rResults, fn($a, $b) => $b['score'] <=> $a['score']);
 
@@ -435,7 +481,7 @@ foreach ($rForResponse as $item) {
     $pubStmt->execute();
     $publications = $pubStmt->get_result()->fetch_all(MYSQLI_ASSOC);
 
-    $rJson[] = [
+    $rJsonItem = [
         'id' => (int)$r['id'],
         'entity_type' => 'researcher',
         'name' => h($name),
@@ -449,6 +495,13 @@ foreach ($rForResponse as $item) {
         ], $publications),
         'destination_url' => getEntityUrl('researcher', (int)$r['id']),
     ];
+
+    // Add semantic search explanation if available
+    if (!empty($item['semantic_explanation'])) {
+        $rJsonItem['semantic_explanation'] = $item['semantic_explanation'];
+    }
+
+    $rJson[] = $rJsonItem;
 }
 
 $instJson = [];
