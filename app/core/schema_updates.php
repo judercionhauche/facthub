@@ -373,7 +373,7 @@ function apply_security_schema_updates(mysqli $conn): void {
         @$conn->query("
             CREATE TABLE IF NOT EXISTS tags (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(100) NOT NULL,
+                name VARCHAR(255) NOT NULL,
                 tag_type VARCHAR(50) NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 INDEX idx_name (name),
@@ -389,6 +389,11 @@ function apply_security_schema_updates(mysqli $conn): void {
             @$conn->query("ALTER TABLE tags ADD INDEX idx_type (tag_type)");
             // Try to create unique constraint, ignore if it fails (might not be compatible with existing data)
             @$conn->query("ALTER TABLE tags ADD UNIQUE KEY unique_tag (name, tag_type)");
+        }
+        // Expand name column if it's still VARCHAR(100)
+        $nameCol = @$conn->query("SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_NAME='tags' AND COLUMN_NAME='name' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if ($nameCol && ($nameRow = $nameCol->fetch_assoc()) && strpos($nameRow['COLUMN_TYPE'], '100') !== false) {
+            @$conn->query("ALTER TABLE tags MODIFY COLUMN name VARCHAR(255) NOT NULL");
         }
     }
 
