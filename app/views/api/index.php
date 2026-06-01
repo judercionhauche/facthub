@@ -111,6 +111,110 @@ switch ($action) {
         }
         break;
 
+    // Admin: GET ?page=api&action=admin_embedding_status
+    // Returns status of embedding generation
+    case 'admin_embedding_status':
+        if (!is_admin()) api_error('Admin access required', 403);
+
+        $stmt = $conn->prepare("SELECT COUNT(*) c FROM researchers WHERE deleted_at IS NULL");
+        $stmt->execute();
+        $totalResearchers = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+
+        $stmt = $conn->prepare("SELECT COUNT(*) c FROM researcher_embeddings WHERE embedding_type = 'profile'");
+        $stmt->execute();
+        $embeddedResearchers = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+
+        $stmt = $conn->prepare("SELECT COUNT(*) c FROM funding_calls WHERE deleted_at IS NULL");
+        $stmt->execute();
+        $totalFundingCalls = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+
+        $stmt = $conn->prepare("SELECT COUNT(*) c FROM funding_call_embeddings WHERE embedding_type = 'full'");
+        $stmt->execute();
+        $embeddedCalls = (int)($stmt->get_result()->fetch_assoc()['c'] ?? 0);
+
+        http_response_code(200);
+        echo json_encode([
+            'status' => 'ok',
+            'researchers' => [
+                'total' => $totalResearchers,
+                'embedded' => $embeddedResearchers,
+                'percentage' => $totalResearchers > 0 ? round(($embeddedResearchers / $totalResearchers) * 100, 1) : 0
+            ],
+            'funding_calls' => [
+                'total' => $totalFundingCalls,
+                'embedded' => $embeddedCalls,
+                'percentage' => $totalFundingCalls > 0 ? round(($embeddedCalls / $totalFundingCalls) * 100, 1) : 0
+            ]
+        ]);
+        exit;
+
+    // Admin: GET ?page=api&action=admin_generate_embeddings&type=researchers&limit=20&offset=0
+    // Batch generate embeddings
+    case 'admin_generate_embeddings':
+        if (!is_admin()) api_error('Admin access required', 403);
+
+        require_once __DIR__ . '/../../services/EmbeddingService.php';
+
+        $type = $_GET['type'] ?? 'researchers';
+        $limit = max(1, min(100, (int)($_GET['limit'] ?? 50)));
+        $offset = max(0, (int)($_GET['offset'] ?? 0));
+
+        $claudeService = new ClaudeService($conn, $user['email'] ?? 'admin');
+        $embeddingService = new EmbeddingService($conn, $claudeService);
+
+        if ($type === 'researchers') {
+            $stmt = $conn->prepare("SELECT id FROM researchers WHERE deleted_at IS NULL ORDER BY id ASC LIMIT ? OFFSET ?");
+            $stmt->bind_param('ii', $limit, $offset);
+            $stmt->execute();
+            $items = $stmt->get_result()->fetch_all(MYSQLI_ASSOC) ?: [];
+
+            $success = 0;
+            $failed = 0;
+            foreach ($items as $item) {
+                if ($embeddingService->generateResearcherEmbedding($item['id'], 'profile')) {
+                    $success++;
+                } else {
+                    $failed++;
+                }
+            }
+
+            http_response_code(200);
+            echo json_encode([
+                'status' => 'ok',
+                'type' => 'researchers',
+                'success' => $success,
+                'failed' => $failed,
+                'total_processed' => $success + $failed
+            ]);
+        } elseif ($type === 'funding_calls') {
+            $stmt = $conn->prepare("SELECT id FROM funding_calls WHERE deleted_at IS NULL ORDER BY id ASC LIMIT ? OFFSET ?");
+            $stmt->bind_param('ii', $limit, $offset);
+            $stmt->execute();
+            $items = $stmt->get_result()->fetch_all(MYSQLI_ASSOC) ?: [];
+
+            $success = 0;
+            $failed = 0;
+            foreach ($items as $item) {
+                if ($embeddingService->generateFundingCallEmbedding($item['id'], 'full')) {
+                    $success++;
+                } else {
+                    $failed++;
+                }
+            }
+
+            http_response_code(200);
+            echo json_encode([
+                'status' => 'ok',
+                'type' => 'funding_calls',
+                'success' => $success,
+                'failed' => $failed,
+                'total_processed' => $success + $failed
+            ]);
+        } else {
+            api_error('Invalid type. Use: researchers or funding_calls', 400);
+        }
+        exit;
+
     default:
         api_error('Unknown action. Valid actions: match_scores, funding_matches, summary, search', 400);
 }

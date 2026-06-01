@@ -8,7 +8,7 @@ if (!is_array($mailCfg)) {
 $appUrl  = rtrim($mailCfg['app_url'] ?? 'http://localhost/facthub/public', '/');
 
 $adminUser   = current_user();
-$adminSection = in_array($_GET['section'] ?? '', ['dashboard','users','researchers','funders','audit','api_usage','jobs','settings'])
+$adminSection = in_array($_GET['section'] ?? '', ['dashboard','users','researchers','funders','audit','api_usage','jobs','settings','embeddings'])
                ? $_GET['section'] : 'dashboard';
 
 /* ── POST ACTIONS ── */
@@ -739,6 +739,7 @@ $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         <a class="admin-stab <?= $adminSection==='api_usage'   ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">API Usage</a>
         <a class="admin-stab <?= $adminSection==='jobs'        ? 'active' : '' ?>" href="index.php?page=admin&section=jobs">Job Queue</a>
         <a class="admin-stab <?= $adminSection==='settings'    ? 'active' : '' ?>" href="index.php?page=admin&section=settings">Settings</a>
+        <a class="admin-stab <?= $adminSection==='embeddings'  ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">Semantic Search</a>
     </div>
 </div>
 
@@ -2038,6 +2039,140 @@ $recentJobRows = $recentJobStmt->get_result()->fetch_all(MYSQLI_ASSOC);
             <?php endforeach; ?>
         </div>
     </div>
+
+<?php endif; /* end settings section */ ?>
+
+<?php if ($adminSection === 'embeddings'): ?>
+<!-- ── Semantic Search Embeddings section ── -->
+<div class="panel">
+    <h2>Semantic Search — Embedding Management</h2>
+    <p style="color:#6b7280;margin-top:8px">Generate embeddings for vector-based semantic search. Embeddings enable the system to understand research concepts, not just keywords.</p>
+
+    <div style="margin-top:20px;padding:16px;background:#f0fdf4;border-left:4px solid #16a34a;border-radius:4px">
+        <div style="font-weight:600;margin-bottom:8px">How it works</div>
+        <ul style="margin:0;padding-left:20px;font-size:13px;line-height:1.6">
+            <li>Converts researcher profiles → semantic vectors (embeddings)</li>
+            <li>Converts search queries → vectors</li>
+            <li>Compares vectors to find semantically similar researchers</li>
+            <li>Results: "food systems" finds researchers working on water-food systems, agriculture, food security, etc.</li>
+        </ul>
+    </div>
+
+    <div style="margin-top:20px">
+        <h3 style="margin-top:0;font-size:16px">Generation Progress</h3>
+        <div id="embedding-status" style="padding:12px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:4px;font-family:monospace;font-size:12px">
+            <div>Loading status...</div>
+        </div>
+        <div style="margin-top:16px;display:flex;gap:12px">
+            <button onclick="generateResearcherEmbeddings()" class="primary-btn" id="btn-gen-researchers">Generate Researcher Embeddings</button>
+            <button onclick="generateFundingEmbeddings()" class="primary-btn" id="btn-gen-funding">Generate Funding Call Embeddings</button>
+        </div>
+    </div>
+
+    <div style="margin-top:24px;padding:12px;background:#fef3c7;border:1px solid #fcd34d;border-radius:4px;font-size:13px">
+        <strong>Note:</strong> Generation uses Claude API and may take 5-10 minutes for 1000+ items. Progress is shown above. You can close this page and come back later.
+    </div>
+</div>
+
+<script>
+let generationInProgress = false;
+
+function updateStatus() {
+    fetch('index.php?page=api&action=admin_embedding_status')
+        .then(r => r.json())
+        .then(data => {
+            const status = document.getElementById('embedding-status');
+            status.innerHTML = `
+                <div><strong>Researchers:</strong> ${data.researchers.embedded} / ${data.researchers.total} (${data.researchers.percentage}%)</div>
+                <div style="margin-top:6px"><strong>Funding Calls:</strong> ${data.funding_calls.embedded} / ${data.funding_calls.total} (${data.funding_calls.percentage}%)</div>
+            `;
+        })
+        .catch(e => console.error(e));
+}
+
+async function generateResearcherEmbeddings() {
+    if (generationInProgress) return alert('Generation already in progress');
+    generationInProgress = true;
+    document.getElementById('btn-gen-researchers').disabled = true;
+
+    let offset = 0;
+    const limit = 20;
+    let completed = 0;
+    let failed = 0;
+
+    while (true) {
+        try {
+            const res = await fetch(`index.php?page=api&action=admin_generate_embeddings&type=researchers&limit=${limit}&offset=${offset}`);
+            const data = await res.json();
+
+            if (!data || data.status !== 'ok') break;
+
+            completed += data.success;
+            failed += data.failed;
+
+            console.log(`Progress: ${completed} completed, ${failed} failed`);
+            updateStatus();
+
+            if (data.total_processed < limit) break; // No more items
+            offset += limit;
+
+        } catch (e) {
+            console.error(e);
+            break;
+        }
+    }
+
+    alert(`✓ Embedding generation complete: ${completed} succeeded, ${failed} failed`);
+    generationInProgress = false;
+    document.getElementById('btn-gen-researchers').disabled = false;
+    updateStatus();
+}
+
+async function generateFundingEmbeddings() {
+    if (generationInProgress) return alert('Generation already in progress');
+    generationInProgress = true;
+    document.getElementById('btn-gen-funding').disabled = true;
+
+    let offset = 0;
+    const limit = 20;
+    let completed = 0;
+    let failed = 0;
+
+    while (true) {
+        try {
+            const res = await fetch(`index.php?page=api&action=admin_generate_embeddings&type=funding_calls&limit=${limit}&offset=${offset}`);
+            const data = await res.json();
+
+            if (!data || data.status !== 'ok') break;
+
+            completed += data.success;
+            failed += data.failed;
+
+            console.log(`Progress: ${completed} completed, ${failed} failed`);
+            updateStatus();
+
+            if (data.total_processed < limit) break;
+            offset += limit;
+
+        } catch (e) {
+            console.error(e);
+            break;
+        }
+    }
+
+    alert(`✓ Embedding generation complete: ${completed} succeeded, ${failed} failed`);
+    generationInProgress = false;
+    document.getElementById('btn-gen-funding').disabled = false;
+    updateStatus();
+}
+
+// Load initial status on page load
+document.addEventListener('DOMContentLoaded', updateStatus);
+// Refresh status every 5 seconds
+setInterval(updateStatus, 5000);
+</script>
+
+<?php endif; /* end embeddings section */ ?>
 
 <?php endif; /* end section switch */ ?>
 
