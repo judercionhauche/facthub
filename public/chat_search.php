@@ -341,10 +341,12 @@ if ($filterType !== 'funding' && $filterType !== 'institution' && !empty($q)) {
         );
         // Merge semantic results with keyword results
         // Map semantic results to researcher data for merging
+        // Explanation already generated in match with world-class factors (semantic + topics + geography + ORCID)
         foreach ($semanticMatches as $match) {
             $semanticResults[$match['researcher']['id']] = [
                 'semantic_score' => $match['final_score'],
-                'explanation' => $semanticService->explainMatch($match['researcher'], $q),
+                'explanation' => $match['explanation'],
+                'match_factors' => $match['match_factors'] ?? [],
                 'researcher' => $match['researcher']
             ];
         }

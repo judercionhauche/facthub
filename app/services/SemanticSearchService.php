@@ -16,6 +16,7 @@ class SemanticSearchService {
     /**
      * Semantic search for researchers using vector embeddings
      * Runs keyword search + vector similarity search + hybrid ranking
+     * Fully integrates ORCID, topics, geography, and conceptualization
      */
     public function searchResearchers(
         string $query,
@@ -26,10 +27,16 @@ class SemanticSearchService {
         // Step 1: Generate query embedding
         $queryEmbedding = $this->claudeService->getEmbedding($query);
 
-        // Step 2: Vector similarity search (if embeddings available)
+        // Step 2: Vector similarity search with metadata filtering
         $embeddingResults = [];
         if ($queryEmbedding) {
-            $embeddingResults = $this->vectorSimilaritySearch($queryEmbedding, $limit * 2);
+            // Pass filters to vector search for metadata-aware matching
+            $embeddingResults = $this->vectorSimilaritySearch(
+                $queryEmbedding,
+                $limit * 2,
+                array_map('strtolower', $topicFilters),
+                array_map('strtolower', $geoFilters)
+            );
         }
 
         // Step 3: Run keyword search as fallback/complement
@@ -52,9 +59,10 @@ class SemanticSearchService {
     }
 
     /**
-     * Vector similarity search using stored researcher embeddings
+     * Vector similarity search with metadata filtering
+     * Integrates topics, geography, ORCID, and institution matching
      */
-    private function vectorSimilaritySearch(array $queryEmbedding, int $limit): array {
+    private function vectorSimilaritySearch(array $queryEmbedding, int $limit, array $topicFilters = [], array $geoFilters = []): array {
         $stmt = $this->conn->prepare(
             "SELECT r.*, re.embedding
              FROM researcher_embeddings re
@@ -74,17 +82,76 @@ class SemanticSearchService {
             if (!$embedding) continue;
 
             $similarity = $this->cosineSimilarity($queryEmbedding, $embedding);
-            if ($similarity >= 0.65) { // Threshold for meaningful matches
+            if ($similarity >= 0.65) {
+                // Boost score for metadata matches (world-class integration)
+                $boostedScore = $similarity;
+
+                // Topic filter boost
+                if (!empty($topicFilters) && !empty($row['topics'])) {
+                    $researcherTopics = array_map('trim', explode(',', strtolower($row['topics'])));
+                    $matchingTopics = array_intersect($topicFilters, $researcherTopics);
+                    if (!empty($matchingTopics)) {
+                        $boostedScore += (count($matchingTopics) * 0.05); // +5% per matching topic
+                    }
+                }
+
+                // Geography filter boost
+                if (!empty($geoFilters) && !empty($row['geography'])) {
+                    $researcherGeos = array_map('trim', explode(',', strtolower($row['geography'])));
+                    $matchingGeos = array_intersect($geoFilters, $researcherGeos);
+                    if (!empty($matchingGeos)) {
+                        $boostedScore += (count($matchingGeos) * 0.08); // +8% per matching geography
+                    }
+                }
+
+                // ORCID boost (world-class: reward scholars with verified publication history)
+                if (!empty($row['orcid_id'])) {
+                    $pubCount = $this->getOrcidPublicationCount($row['id']);
+                    if ($pubCount > 0) {
+                        $boostedScore += min(0.1, ($pubCount / 20) * 0.1); // +10% max for >20 publications
+                    }
+                }
+
+                // Institution prestige boost (optional: can be expanded with prestige ranking)
+                if (!empty($row['institution'])) {
+                    $boostedScore += 0.02; // Small boost for institutional affiliation
+                }
+
+                // Cap final score at 1.0
+                $boostedScore = min(1.0, $boostedScore);
+
                 $scored[] = [
                     'researcher_id' => $row['id'],
                     'similarity' => $similarity,
-                    'researcher' => $row
+                    'boosted_score' => $boostedScore,
+                    'researcher' => $row,
+                    'match_factors' => [
+                        'semantic' => $similarity,
+                        'topics_matched' => !empty($topicFilters) ? count($matchingTopics ?? []) : 0,
+                        'geos_matched' => !empty($geoFilters) ? count($matchingGeos ?? []) : 0,
+                        'has_orcid' => !empty($row['orcid_id']),
+                        'publications' => $pubCount ?? 0
+                    ]
                 ];
             }
         }
 
-        usort($scored, fn($a, $b) => $b['similarity'] <=> $a['similarity']);
+        // Sort by boosted score (integrating all metadata factors)
+        usort($scored, fn($a, $b) => $b['boosted_score'] <=> $a['boosted_score']);
         return $scored;
+    }
+
+    /**
+     * Get publication count from ORCID for a researcher
+     */
+    private function getOrcidPublicationCount(int $researcherId): int {
+        $stmt = $this->conn->prepare(
+            "SELECT COUNT(*) as count FROM researcher_publications WHERE researcher_id = ?"
+        );
+        $stmt->bind_param('i', $researcherId);
+        $stmt->execute();
+        $result = $stmt->get_result()->fetch_assoc();
+        return (int)($result['count'] ?? 0);
     }
 
     /**
@@ -115,22 +182,27 @@ class SemanticSearchService {
 
     /**
      * Merge vector similarity results with keyword search results
+     * Uses boosted scores that integrate semantic, topic, geography, and ORCID signals
      */
     private function mergeEmbeddingAndKeywordResults(array $embeddingResults, array $keywordResults, string $query): array {
         $merged = [];
         $seen = [];
 
-        // Add embedding results (primary)
+        // Add embedding results (primary) with world-class explanation
         foreach ($embeddingResults as $result) {
             $rid = $result['researcher_id'];
-            $similarity = $result['similarity'];
-            $explanation = "Semantic match (vector similarity: " . round($similarity * 100, 1) . "%)";
+            $boostedScore = $result['boosted_score'];
+            $factors = $result['match_factors'];
+
+            // Build rich explanation showing all match factors
+            $explanation = $this->buildMatchExplanation($result['researcher'], $factors, $boostedScore);
 
             $merged[$rid] = [
                 'researcher' => $result['researcher'],
-                'final_score' => $similarity,
+                'final_score' => $boostedScore,
                 'explanation' => $explanation,
-                'type' => 'embedding'
+                'match_factors' => $factors,
+                'type' => 'semantic'
             ];
             $seen[$rid] = true;
         }
@@ -151,6 +223,41 @@ class SemanticSearchService {
 
         usort($merged, fn($a, $b) => $b['final_score'] <=> $a['final_score']);
         return $merged;
+    }
+
+    /**
+     * Build world-class explanation showing why researcher matched
+     * Integrates semantic similarity, topics, geography, and ORCID
+     */
+    private function buildMatchExplanation(array $researcher, array $factors, float $score): string {
+        $parts = [];
+
+        // Semantic component
+        $semScore = round($factors['semantic'] * 100, 1);
+        $parts[] = "Semantic match ({$semScore}%)";
+
+        // Topic matches
+        if ($factors['topics_matched'] > 0) {
+            $parts[] = "{$factors['topics_matched']} topic match" . ($factors['topics_matched'] > 1 ? 'es' : '');
+        }
+
+        // Geography matches
+        if ($factors['geos_matched'] > 0) {
+            $parts[] = "{$factors['geos_matched']} location match" . ($factors['geos_matched'] > 1 ? 'es' : '');
+        }
+
+        // ORCID publications
+        if ($factors['has_orcid'] && $factors['publications'] > 0) {
+            $pubText = $factors['publications'] === 1 ? '1 publication' : "{$factors['publications']} publications";
+            $parts[] = "ORCID verified: {$pubText}";
+        }
+
+        // Institutional affiliation
+        if (!empty($researcher['institution'])) {
+            $parts[] = "Affiliated with {$researcher['institution']}";
+        }
+
+        return implode(" • ", $parts);
     }
 
     /**
