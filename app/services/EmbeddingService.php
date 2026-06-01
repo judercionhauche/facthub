@@ -15,7 +15,7 @@ class EmbeddingService {
 
     /**
      * Generate embedding for a researcher profile
-     * Concatenates bio, topics, geography, institution to create rich context
+     * Concatenates bio, topics, geography, institution + ORCID publications (if available)
      */
     public function generateResearcherEmbedding(int $researcherId, string $embeddingType = 'profile'): bool {
         $stmt = $this->conn->prepare(
@@ -28,8 +28,10 @@ class EmbeddingService {
                 COALESCE(topics, ''),
                 COALESCE(geography, ''),
                 COALESCE(institution, ''),
-                COALESCE(department, '')
-            ) as content
+                COALESCE(department, ''),
+                COALESCE(orcid_id, '')
+            ) as content,
+            orcid_id
             FROM researchers WHERE id = ? LIMIT 1"
         );
         $stmt->bind_param('i', $researcherId);
@@ -39,11 +41,36 @@ class EmbeddingService {
             return false;
         }
 
+        $content = $result['content'];
+
+        // If researcher has ORCID, include publication data for richer semantic understanding
+        if (!empty($result['orcid_id'])) {
+            $pubStmt = $this->conn->prepare(
+                "SELECT CONCAT_WS(' | ',
+                    COALESCE(title, ''),
+                    COALESCE(journal_name, ''),
+                    COALESCE(GROUP_CONCAT(CONCAT('Year:', publication_year) SEPARATOR ', '), '')
+                ) as pub_info
+                FROM researcher_publications
+                WHERE researcher_id = ?
+                ORDER BY publication_year DESC
+                LIMIT 20"
+            );
+            $pubStmt->bind_param('i', $researcherId);
+            $pubStmt->execute();
+            $pubs = $pubStmt->get_result()->fetch_all(MYSQLI_ASSOC) ?: [];
+
+            if (!empty($pubs)) {
+                $pubTitles = array_map(fn($p) => $p['pub_info'], $pubs);
+                $content .= ' | PUBLICATIONS: ' . implode(' | ', $pubTitles);
+            }
+        }
+
         return $this->storeEmbedding(
             'researcher',
             $researcherId,
             $embeddingType,
-            $result['content']
+            $content
         );
     }
 
