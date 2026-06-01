@@ -2040,8 +2040,6 @@ $recentJobRows = $recentJobStmt->get_result()->fetch_all(MYSQLI_ASSOC);
         </div>
     </div>
 
-<?php endif; /* end settings section */ ?>
-
 <?php elseif ($adminSection === 'embeddings'): ?>
 <!-- ── Semantic Search Embeddings section ── -->
 <div class="panel">
@@ -2171,8 +2169,6 @@ document.addEventListener('DOMContentLoaded', updateStatus);
 // Refresh status every 5 seconds
 setInterval(updateStatus, 5000);
 </script>
-
-<?php endif; /* end embeddings section */ ?>
 
 <?php endif; /* end section switch */ ?>
 
