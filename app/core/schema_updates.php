@@ -186,6 +186,15 @@ function apply_security_schema_updates(mysqli $conn): void {
         }
     }
 
+    // Add source and referrer_name columns for growth tracking
+    $researcherGrowthCols = ['source' => "VARCHAR(100) DEFAULT NULL COMMENT 'How they found us: google, linkedin, conference, colleague, organization, social, academic, other'", 'referrer_name' => "VARCHAR(255) DEFAULT NULL COMMENT 'Name of person/org who referred them'"];
+    foreach ($researcherGrowthCols as $col => $type) {
+        $res = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='researchers' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$res || $res->num_rows === 0) {
+            @$conn->query("ALTER TABLE researchers ADD COLUMN $col $type");
+        }
+    }
+
     // Backfill user_id for researchers (by email join)
     @$conn->query("UPDATE researchers r JOIN users u ON u.email = r.email SET r.user_id = u.id WHERE r.user_id IS NULL");
 

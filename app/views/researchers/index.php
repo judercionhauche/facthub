@@ -98,6 +98,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $quietHoursEnd = null;
             }
 
+            // Growth tracking: source and referrer
+            $source = in_array($_POST['source'] ?? '', ['google', 'linkedin', 'conference', 'colleague', 'organization', 'social', 'academic', 'other']) ? $_POST['source'] : null;
+            $referrerName = null;
+            if (in_array($source, ['colleague', 'organization'])) {
+                $referrerName = trim($_POST['referrer_name'] ?? '');
+                if (empty($referrerName)) {
+                    $referrerName = null; // Null if empty
+                }
+            }
+
             // For registration errors, store form data and error to show form inline
             $storeFormDataForRegistrationError = function($errorMsg) use ($first, $last, $email, $institution, $department, $title, $bio, $focusAreaArr, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd) {
                 global $registrationError, $registrationFormData;
@@ -225,10 +235,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ensure_tags($conn, $topics, 'topic');
                     ensure_tags($conn, $geography, 'geography');
 
-                    $stmt = $conn->prepare('INSERT INTO researchers (user_id, first_name, last_name, email, institution, department, title, bio, focus_area, focus_area_detail, topics, geography, co_advising, co_advising_details, profile_url, website_url, orcid_id, google_scholar_url, status, notify_matches, notify_frequency, notify_threshold, quiet_hours_start, quiet_hours_end) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+                    $stmt = $conn->prepare('INSERT INTO researchers (user_id, first_name, last_name, email, institution, department, title, bio, focus_area, focus_area_detail, topics, geography, co_advising, co_advising_details, profile_url, website_url, orcid_id, google_scholar_url, status, notify_matches, notify_frequency, notify_threshold, quiet_hours_start, quiet_hours_end, source, referrer_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
                     if (!$stmt) throw new Exception('Prepare researchers failed: ' . $conn->error);
                     $status_researcher = 'pending_approval';
-                    $stmt->bind_param('isssssssssssissssssisiss', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd);
+                    $stmt->bind_param('isssssssssssissssssisisss', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd, $source, $referrerName);
                     if (!$stmt->execute()) {
                         throw new Exception('Error creating researcher profile: ' . $stmt->error);
                     }
@@ -772,6 +782,31 @@ if (is_array($focusDetailRaw)) {
         <div><label>Topics (comma-separated)</label><input name="topics" maxlength="500" value="<?= h($editing['topics'] ?? '') ?>" title="Maximum 500 characters"></div>
         <div><label>Geographic focus (comma-separated)</label><input name="geography" maxlength="500" value="<?= h($editing['geography'] ?? '') ?>" title="Maximum 500 characters"></div>
 
+        <?php if ($mode === 'add' && !$isEditingExisting): ?>
+        <!-- Growth tracking: only show on registration, not profile edits -->
+        <div><label>How did you hear about us?</label>
+            <select name="source" id="source-select" style="width:100%;">
+                <option value="">-- Select --</option>
+                <option value="google">Google/Web Search</option>
+                <option value="linkedin">LinkedIn</option>
+                <option value="conference">Conference/Event</option>
+                <option value="colleague">Colleague Referral</option>
+                <option value="organization">Organization Referral</option>
+                <option value="social">Social Media</option>
+                <option value="academic">Academic Network</option>
+                <option value="other">Other</option>
+            </select>
+        </div>
+
+        <!-- Referrer name — shows only for referral options -->
+        <div id="referrer-box" style="display:none;grid-column:span 2;">
+            <div style="padding:12px;background:#f0fdf4;border-left:3px solid #16a34a;border-radius:4px;">
+                <label>Who referred you? <span style="font-size:12px;color:#6b7280;font-weight:400;display:block;margin-top:4px;">We'd love to thank them! 🙌</span></label>
+                <input type="text" name="referrer_name" id="referrer_name" placeholder="Name of colleague or organization" maxlength="255" style="margin-top:6px;width:100%;">
+            </div>
+        </div>
+        <?php endif; ?>
+
         <div class="span-2">
             <div class="coadvising-section">
                 <label class="coadvising-toggle">
@@ -943,6 +978,26 @@ document.addEventListener('DOMContentLoaded', function() {
             wrap.style.display = this.checked ? '' : 'none';
             if (this.checked) wrap.querySelector('textarea').focus();
         });
+    }
+
+    // Source dropdown: show referrer name field for referral options
+    const sourceSelect = document.getElementById('source-select');
+    const referrerBox = document.getElementById('referrer-box');
+    const referrerInput = document.getElementById('referrer_name');
+
+    if (sourceSelect && referrerBox && referrerInput) {
+        function updateReferrerField() {
+            const selected = sourceSelect.value;
+            if (selected === 'colleague' || selected === 'organization') {
+                referrerBox.style.display = 'block';
+                referrerInput.required = true;
+            } else {
+                referrerBox.style.display = 'none';
+                referrerInput.required = false;
+                referrerInput.value = ''; // Clear if hidden
+            }
+        }
+        sourceSelect.addEventListener('change', updateReferrerField);
     }
 
     // Password match validation (as you type)
