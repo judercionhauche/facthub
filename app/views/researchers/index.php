@@ -801,7 +801,7 @@ if (is_array($focusDetailRaw)) {
         <!-- Referrer name — shows only for referral options -->
         <div id="referrer-box" style="display:none;grid-column:span 2;">
             <div style="padding:12px;background:#f0fdf4;border-left:3px solid #16a34a;border-radius:4px;">
-                <label>Who referred you? <span style="font-size:12px;color:#6b7280;font-weight:400;display:block;margin-top:4px;">We'd love to thank them! 🙌</span></label>
+                <label>Who referred you? <span style="font-size:12px;color:#6b7280;font-weight:400;display:block;margin-top:4px;">Please let us know their name so we can acknowledge them</span></label>
                 <input type="text" name="referrer_name" id="referrer_name" placeholder="Name of colleague or organization" maxlength="255" style="margin-top:6px;width:100%;">
             </div>
         </div>

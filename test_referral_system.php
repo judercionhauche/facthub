@@ -13,12 +13,12 @@ $dbConfig = require 'config/database.php';
 $conn = new mysqli($dbConfig['db_host'], $dbConfig['db_user'], $dbConfig['db_pass'], $dbConfig['db_name']);
 
 if ($conn->connect_error) {
-    die("❌ Database connection failed: " . $conn->connect_error);
+    die("[ERROR] Database connection failed: " . $conn->connect_error);
 }
 
 $conn->set_charset('utf8mb4');
 
-echo "<h1>🧪 Referral System Test</h1>";
+echo "<h1>Referral System Test</h1>";
 echo "<p>Adding 4 test researchers with different referral sources...</p>";
 
 // Test data: 4 researchers with different referral scenarios
@@ -120,7 +120,7 @@ foreach ($testResearchers as $i => $data) {
             $results['success']++;
             $newId = $conn->insert_id;
             echo "<div style='padding:10px;margin:8px 0;background:#f0fdf4;border-left:3px solid #16a34a;border-radius:4px'>";
-            echo "✓ <strong>" . h($data['first_name'] . ' ' . $data['last_name']) . "</strong> (ID: $newId)<br>";
+            echo "[OK] <strong>" . h($data['first_name'] . ' ' . $data['last_name']) . "</strong> (ID: $newId)<br>";
             echo "  Source: <strong>" . h($data['source']) . "</strong>";
             if ($data['referrer_name']) {
                 echo " | Referrer: <strong>" . h($data['referrer_name']) . "</strong>";
@@ -134,13 +134,13 @@ foreach ($testResearchers as $i => $data) {
         $results['failed']++;
         $results['errors'][] = $data['first_name'] . ' ' . $data['last_name'] . ': ' . $e->getMessage();
         echo "<div style='padding:10px;margin:8px 0;background:#fff5f5;border-left:3px solid #b54646;border-radius:4px'>";
-        echo "❌ Failed to add " . h($data['first_name']) . ": " . h($e->getMessage());
+        echo "[ERROR] Failed to add " . h($data['first_name']) . ": " . h($e->getMessage());
         echo "</div>";
     }
 }
 
 // Verify data in database
-echo "<h2 style='margin-top:24px'>📊 Verification</h2>";
+echo "<h2 style='margin-top:24px'>Verification</h2>";
 
 $checkStmt = $conn->prepare("SELECT id, first_name, last_name, source, referrer_name FROM researchers WHERE source IS NOT NULL ORDER BY id DESC LIMIT 10");
 $checkStmt->execute();
@@ -159,19 +159,19 @@ if (!empty($rows)) {
     }
     echo "</table>";
 } else {
-    echo "<p style='color:#b54646'>⚠️ No researchers with source data found!</p>";
+    echo "<p style='color:#b54646'>[WARNING] No researchers with source data found!</p>";
 }
 
 // Summary
-echo "<h2 style='margin-top:24px'>📈 Summary</h2>";
+echo "<h2 style='margin-top:24px'>Summary</h2>";
 echo "<div style='padding:12px;background:#f3f4f6;border-radius:4px'>";
-echo "✓ Added: <strong>" . $results['success'] . "</strong> researchers<br>";
-echo "❌ Failed: <strong>" . $results['failed'] . "</strong> researchers<br>";
+echo "[OK] Added: <strong>" . $results['success'] . "</strong> researchers<br>";
+echo "[ERROR] Failed: <strong>" . $results['failed'] . "</strong> researchers<br>";
 echo "<br><strong>Test Status:</strong> ";
 if ($results['success'] === 4 && $results['failed'] === 0) {
-    echo "<span style='color:#16a34a;font-weight:bold'>✅ ALL TESTS PASSED!</span>";
+    echo "<span style='color:#16a34a;font-weight:bold'>[PASS] ALL TESTS PASSED!</span>";
 } else {
-    echo "<span style='color:#b54646;font-weight:bold'>⚠️ Some tests failed</span>";
+    echo "<span style='color:#b54646;font-weight:bold'>[WARNING] Some tests failed</span>";
 }
 echo "</div>";
 
