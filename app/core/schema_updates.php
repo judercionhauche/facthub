@@ -892,4 +892,297 @@ function apply_security_schema_updates(mysqli $conn): void {
     }
 }
 
+/**
+ * Newsletter System Schema - Complete Email Marketing Infrastructure
+ * Supports subscriber management, campaign delivery, event tracking, and analytics
+ */
+function apply_newsletter_schema(mysqli $conn): void {
+    try {
+        // ════════════════════════════════════════════════════════════════
+        // Newsletter Subscribers Table
+        // ════════════════════════════════════════════════════════════════
+
+        $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='newsletter_subscribers' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("
+                CREATE TABLE IF NOT EXISTS newsletter_subscribers (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    user_id INT DEFAULT NULL COMMENT 'Link to users table for authenticated subscribers',
+                    email VARCHAR(255) NOT NULL COMMENT 'Subscriber email address',
+                    status ENUM('active', 'inactive', 'unsubscribed') NOT NULL DEFAULT 'active' COMMENT 'Subscription status',
+                    preferences_json JSON DEFAULT NULL COMMENT 'Serialized subscriber preferences (legacy, use newsletter_preferences)',
+                    subscribed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'When subscriber was added',
+                    unsubscribed_at TIMESTAMP NULL DEFAULT NULL COMMENT 'When subscriber unsubscribed',
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+                    INDEX idx_email (email),
+                    INDEX idx_status (status),
+                    INDEX idx_user_id (user_id),
+                    INDEX idx_subscribed_at (subscribed_at),
+                    INDEX idx_updated_at (updated_at),
+                    UNIQUE KEY unique_email (email)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Newsletter Preferences Table
+        // ════════════════════════════════════════════════════════════════
+
+        $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='newsletter_preferences' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("
+                CREATE TABLE IF NOT EXISTS newsletter_preferences (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    subscriber_id INT NOT NULL COMMENT 'Reference to newsletter_subscribers',
+                    frequency ENUM('immediate', 'daily', 'weekly', 'never') NOT NULL DEFAULT 'weekly' COMMENT 'Email frequency preference',
+                    categories_json JSON DEFAULT NULL COMMENT 'Array of research category IDs subscriber is interested in',
+                    geography_json JSON DEFAULT NULL COMMENT 'Array of geography/location preferences',
+                    interests_json JSON DEFAULT NULL COMMENT 'Array of research interest tags',
+                    research_roles_json JSON DEFAULT NULL COMMENT 'Array of researcher role preferences (e.g., PI, postdoc, graduate student)',
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (subscriber_id) REFERENCES newsletter_subscribers(id) ON DELETE CASCADE,
+                    INDEX idx_subscriber_id (subscriber_id),
+                    INDEX idx_frequency (frequency),
+                    UNIQUE KEY unique_subscriber_prefs (subscriber_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Newsletter Campaigns Table
+        // ════════════════════════════════════════════════════════════════
+
+        $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='newsletter_campaigns' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("
+                CREATE TABLE IF NOT EXISTS newsletter_campaigns (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    title VARCHAR(255) NOT NULL COMMENT 'Campaign title/subject line',
+                    slug VARCHAR(255) NOT NULL COMMENT 'URL-safe campaign identifier',
+                    content_html LONGTEXT NOT NULL COMMENT 'HTML email content',
+                    status ENUM('draft', 'scheduled', 'sending', 'sent', 'paused') NOT NULL DEFAULT 'draft' COMMENT 'Campaign delivery status',
+                    sender_name VARCHAR(100) NOT NULL DEFAULT 'FACT Hub' COMMENT 'Sender display name',
+                    sender_email VARCHAR(255) NOT NULL DEFAULT 'noreply@facthub.org' COMMENT 'Sender email address',
+                    scheduled_at TIMESTAMP NULL DEFAULT NULL COMMENT 'When campaign is scheduled to send',
+                    sent_at TIMESTAMP NULL DEFAULT NULL COMMENT 'When campaign actually finished sending',
+                    analytics_json JSON DEFAULT NULL COMMENT 'Campaign performance metrics (opens, clicks, bounces)',
+                    created_by_user_id INT DEFAULT NULL COMMENT 'Admin user who created the campaign',
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (created_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
+                    INDEX idx_status (status),
+                    INDEX idx_slug (slug),
+                    INDEX idx_scheduled_at (scheduled_at),
+                    INDEX idx_sent_at (sent_at),
+                    INDEX idx_created_at (created_at),
+                    UNIQUE KEY unique_slug (slug)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Newsletter Recipients Table
+        // ════════════════════════════════════════════════════════════════
+
+        $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='newsletter_recipients' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("
+                CREATE TABLE IF NOT EXISTS newsletter_recipients (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    campaign_id INT NOT NULL COMMENT 'Reference to newsletter_campaigns',
+                    subscriber_id INT NOT NULL COMMENT 'Reference to newsletter_subscribers',
+                    status ENUM('queued', 'sending', 'sent', 'delivered', 'bounced', 'unsubscribed', 'failed') NOT NULL DEFAULT 'queued' COMMENT 'Delivery status for this recipient',
+                    sent_at TIMESTAMP NULL DEFAULT NULL COMMENT 'When email was sent',
+                    delivered_at TIMESTAMP NULL DEFAULT NULL COMMENT 'When delivery was confirmed',
+                    bounce_reason VARCHAR(255) DEFAULT NULL COMMENT 'Reason for bounce (soft/hard)',
+                    error_message TEXT DEFAULT NULL COMMENT 'Error details if send failed',
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (campaign_id) REFERENCES newsletter_campaigns(id) ON DELETE CASCADE,
+                    FOREIGN KEY (subscriber_id) REFERENCES newsletter_subscribers(id) ON DELETE CASCADE,
+                    INDEX idx_campaign_id (campaign_id),
+                    INDEX idx_subscriber_id (subscriber_id),
+                    INDEX idx_status (status),
+                    INDEX idx_sent_at (sent_at),
+                    INDEX idx_delivered_at (delivered_at),
+                    INDEX idx_created_at (created_at),
+                    INDEX idx_campaign_status (campaign_id, status),
+                    UNIQUE KEY unique_recipient (campaign_id, subscriber_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Newsletter Events Table
+        // ════════════════════════════════════════════════════════════════
+
+        $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='newsletter_events' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("
+                CREATE TABLE IF NOT EXISTS newsletter_events (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    recipient_id INT NOT NULL COMMENT 'Reference to newsletter_recipients',
+                    event_type ENUM('sent', 'delivered', 'opened', 'clicked', 'bounced', 'complained', 'unsubscribed') NOT NULL COMMENT 'Type of email event',
+                    metadata_json JSON DEFAULT NULL COMMENT 'Event metadata: {\"link_url\": \"...\", \"user_agent\": \"...\", \"ip_address\": \"...\"}',
+                    timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'When event occurred',
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (recipient_id) REFERENCES newsletter_recipients(id) ON DELETE CASCADE,
+                    INDEX idx_recipient_id (recipient_id),
+                    INDEX idx_event_type (event_type),
+                    INDEX idx_timestamp (timestamp),
+                    INDEX idx_recipient_event (recipient_id, event_type),
+                    INDEX idx_type_time (event_type, timestamp)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Newsletter Clicks Table
+        // ════════════════════════════════════════════════════════════════
+
+        $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='newsletter_clicks' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("
+                CREATE TABLE IF NOT EXISTS newsletter_clicks (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    campaign_id INT NOT NULL COMMENT 'Reference to newsletter_campaigns',
+                    subscriber_id INT NOT NULL COMMENT 'Reference to newsletter_subscribers',
+                    link_url VARCHAR(2048) NOT NULL COMMENT 'URL that was clicked',
+                    click_count INT DEFAULT 1 COMMENT 'Number of times this subscriber clicked this link',
+                    last_clicked_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Most recent click time',
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    FOREIGN KEY (campaign_id) REFERENCES newsletter_campaigns(id) ON DELETE CASCADE,
+                    FOREIGN KEY (subscriber_id) REFERENCES newsletter_subscribers(id) ON DELETE CASCADE,
+                    INDEX idx_campaign_id (campaign_id),
+                    INDEX idx_subscriber_id (subscriber_id),
+                    INDEX idx_campaign_subscriber (campaign_id, subscriber_id),
+                    INDEX idx_last_clicked_at (last_clicked_at),
+                    UNIQUE KEY unique_click (campaign_id, subscriber_id, link_url(255))
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Newsletter Unsubscribe Tokens Table
+        // ════════════════════════════════════════════════════════════════
+
+        $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='newsletter_unsubscribe_tokens' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("
+                CREATE TABLE IF NOT EXISTS newsletter_unsubscribe_tokens (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    subscriber_id INT NOT NULL COMMENT 'Reference to newsletter_subscribers',
+                    token VARCHAR(64) NOT NULL UNIQUE COMMENT 'One-click unsubscribe token',
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (subscriber_id) REFERENCES newsletter_subscribers(id) ON DELETE CASCADE,
+                    INDEX idx_token (token),
+                    INDEX idx_subscriber_id (subscriber_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Add tracking columns to newsletter_recipients if missing
+        // ════════════════════════════════════════════════════════════════
+
+        $trackingCols = [
+            'bounce_reason' => 'VARCHAR(255) DEFAULT NULL',
+            'error_message' => 'TEXT DEFAULT NULL'
+        ];
+        foreach ($trackingCols as $col => $type) {
+            $check = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='newsletter_recipients' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$check || $check->num_rows === 0) {
+                @$conn->query("ALTER TABLE newsletter_recipients ADD COLUMN $col $type");
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Add tracking columns to newsletter_events if missing
+        // ════════════════════════════════════════════════════════════════
+
+        $check = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='newsletter_events' AND COLUMN_NAME='event_type' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if ($check && $check->num_rows > 0) {
+            // Expand enum to include all event types
+            $result = @$conn->query("SELECT COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_NAME='newsletter_events' AND COLUMN_NAME='event_type' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if ($result && ($row = $result->fetch_assoc())) {
+                $currentType = $row['COLUMN_TYPE'];
+                if (strpos($currentType, 'complained') === false) {
+                    @$conn->query("ALTER TABLE newsletter_events MODIFY COLUMN event_type ENUM('sent', 'delivered', 'opened', 'clicked', 'bounced', 'complained', 'unsubscribed') NOT NULL");
+                }
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════════
+        // Newsletter Summary Statistics View (for analytics dashboards)
+        // ════════════════════════════════════════════════════════════════
+
+        // Drop view if it exists (to handle schema changes)
+        @$conn->query("DROP VIEW IF EXISTS newsletter_campaign_stats");
+
+        // Create view for campaign performance metrics
+        @$conn->query("
+            CREATE VIEW newsletter_campaign_stats AS
+            SELECT
+                c.id,
+                c.title,
+                c.slug,
+                c.status,
+                c.created_at,
+                c.sent_at,
+                COUNT(DISTINCT r.id) as total_recipients,
+                SUM(CASE WHEN r.status = 'sent' THEN 1 ELSE 0 END) as sent_count,
+                SUM(CASE WHEN r.status = 'delivered' THEN 1 ELSE 0 END) as delivered_count,
+                SUM(CASE WHEN r.status = 'bounced' THEN 1 ELSE 0 END) as bounced_count,
+                SUM(CASE WHEN r.status = 'unsubscribed' THEN 1 ELSE 0 END) as unsubscribed_count,
+                COUNT(DISTINCT CASE WHEN e.event_type = 'opened' THEN e.recipient_id END) as opened_count,
+                COUNT(DISTINCT CASE WHEN e.event_type = 'clicked' THEN e.recipient_id END) as clicked_count,
+                ROUND(COUNT(DISTINCT CASE WHEN e.event_type = 'opened' THEN e.recipient_id END) /
+                      NULLIF(SUM(CASE WHEN r.status IN ('sent', 'delivered') THEN 1 ELSE 0 END), 0) * 100, 2) as open_rate,
+                ROUND(COUNT(DISTINCT CASE WHEN e.event_type = 'clicked' THEN e.recipient_id END) /
+                      NULLIF(COUNT(DISTINCT CASE WHEN e.event_type = 'opened' THEN e.recipient_id END), 0) * 100, 2) as click_through_rate
+            FROM newsletter_campaigns c
+            LEFT JOIN newsletter_recipients r ON c.id = r.campaign_id
+            LEFT JOIN newsletter_events e ON r.id = e.recipient_id
+            GROUP BY c.id, c.title, c.slug, c.status, c.created_at, c.sent_at
+        ");
+
+        // ════════════════════════════════════════════════════════════════
+        // Newsletter Subscriber Segment View (for targeted campaigns)
+        // ════════════════════════════════════════════════════════════════
+
+        @$conn->query("DROP VIEW IF EXISTS newsletter_subscribers_by_segment");
+
+        @$conn->query("
+            CREATE VIEW newsletter_subscribers_by_segment AS
+            SELECT
+                ns.id,
+                ns.email,
+                ns.status,
+                ns.subscribed_at,
+                np.frequency,
+                np.categories_json,
+                np.geography_json,
+                np.interests_json,
+                np.research_roles_json,
+                COUNT(DISTINCT ne.id) as total_interactions,
+                MAX(ne.timestamp) as last_interaction_date
+            FROM newsletter_subscribers ns
+            LEFT JOIN newsletter_preferences np ON ns.id = np.subscriber_id
+            LEFT JOIN newsletter_recipients nr ON ns.id = nr.subscriber_id
+            LEFT JOIN newsletter_events ne ON nr.id = ne.recipient_id
+            WHERE ns.status = 'active'
+            GROUP BY ns.id, ns.email, ns.status, ns.subscribed_at, np.frequency,
+                     np.categories_json, np.geography_json, np.interests_json, np.research_roles_json
+        ");
+
+    } catch (Throwable $e) {
+        error_log('[Newsletter Schema Migration] Error: ' . $e->getMessage());
+        // Continue anyway - migration can be retried
+    }
+}
+
 ?>
