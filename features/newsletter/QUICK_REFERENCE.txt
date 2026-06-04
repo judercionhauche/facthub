@@ -1,0 +1,275 @@
+╔════════════════════════════════════════════════════════════════════════════╗
+║                    NEWSLETTER INTEGRATION QUICK REFERENCE                   ║
+║                                                                             ║
+║ Status: Ready for integration | Version: 1.0 | Updated: June 4, 2026      ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+┌─ FILES ────────────────────────────────────────────────────────────────────┐
+│                                                                             │
+│ integration.php                  35 KB  Main facade for all integrations   │
+│ README.md                        13 KB  Quick start guide                  │
+│ ARCHITECTURE.md                  14 KB  System design & components         │
+│ INTEGRATION_GUIDE.md             14 KB  Detailed setup instructions        │
+│ IMPLEMENTATION_CHECKLIST.md      11 KB  Step-by-step verification         │
+│                                                                             │
+│ models/
+│   ├── NewsletterSubscriber.php       Subscriber entity
+│   ├── NewsletterPreference.php       Preference entity
+│   ├── NewsletterCampaign.php         Campaign entity
+│   ├── NewsletterRecipient.php        Recipient entity
+│   └── NewsletterEvent.php            Event tracking entity
+│                                                                             │
+│ services/
+│   ├── SubscriptionService.php        Subscribe/manage preferences
+│   ├── CampaignService.php            Campaign management
+│   ├── SendingService.php             Batch sending
+│   └── AnalyticsService.php           Analytics & engagement
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ CONFIGURATION (Add to .env) ──────────────────────────────────────────────┐
+│                                                                             │
+│ NEWSLETTER_ENABLED=true                    Enable/disable feature          │
+│ NEWSLETTER_EMAIL_PROVIDER=aws_ses          Email provider (aws_ses|sg)   │
+│ NEWSLETTER_FROM_EMAIL=noreply@facthub.org  Sender email                   │
+│ NEWSLETTER_FROM_NAME=FACT Hub              Sender name                    │
+│ NEWSLETTER_TEST_SEND_LIMIT=10              Rate limit (per admin/day)     │
+│                                                                             │
+│ # AWS SES Credentials (if using aws_ses)                                   │
+│ AWS_REGION=us-east-1                       AWS region                      │
+│ AWS_ACCESS_KEY_ID=...                      AWS access key                  │
+│ AWS_SECRET_ACCESS_KEY=...                  AWS secret key                  │
+│                                                                             │
+│ # SendGrid Credentials (if using sendgrid)                                 │
+│ SENDGRID_API_KEY=...                       SendGrid API key                │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ INTEGRATION POINTS ───────────────────────────────────────────────────────┐
+│                                                                             │
+│ 1. USER REGISTRATION (app/views/researchers/index.php)                     │
+│    ────────────────────────────────────────────────────────                │
+│    After: INSERT INTO users                                                │
+│    Call:  NewsletterIntegration::onUserRegistered(                         │
+│              $conn, $userId, $email, ['role' => 'researcher', ...]         │
+│           )                                                                 │
+│    Effect: Auto-creates newsletter_subscribers + newsletter_preferences    │
+│                                                                             │
+│ 2. PROFILE UPDATE (app/views/profile/index.php)                            │
+│    ────────────────────────────────────────────                            │
+│    After: UPDATE users / UPDATE researchers                                │
+│    Call:  NewsletterIntegration::onUserProfileUpdated(                     │
+│              $conn, $userId, ['interests' => [...], 'geography' => [...]]  │
+│           )                                                                 │
+│    Effect: Syncs preferences from profile data                             │
+│                                                                             │
+│ 3. USER DELETION (app/views/admin/index.php)                               │
+│    ────────────────────────────────────────                                │
+│    After: UPDATE users SET status='deleted'                                │
+│    Call:  NewsletterIntegration::onUserDeleted(                            │
+│              $conn, $userId, $email, 'reason'                              │
+│           )                                                                 │
+│    Effect: Soft-deletes subscriber (preserves history)                     │
+│                                                                             │
+│ 4. BACKGROUND JOBS (app/jobs/worker.php)                                   │
+│    ──────────────────────────────────────                                  │
+│    In:    Job type handler for 'newsletter_send'                           │
+│    Call:  NewsletterIntegration::processNewsletterSendJob(                 │
+│              $conn, $jobId, $jobData                                       │
+│           )                                                                 │
+│    Effect: Processes campaign send in background batches                   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ KEY API METHODS ──────────────────────────────────────────────────────────┐
+│                                                                             │
+│ Core Integration Methods                                                    │
+│ ═══════════════════════════════════════════════════════════════════════════│
+│ NewsletterIntegration::initialize($conn): bool                             │
+│   Initialize on app startup                                                │
+│                                                                             │
+│ NewsletterIntegration::onUserRegistered($conn, $userId, $email, $prof):  │
+│   Auto-subscribe new user                                                  │
+│                                                                             │
+│ NewsletterIntegration::onUserProfileUpdated($conn, $userId, $data): bool │
+│   Sync preferences on profile update                                       │
+│                                                                             │
+│ NewsletterIntegration::onUserDeleted($conn, $userId, $email, $reason):  │
+│   Soft-delete subscriber on user deletion                                  │
+│                                                                             │
+│ NewsletterIntegration::processNewsletterSendJob($conn, $jobId, $data):  │
+│   Process background send job                                              │
+│                                                                             │
+│ Utility Methods                                                             │
+│ ═══════════════════════════════════════════════════════════════════════════│
+│ NewsletterIntegration::isEnabled(): bool                                  │
+│   Check if feature is enabled                                              │
+│                                                                             │
+│ NewsletterIntegration::checkTestSendRateLimit($conn, $adminEmail): bool │
+│   Check if admin within rate limit                                         │
+│                                                                             │
+│ NewsletterIntegration::getSubscriber($conn, $userId): ?array              │
+│   Get subscriber record by user ID                                         │
+│                                                                             │
+│ NewsletterIntegration::isSubscriber($conn, $userId): bool                 │
+│   Check if user is active subscriber                                       │
+│                                                                             │
+│ NewsletterIntegration::getActiveSubscriberCount($conn): int               │
+│   Get total active subscribers                                             │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ DATABASE TABLES (Auto-created on startup) ────────────────────────────────┐
+│                                                                             │
+│ newsletter_subscribers            Who is subscribed                         │
+│   - id, user_id, email, status, subscribed_at, unsubscribed_at            │
+│   - Status: active | inactive | unsubscribed                               │
+│                                                                             │
+│ newsletter_preferences            What they want                            │
+│   - id, subscriber_id, frequency, categories_json, geography_json, ...    │
+│   - Frequency: immediate | daily | weekly | never                          │
+│                                                                             │
+│ newsletter_campaigns              What we're sending                        │
+│   - id, title, slug, content_html, status, sender_email, ...              │
+│   - Status: draft | scheduled | sending | sent | paused                    │
+│                                                                             │
+│ newsletter_recipients             Delivery status                           │
+│   - id, campaign_id, subscriber_id, status, sent_at, delivered_at, ...   │
+│   - Status: queued | sending | sent | delivered | bounced | failed        │
+│                                                                             │
+│ newsletter_events                 Engagement tracking                       │
+│   - id, recipient_id, event_type, metadata_json, timestamp                │
+│   - Event types: sent | delivered | opened | clicked | bounced            │
+│                                                                             │
+│ newsletter_clicks                 Aggregated click tracking                │
+│   - id, campaign_id, subscriber_id, link_url, click_count                 │
+│                                                                             │
+│ newsletter_unsubscribe_tokens     One-click unsubscribe                    │
+│   - id, subscriber_id, token (64-char unique)                             │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ AUDIT LOGGING (audit_log table) ──────────────────────────────────────────┐
+│                                                                             │
+│ All newsletter actions logged for compliance:                              │
+│                                                                             │
+│ newsletter_auto_subscribe     User auto-subscribed on registration        │
+│ newsletter_profile_sync        Preferences synced with profile update      │
+│ newsletter_user_deleted        Subscriber unsubscribed due to deletion    │
+│ newsletter_create_campaign     Admin created campaign                      │
+│ newsletter_send                Campaign sent                                │
+│ newsletter_pause               Campaign paused                              │
+│ newsletter_test_send           Test email sent (rate limited)             │
+│                                                                             │
+│ Query audit logs:                                                          │
+│   SELECT * FROM audit_log WHERE action LIKE 'newsletter_%'                 │
+│   ORDER BY created_at DESC LIMIT 20;                                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ ERROR HANDLING ───────────────────────────────────────────────────────────┐
+│                                                                             │
+│ All integration methods are defensive:                                      │
+│                                                                             │
+│ 1. Early Exit      - Return immediately if NEWSLETTER_ENABLED=false       │
+│ 2. Exception Safe  - Catch all exceptions, log with [NewsletterIntegration]
+│ 3. Non-Fatal       - Return true/false but don't throw                     │
+│ 4. Graceful Degrad - Core app works even if newsletter fails               │
+│                                                                             │
+│ Example Error Scenarios:                                                   │
+│ • Newsletter disabled → Hook returns true (no-op)                          │
+│ • Database error → Error logged, registration continues                    │
+│ • Schema missing → Skipped, registration continues                        │
+│ • Email provider error → Logged, job retried up to 5 times                 │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ TESTING QUICK START ──────────────────────────────────────────────────────┐
+│                                                                             │
+│ 1. Verify Configuration                                                     │
+│    echo getenv('NEWSLETTER_ENABLED');                                       │
+│                                                                             │
+│ 2. Verify Schema                                                            │
+│    SHOW TABLES LIKE 'newsletter_%';                                         │
+│                                                                             │
+│ 3. Test Registration Hook                                                   │
+│    - Register new user via UI or API                                        │
+│    - Check: SELECT * FROM newsletter_subscribers WHERE email = '...'       │
+│                                                                             │
+│ 4. Test Profile Update Hook                                                 │
+│    - Update researcher profile                                              │
+│    - Check: SELECT * FROM newsletter_preferences WHERE subscriber_id = ... │
+│                                                                             │
+│ 5. Test Deletion Hook                                                       │
+│    - Delete user via admin panel                                            │
+│    - Check: SELECT * FROM newsletter_subscribers WHERE status='unsubscribed'
+│                                                                             │
+│ 6. Check Audit Trail                                                        │
+│    SELECT * FROM audit_log WHERE action LIKE 'newsletter_%'                │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ FEATURE TOGGLE (Enable/Disable) ──────────────────────────────────────────┐
+│                                                                             │
+│ ENABLED (NEWSLETTER_ENABLED=true):                                         │
+│ • Auto-subscribe on registration                                           │
+│ • Sync preferences on profile update                                       │
+│ • Soft-delete on user deletion                                             │
+│ • Process background jobs                                                  │
+│ • Log all actions                                                          │
+│                                                                             │
+│ DISABLED (NEWSLETTER_ENABLED=false):                                       │
+│ • All hooks are no-op (return true immediately)                            │
+│ • No subscribers created                                                   │
+│ • No preferences synced                                                    │
+│ • No jobs queued                                                           │
+│ • Core app completely unaffected                                           │
+│                                                                             │
+│ To disable: Update .env and restart app                                    │
+│   NEWSLETTER_ENABLED=false                                                 │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ RATE LIMITING ────────────────────────────────────────────────────────────┐
+│                                                                             │
+│ Test Send Rate Limit: 10 per admin per day (configurable)                  │
+│                                                                             │
+│ Check limit:  NewsletterIntegration::checkTestSendRateLimit($conn, $email)│
+│ Record send:  NewsletterIntegration::recordTestSend($conn, ...)            │
+│                                                                             │
+│ Query limit violations:                                                    │
+│   SELECT actor_email, COUNT(*) as sends                                    │
+│   FROM audit_log                                                           │
+│   WHERE action = 'newsletter_test_send'                                    │
+│   AND created_at > DATE_SUB(NOW(), INTERVAL 1 DAY)                        │
+│   GROUP BY actor_email                                                     │
+│   HAVING sends > 10;                                                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ DOCUMENTATION ────────────────────────────────────────────────────────────┐
+│                                                                             │
+│ README.md                   Quick start guide (start here!)                │
+│ ARCHITECTURE.md             System design and component breakdown          │
+│ INTEGRATION_GUIDE.md        Detailed setup for each integration point     │
+│ IMPLEMENTATION_CHECKLIST.md Step-by-step verification (50 checkpoints)   │
+│ integration.php             Source code with inline documentation         │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─ NEXT STEPS ───────────────────────────────────────────────────────────────┐
+│                                                                             │
+│ 1. Read README.md (5 min)                                                   │
+│ 2. Configure .env with NEWSLETTER_ENABLED=true (1 min)                    │
+│ 3. Verify schema: SHOW TABLES LIKE 'newsletter_%' (1 min)                 │
+│ 4. Add hooks to registration, profile, deletion (20 min)                   │
+│ 5. Add job handler to worker.php (5 min)                                   │
+│ 6. Test end-to-end via IMPLEMENTATION_CHECKLIST.md (30 min)              │
+│ 7. Set up monitoring and alerts (15 min)                                   │
+│ 8. Train team and go live (30 min)                                         │
+│                                                                             │
+│ Total time: ~2 hours for complete integration                              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Questions? See the documentation directory or check error_log for [NewsletterIntegration] messages.
