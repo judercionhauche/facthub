@@ -22,6 +22,20 @@ function verify_csrf(): bool {
         && hash_equals($_SESSION['csrf_token'], $token);
 }
 
+function generate_unique_token(mysqli $conn, int $maxRetries = 5): string {
+    for ($i = 0; $i < $maxRetries; $i++) {
+        $token = bin2hex(random_bytes(32));
+        $check = $conn->prepare('SELECT 1 FROM email_verifications WHERE token = ? LIMIT 1');
+        $check->bind_param('s', $token);
+        $check->execute();
+        if ($check->get_result()->num_rows === 0) {
+            return $token;
+        }
+    }
+    // Fallback: add microsecond timestamp to ensure uniqueness
+    return bin2hex(random_bytes(32)) . '_' . str_pad((int)(microtime(true) * 1000000), 16, '0');
+}
+
 function is_logged_in() {
     return isset($_SESSION['user_id']);
 }

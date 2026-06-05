@@ -86,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($resendCount >= 5) {
                 $state = 'resent'; // max resends — silent fail
             } else {
-                $newToken  = bin2hex(random_bytes(32));
+                $newToken  = generate_unique_token($conn);
                 $expiry    = date('Y-m-d H:i:s', time() + 86400);
                 $now       = date('Y-m-d H:i:s');
 

@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $userId = $conn->insert_id;
 
             // Create email verification token
-            $token = bin2hex(random_bytes(32));
+            $token = generate_unique_token($conn);
             $expiresAt = date('Y-m-d H:i:s', time() + 86400);
             $evStmt = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)');
             if (!$evStmt) throw new Exception('Prepare email_verifications failed: ' . $conn->error);

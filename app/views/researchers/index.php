@@ -222,7 +222,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $userId = $conn->insert_id;
 
                     // Create email verification token
-                    $token = bin2hex(random_bytes(32));
+                    $token = generate_unique_token($conn);
                     $expiresAt = date('Y-m-d H:i:s', time() + 86400);
                     $evStmt = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)');
                     if (!$evStmt) throw new Exception('Prepare email_verifications failed: ' . $conn->error);
@@ -297,7 +297,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 if ($emailChanged) {
                     // Email changed - require reverification
-                    $token = bin2hex(random_bytes(32));
+                    $token = generate_unique_token($conn);
                     $expiresAt = date('Y-m-d H:i:s', time() + 86400);
                     $evStmt = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)');
                     $evStmt->bind_param('sss', $email, $token, $expiresAt);
@@ -356,7 +356,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($userStmt->execute()) {
                         $userId = $conn->insert_id;
                         // Queue verification email
-                        $token = bin2hex(random_bytes(32));
+                        $token = generate_unique_token($conn);
                         $expiresAt = date('Y-m-d H:i:s', time() + 86400);
                         $evStmt = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)');
                         if ($evStmt) {
