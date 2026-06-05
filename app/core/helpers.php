@@ -32,8 +32,8 @@ function generate_unique_token(mysqli $conn, int $maxRetries = 5): string {
             return $token;
         }
     }
-    // Fallback: add microsecond timestamp to ensure uniqueness
-    return bin2hex(random_bytes(32)) . '_' . str_pad((int)(microtime(true) * 1000000), 16, '0');
+    // Fallback: use hash of timestamp + random to stay within 64 chars
+    return hash('sha256', microtime(true) . random_bytes(16));
 }
 
 function is_logged_in() {
