@@ -321,7 +321,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $stmt = $conn->prepare('UPDATE researchers SET first_name=?, last_name=?, email=?, institution=?, department=?, title=?, bio=?, focus_area=?, focus_area_detail=?, topics=?, geography=?, co_advising=?, co_advising_details=?, profile_url=?, website_url=?, orcid_id=?, google_scholar_url=?, notify_matches=?, notify_frequency=?, notify_threshold=?, quiet_hours_start=?, quiet_hours_end=? WHERE id=?');
                 if (!$stmt) throw new Exception('Prepare update failed: ' . $conn->error);
-                $stmt->bind_param('sssssssssssissssssissississi', $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd, $id);
+                $stmt->bind_param('sssssssssssisssssisissi', $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd, $id);
                 if (!$stmt->execute()) throw new Exception('Error updating profile: ' . $stmt->error);
                 enqueue_job($conn, 'generate_summary', ['entity_type' => 'researcher', 'entity_id' => $id]);
                 enqueue_job($conn, 'generate_embedding', ['entity_type' => 'researcher', 'entity_id' => $id]);
