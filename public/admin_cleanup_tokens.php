@@ -1,11 +1,15 @@
 <?php
 // Direct database cleanup - Run once to fix duplicate token issue
-require_once __DIR__ . '/../app/core/db.php';
-require_once __DIR__ . '/../app/core/helpers.php';
 
 // Simple auth check - only allow if user is admin
 if (!isset($_GET['token']) || $_GET['token'] !== 'cleanup_' . date('Ymd')) {
     die('Invalid token. Access URL with token=cleanup_' . date('Ymd'));
+}
+
+$cfg = require __DIR__ . '/../config/database.php';
+$conn = new mysqli($cfg['db_host'], $cfg['db_user'], $cfg['db_pass'], $cfg['db_name']);
+if ($conn->connect_error) {
+    die('Connection failed: ' . $conn->connect_error);
 }
 
 echo "Starting email_verifications cleanup...\n\n";
