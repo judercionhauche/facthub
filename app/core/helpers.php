@@ -17,9 +17,22 @@ function csrf_input(): string {
 function verify_csrf(): bool {
     // Accept token from POST body or custom AJAX header
     $token = $_POST['_csrf'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
-    return !empty($_SESSION['csrf_token'])
-        && $token !== ''
-        && hash_equals($_SESSION['csrf_token'], $token);
+    $sessionToken = $_SESSION['csrf_token'] ?? '';
+
+    if (empty($sessionToken)) {
+        error_log('[CSRF] No session token found');
+        return false;
+    }
+    if ($token === '') {
+        error_log('[CSRF] No POST token provided');
+        return false;
+    }
+    if (!hash_equals($sessionToken, $token)) {
+        error_log('[CSRF] Token mismatch: session=' . substr($sessionToken, 0, 8) . '... post=' . substr($token, 0, 8) . '...');
+        return false;
+    }
+
+    return true;
 }
 
 function generate_unique_token(mysqli $conn, int $maxRetries = 5): string {
