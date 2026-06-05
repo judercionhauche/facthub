@@ -42,6 +42,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $amount = substr(trim($_POST['amount'] ?? ''), 0, 100);
         $url = trim($_POST['url'] ?? '');
         if ($title === '') { set_flash('error', 'Title is required.'); redirect_to('funding'); }
+        // Capitalize geography values for consistent formatting
+        $geoParts = array_map(function($g) { return mb_convert_case(trim($g), MB_CASE_TITLE, "UTF-8"); }, explode(',', $geography));
+        $geography = implode(', ', array_filter($geoParts));
         ensure_tags($conn, $topics, 'topic');
         ensure_tags($conn, $geography, 'geography');
         if ($id > 0) {
