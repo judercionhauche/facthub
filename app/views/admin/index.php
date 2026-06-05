@@ -1377,6 +1377,7 @@ $rTotal = $rTab === 'trash' ? $rTrash : $rActive;
                         <a class="ghost-btn" href="index.php?page=researchers&view=<?= (int)$r['id'] ?>" style="padding:6px 10px;font-size:12px">View</a>
                         <a class="ghost-btn" href="index.php?page=researchers&edit=<?= (int)$r['id'] ?>" style="padding:6px 10px;font-size:12px">Edit</a>
                         <form method="post" onsubmit="return confirm('Delete this researcher profile?')">
+                            <?= csrf_input() ?>
                             <input type="hidden" name="action" value="delete_researcher">
                             <input type="hidden" name="researcher_id" value="<?= (int)$r['id'] ?>">
                             <button class="danger-btn" type="submit" style="padding:6px 10px;font-size:12px">Delete</button>
@@ -1469,6 +1470,7 @@ $fTotal = $fTab === 'trash' ? $fTrash : $fActive;
                     </form>
                 <?php else: ?>
                     <form method="post" onsubmit="return confirm('Delete this funder profile?')">
+                        <?= csrf_input() ?>
                         <input type="hidden" name="action" value="delete_funder">
                         <input type="hidden" name="funder_id" value="<?= (int)$f['id'] ?>">
                         <button class="danger-btn" type="submit" style="padding:6px 10px;font-size:12px">Delete</button>
