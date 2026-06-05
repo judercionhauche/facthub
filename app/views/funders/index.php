@@ -68,14 +68,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $userId = $conn->insert_id;
 
-            // Create email verification token
-            $token = generate_unique_token($conn);
+            // Create email verification token (with retry on duplicate)
             $expiresAt = date('Y-m-d H:i:s', time() + 86400);
-            $evStmt = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)');
-            if (!$evStmt) throw new Exception('Prepare email_verifications failed: ' . $conn->error);
-            $evStmt->bind_param('sss', $email, $token, $expiresAt);
-            if (!$evStmt->execute()) {
-                throw new Exception('Error creating verification token: ' . $evStmt->error);
+            $tokenInserted = false;
+            $tokenRetries = 0;
+            while (!$tokenInserted && $tokenRetries < 5) {
+                try {
+                    $token = generate_unique_token($conn);
+                    $evStmt = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)');
+                    if (!$evStmt) throw new Exception('Prepare email_verifications failed: ' . $conn->error);
+                    $evStmt->bind_param('sss', $email, $token, $expiresAt);
+                    if (!$evStmt->execute()) {
+                        throw new Exception('Error creating verification token: ' . $evStmt->error);
+                    }
+                    $tokenInserted = true;
+                } catch (Exception $e) {
+                    if (strpos($e->getMessage(), 'Duplicate') !== false && $tokenRetries < 4) {
+                        $tokenRetries++;
+                        continue;
+                    }
+                    throw $e;
+                }
             }
 
             // Create funder profile linked to user

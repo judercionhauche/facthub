@@ -86,16 +86,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } elseif ($resendCount >= 5) {
                 $state = 'resent'; // max resends — silent fail
             } else {
-                $newToken  = generate_unique_token($conn);
-                $expiry    = date('Y-m-d H:i:s', time() + 86400);
-                $now       = date('Y-m-d H:i:s');
+                $expiry = date('Y-m-d H:i:s', time() + 86400);
+                $now    = date('Y-m-d H:i:s');
+                $inserted = false;
+                $retries = 0;
+                $maxRetries = 5;
 
-                if ($rlRow) {
-                    $upd = $conn->prepare('UPDATE email_verifications SET token = ?, expires_at = ?, used_at = NULL, last_resent_at = ?, resend_count = resend_count + 1 WHERE email = ?');
-                    $upd->bind_param('ssss', $newToken, $expiry, $now, $email); $upd->execute();
-                } else {
-                    $ins = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at, last_resent_at) VALUES (?, ?, ?, ?)');
-                    $ins->bind_param('ssss', $email, $newToken, $expiry, $now); $ins->execute();
+                while (!$inserted && $retries < $maxRetries) {
+                    try {
+                        $newToken = generate_unique_token($conn);
+
+                        if ($rlRow) {
+                            $upd = $conn->prepare('UPDATE email_verifications SET token = ?, expires_at = ?, used_at = NULL, last_resent_at = ?, resend_count = resend_count + 1 WHERE email = ?');
+                            $upd->bind_param('ssss', $newToken, $expiry, $now, $email);
+                            $upd->execute();
+                        } else {
+                            $ins = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at, last_resent_at) VALUES (?, ?, ?, ?)');
+                            $ins->bind_param('ssss', $email, $newToken, $expiry, $now);
+                            $ins->execute();
+                        }
+
+                        $inserted = true;
+                    } catch (mysqli_sql_exception $e) {
+                        if ($e->getCode() == 1062) { // Duplicate entry
+                            $retries++;
+                            if ($retries >= $maxRetries) {
+                                error_log('[Verify] Max retries exceeded generating unique token for ' . $email);
+                                throw $e;
+                            }
+                        } else {
+                            throw $e;
+                        }
+                    }
                 }
 
                 @$mailCfg  = require __DIR__ . '/../../../config/mail.php';
