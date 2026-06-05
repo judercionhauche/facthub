@@ -1369,6 +1369,7 @@ $rTotal = $rTab === 'trash' ? $rTrash : $rActive;
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
                     <?php if ($rTab === 'trash'): ?>
                         <form method="post" onsubmit="return confirm('Restore this researcher profile?')">
+                            <?= csrf_input() ?>
                             <input type="hidden" name="action" value="restore_researcher">
                             <input type="hidden" name="researcher_id" value="<?= (int)$r['id'] ?>">
                             <button class="primary-btn" type="submit" style="padding:6px 10px;font-size:12px">Restore</button>
@@ -1464,6 +1465,7 @@ $fTotal = $fTab === 'trash' ? $fTrash : $fActive;
             <td>
                 <?php if ($fTab === 'trash'): ?>
                     <form method="post" onsubmit="return confirm('Restore this funder profile?')">
+                        <?= csrf_input() ?>
                         <input type="hidden" name="action" value="restore_funder">
                         <input type="hidden" name="funder_id" value="<?= (int)$f['id'] ?>">
                         <button class="primary-btn" type="submit" style="padding:6px 10px;font-size:12px">Restore</button>
