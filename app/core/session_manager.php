@@ -55,9 +55,21 @@ function expire_session(string $reason = 'Your session expired. Please log in ag
 function is_csrf_valid(): bool {
     init_session();
     $token = $_POST['_csrf'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
-    return !empty($_SESSION['csrf_token'])
-        && $token !== ''
-        && hash_equals($_SESSION['csrf_token'], $token);
+    $sessionToken = $_SESSION['csrf_token'] ?? '';
+
+    if (empty($sessionToken)) {
+        error_log('[CSRF] Session token missing');
+        return false;
+    }
+    if ($token === '') {
+        error_log('[CSRF] POST token missing');
+        return false;
+    }
+    if (!hash_equals($sessionToken, $token)) {
+        error_log('[CSRF] Token mismatch: session=' . substr($sessionToken, 0, 8) . ' post=' . substr($token, 0, 8));
+        return false;
+    }
+    return true;
 }
 
 /**
