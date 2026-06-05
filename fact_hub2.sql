@@ -355,7 +355,7 @@ CREATE TABLE `funding_calls` (
 
 CREATE TABLE `job_queue` (
   `id` int(11) NOT NULL,
-  `job_type` enum('compute_matches','generate_summary','send_notification','send_digest') NOT NULL,
+  `job_type` enum('compute_matches','generate_summary','send_notification','send_digest','check_balance','fetch_orcid_publications','send_weekly_digests','generate_embedding') NOT NULL,
   `payload` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL CHECK (json_valid(`payload`)),
   `status` enum('pending','running','done','failed') NOT NULL DEFAULT 'pending',
   `attempts` tinyint(3) UNSIGNED NOT NULL DEFAULT 0,

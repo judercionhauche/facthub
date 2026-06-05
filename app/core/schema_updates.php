@@ -88,6 +88,9 @@ function apply_security_schema_updates(mysqli $conn): void {
         }
     }
 
+    // Fix job_type enum if it's missing job types
+    @$conn->query("ALTER TABLE job_queue MODIFY COLUMN job_type ENUM('compute_matches','generate_summary','send_notification','send_digest','check_balance','fetch_orcid_publications','send_weekly_digests','generate_embedding') NOT NULL");
+
     // Ensure audit_log has all necessary indexes (skip if table doesn't exist)
     $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='audit_log' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
     if ($result && $result->num_rows > 0) {
