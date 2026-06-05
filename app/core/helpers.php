@@ -118,6 +118,17 @@ function parse_tags($tagString) {
     return array_values(array_unique($parts));
 }
 
+function format_geography_tag($tag) {
+    $tag = trim($tag);
+    if (empty($tag)) return '';
+    return mb_convert_case($tag, MB_CASE_TITLE, "UTF-8");
+}
+
+function format_geography_tags($tagString) {
+    $tags = parse_tags($tagString);
+    return array_map('format_geography_tag', $tags);
+}
+
 function append_tag($current, $tag) {
     $tag = trim((string)$tag);
     if ($tag === '') return trim((string)$current);
