@@ -70,17 +70,17 @@ try {
         ]);
 
     } elseif ($action === 'export') {
-        // Export active subscribers to Excel with comprehensive data for Mailchimp
+        // Export active subscribers to CSV with Mailchimp-friendly columns
         $stmt = $conn->prepare("
             SELECT
-                u.name,
                 ns.email,
+                u.name,
                 r.institution,
+                r.department,
                 r.focus_area,
                 r.topics,
                 r.source,
                 r.referrer_name,
-                r.department,
                 ns.subscribed_at
             FROM newsletter_subscribers ns
             LEFT JOIN users u ON ns.user_id = u.id
@@ -91,7 +91,7 @@ try {
         $stmt->execute();
         $result = $stmt->get_result();
 
-        // Generate Excel file with Mailchimp-friendly columns
+        // Build CSV with headers first
         $rows = [[
             'Email',
             'Full Name',
@@ -106,7 +106,7 @@ try {
 
         while ($row = $result->fetch_assoc()) {
             $rows[] = [
-                $row['email'],
+                $row['email'] ?: 'N/A',
                 $row['name'] ?: 'Anonymous',
                 $row['institution'] ?: 'N/A',
                 $row['department'] ?: 'N/A',
@@ -118,7 +118,7 @@ try {
             ];
         }
 
-        // Generate XLSX file
+        // Generate CSV file
         generate_excel_file($rows);
 
     } else {
