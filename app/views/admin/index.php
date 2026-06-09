@@ -902,29 +902,6 @@ $recentAudit = $conn->query(
 ?>
 
 <div class="panel" style="padding:20px">
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:28px">
-        <div class="jq-status-card">
-            <div class="jq-status-num"><?= $kpiFunding ?></div>
-            <div class="jq-status-label">Funding Calls</div>
-        </div>
-        <div class="jq-status-card">
-            <div class="jq-status-num"><?= $kpiMatches ?></div>
-            <div class="jq-status-label">Matches Computed</div>
-        </div>
-        <div class="jq-status-card">
-            <div class="jq-status-num"><?= $aiCoverage ?>%</div>
-            <div class="jq-status-label">AI Coverage</div>
-        </div>
-        <div class="jq-status-card">
-            <div class="jq-status-num"><?= $kpiSummaries ?></div>
-            <div class="jq-status-label">Summaries Generated</div>
-        </div>
-        <div class="jq-status-card">
-            <div class="jq-status-num">$<?= number_format($kpiCostMonth, 2) ?></div>
-            <div class="jq-status-label">API Cost This Month</div>
-        </div>
-    </div>
-
     <!-- API Balance Monitoring -->
     <div style="margin-bottom:24px">
         <h3 style="font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:12px">API Balance Status</h3>
