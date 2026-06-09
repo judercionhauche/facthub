@@ -843,7 +843,7 @@ $aiCoverage     = $kpiMatches > 0 ? round(($kpiAiMatches / $kpiMatches) * 100) :
 
 <?php if ($adminSection === 'dashboard'): ?>
 <!-- ── Dashboard section ── -->
-
+<?php
 // Fetch balance status safely (skip if table not ready)
 $balanceStatus = [];
 $balanceAlerts = [];
