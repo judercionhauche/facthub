@@ -743,23 +743,56 @@ $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         </div>
     </div>
 
-    <!-- Section tabs -->
+    <!-- Section tabs with dropdown menu -->
     <div class="admin-section-tabs">
-        <a class="admin-stab <?= $adminSection==='dashboard'   ? 'active' : '' ?>" href="index.php?page=admin&section=dashboard">Dashboard</a>
-        <div class="admin-stab-divider"></div>
-        <a class="admin-stab <?= $adminSection==='users'       ? 'active' : '' ?>" href="index.php?page=admin&section=users">Users</a>
+        <a class="admin-stab <?= $adminSection==='dashboard' ? 'active' : '' ?>" href="index.php?page=admin&section=dashboard">Dashboard</a>
+        <a class="admin-stab <?= $adminSection==='users' ? 'active' : '' ?>" href="index.php?page=admin&section=users">Users</a>
         <a class="admin-stab <?= $adminSection==='researchers' ? 'active' : '' ?>" href="index.php?page=admin&section=researchers">Researchers</a>
-        <a class="admin-stab <?= $adminSection==='funders'     ? 'active' : '' ?>" href="index.php?page=admin&section=funders">Funders</a>
-        <div class="admin-stab-divider"></div>
-        <a class="admin-stab <?= $adminSection==='jobs'        ? 'active' : '' ?>" href="index.php?page=admin&section=jobs">Job Queue</a>
-        <a class="admin-stab <?= $adminSection==='api_usage'   ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">API Usage</a>
-        <a class="admin-stab <?= $adminSection==='audit'       ? 'active' : '' ?>" href="index.php?page=admin&section=audit">Audit Log</a>
-        <div class="admin-stab-divider"></div>
-        <a class="admin-stab <?= $adminSection==='embeddings'  ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">Semantic Search</a>
-        <a class="admin-stab <?= $adminSection==='newsletter'   ? 'active' : '' ?>" href="index.php?page=admin&section=newsletter">Newsletter</a>
-        <div class="admin-stab-divider"></div>
-        <a class="admin-stab <?= $adminSection==='settings'    ? 'active' : '' ?>" href="index.php?page=admin&section=settings">Settings</a>
+        <a class="admin-stab <?= $adminSection==='funders' ? 'active' : '' ?>" href="index.php?page=admin&section=funders">Funders</a>
+
+        <!-- Tools Dropdown -->
+        <div class="admin-dropdown-wrapper">
+            <button class="admin-stab admin-dropdown-toggle <?= in_array($adminSection, ['jobs', 'api_usage', 'audit', 'embeddings']) ? 'active' : '' ?>" onclick="toggleAdminDropdown(event)">
+                Tools <span class="dropdown-arrow">▼</span>
+            </button>
+            <div class="admin-dropdown-menu" id="adminDropdown">
+                <a class="admin-dropdown-item <?= $adminSection==='jobs' ? 'active' : '' ?>" href="index.php?page=admin&section=jobs">Job Queue</a>
+                <a class="admin-dropdown-item <?= $adminSection==='api_usage' ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">API Usage</a>
+                <a class="admin-dropdown-item <?= $adminSection==='audit' ? 'active' : '' ?>" href="index.php?page=admin&section=audit">Audit Log</a>
+                <a class="admin-dropdown-item <?= $adminSection==='embeddings' ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">Semantic Search</a>
+            </div>
+        </div>
+
+        <a class="admin-stab <?= $adminSection==='newsletter' ? 'active' : '' ?>" href="index.php?page=admin&section=newsletter">Newsletter</a>
+        <a class="admin-stab <?= $adminSection==='settings' ? 'active' : '' ?>" href="index.php?page=admin&section=settings">Settings</a>
     </div>
+
+    <script>
+    function toggleAdminDropdown(e) {
+        e.preventDefault();
+        const dropdown = document.getElementById('adminDropdown');
+        const toggle = e.currentTarget;
+        const isOpen = dropdown.classList.contains('open');
+
+        if (isOpen) {
+            dropdown.classList.remove('open');
+            toggle.classList.remove('dropdown-active');
+        } else {
+            dropdown.classList.add('open');
+            toggle.classList.add('dropdown-active');
+        }
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        const wrapper = document.querySelector('.admin-dropdown-wrapper');
+        if (!wrapper.contains(e.target)) {
+            const dropdown = document.getElementById('adminDropdown');
+            dropdown.classList.remove('open');
+            document.querySelector('.admin-dropdown-toggle').classList.remove('dropdown-active');
+        }
+    });
+    </script>
 </div>
 
 <?php if ($adminSection === 'dashboard'): ?>
