@@ -522,7 +522,75 @@ button.save-btn:hover { background: #155043; transform: translateY(-2px); box-sh
             </form>
             <?php endif; ?>
 
-            <h2>Security & Account Settings</h2>
+            <h2 style="margin-bottom: 8px; margin-top: 32px">Newsletter Subscription</h2>
+            <p style="color: var(--muted); margin-bottom: 20px">Manage your FACT Alliance newsletter subscription</p>
+
+            <?php
+            // Fetch current newsletter subscription status
+            $nlStmt = $conn->prepare("SELECT status FROM newsletter_subscribers WHERE email = ? LIMIT 1");
+            $nlStmt->bind_param('s', $user['email']);
+            $nlStmt->execute();
+            $nlResult = $nlStmt->get_result()->fetch_assoc();
+            $isNewsletterSubscribed = ($nlResult && $nlResult['status'] === 'active');
+            ?>
+
+            <div style="background:#f8fafb;border:1.5px solid #dde6dd;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px">
+                <input type="checkbox" id="newsletter-profile-toggle"
+                       <?= $isNewsletterSubscribed ? 'checked' : '' ?>
+                       style="width:17px;height:17px;accent-color:#1a6b5a;flex-shrink:0;cursor:pointer">
+                <div style="flex:1">
+                    <label for="newsletter-profile-toggle" style="margin:0;font-size:13.5px;font-weight:600;color:#374151;cursor:pointer;line-height:1.4">
+                        Subscribe to FACT Alliance Newsletter
+                    </label>
+                    <p style="font-size:12.5px;color:#9aaba4;margin:4px 0 0 0">
+                        Receive monthly updates on funding opportunities and research collaborations relevant to your interests.
+                    </p>
+                    <div id="newsletter-profile-message" style="display:none;margin-top:12px;padding:10px;border-radius:4px;font-size:13px"></div>
+                </div>
+            </div>
+
+            <script>
+            document.getElementById('newsletter-profile-toggle').addEventListener('change', async function() {
+                const messageDiv = document.getElementById('newsletter-profile-message');
+                messageDiv.style.display = 'block';
+                messageDiv.className = 'message loading';
+                messageDiv.textContent = 'Updating preference...';
+
+                try {
+                    const formData = new FormData();
+                    formData.append('newsletter_subscribed', this.checked ? '1' : '0');
+
+                    const csrfInput = document.querySelector('[name="_csrf"]');
+                    if (csrfInput) {
+                        formData.append('_csrf', csrfInput.value);
+                    }
+
+                    const response = await fetch('/api/newsletter-preference.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (data.success) {
+                        messageDiv.className = 'message success';
+                        messageDiv.textContent = '✓ ' + data.message;
+                        setTimeout(() => {
+                            messageDiv.style.display = 'none';
+                        }, 4000);
+                    } else {
+                        messageDiv.className = 'message error';
+                        messageDiv.textContent = '✗ ' + (data.error || 'Failed to update preference');
+                    }
+                } catch (err) {
+                    messageDiv.className = 'message error';
+                    messageDiv.textContent = '✗ Error updating preference. Please try again.';
+                    console.error(err);
+                }
+            });
+            </script>
+
+            <h2 style="margin-top: 32px">Security & Account Settings</h2>
             <p style="color: var(--muted); margin-bottom: 20px">Manage your account security and email</p>
 
             <div style="background: #f8fafb; border: 1px solid #dde6dd; border-radius: 8px; padding: 16px; margin-bottom: 16px">
