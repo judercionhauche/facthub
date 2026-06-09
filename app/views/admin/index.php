@@ -707,6 +707,16 @@ $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 /* Newsletter messages */
 #export-message.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #81c784; padding: 12px; border-radius: 4px; }
 #export-message.error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 12px; border-radius: 4px; }
+
+/* Organized admin navigation */
+.admin-nav { display: flex; flex-direction: column; gap: 0; border-bottom: 1px solid #dde6dd; margin-bottom: 28px; }
+.admin-nav-section { display: flex; flex-direction: column; gap: 0; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid #f0f2f1; }
+.admin-nav-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+.admin-nav-label { font-size: 11px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #9aaba4; margin: 0 0 8px 0; padding: 0 4px; }
+.admin-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; text-decoration: none; color: #374151; font-weight: 500; font-size: 14px; border-left: 3px solid transparent; transition: all 0.2s ease; margin: 0; }
+.admin-nav-item:hover { background: #f8fafb; color: #1a6b5a; }
+.admin-nav-item.active { background: #f0f7f6; color: #1a6b5a; border-left-color: #1a6b5a; font-weight: 600; }
+.admin-nav-item .icon { font-size: 16px; flex-shrink: 0; }
 </style>
 
 <!-- Page header + stats -->
@@ -733,18 +743,70 @@ $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         </div>
     </div>
 
-    <!-- Section tabs -->
-    <div class="admin-section-tabs">
-        <a class="admin-stab <?= $adminSection==='dashboard'   ? 'active' : '' ?>" href="index.php?page=admin&section=dashboard">Dashboard</a>
-        <a class="admin-stab <?= $adminSection==='users'       ? 'active' : '' ?>" href="index.php?page=admin&section=users">Users</a>
-        <a class="admin-stab <?= $adminSection==='researchers' ? 'active' : '' ?>" href="index.php?page=admin&section=researchers">Researcher Profiles</a>
-        <a class="admin-stab <?= $adminSection==='funders'     ? 'active' : '' ?>" href="index.php?page=admin&section=funders">Funder Profiles</a>
-        <a class="admin-stab <?= $adminSection==='audit'       ? 'active' : '' ?>" href="index.php?page=admin&section=audit">Audit Log</a>
-        <a class="admin-stab <?= $adminSection==='api_usage'   ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">API Usage</a>
-        <a class="admin-stab <?= $adminSection==='jobs'        ? 'active' : '' ?>" href="index.php?page=admin&section=jobs">Job Queue</a>
-        <a class="admin-stab <?= $adminSection==='settings'    ? 'active' : '' ?>" href="index.php?page=admin&section=settings">Settings</a>
-        <a class="admin-stab <?= $adminSection==='embeddings'  ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">Semantic Search</a>
-        <a class="admin-stab <?= $adminSection==='newsletter'   ? 'active' : '' ?>" href="index.php?page=admin&section=newsletter">📧 Newsletter</a>
+    <!-- Section navigation - Organized by category -->
+    <div class="admin-nav">
+        <!-- Primary -->
+        <div class="admin-nav-section">
+            <a class="admin-nav-item <?= $adminSection==='dashboard'   ? 'active' : '' ?>" href="index.php?page=admin&section=dashboard">
+                <span class="icon">📊</span>
+                <span>Dashboard</span>
+            </a>
+        </div>
+
+        <!-- Management -->
+        <div class="admin-nav-section">
+            <div class="admin-nav-label">Management</div>
+            <a class="admin-nav-item <?= $adminSection==='users'       ? 'active' : '' ?>" href="index.php?page=admin&section=users">
+                <span class="icon">👥</span>
+                <span>Users</span>
+            </a>
+            <a class="admin-nav-item <?= $adminSection==='researchers' ? 'active' : '' ?>" href="index.php?page=admin&section=researchers">
+                <span class="icon">🔬</span>
+                <span>Researchers</span>
+            </a>
+            <a class="admin-nav-item <?= $adminSection==='funders'     ? 'active' : '' ?>" href="index.php?page=admin&section=funders">
+                <span class="icon">💰</span>
+                <span>Funders</span>
+            </a>
+        </div>
+
+        <!-- Operations -->
+        <div class="admin-nav-section">
+            <div class="admin-nav-label">Operations</div>
+            <a class="admin-nav-item <?= $adminSection==='jobs'        ? 'active' : '' ?>" href="index.php?page=admin&section=jobs">
+                <span class="icon">⚙️</span>
+                <span>Job Queue</span>
+            </a>
+            <a class="admin-nav-item <?= $adminSection==='api_usage'   ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">
+                <span class="icon">📈</span>
+                <span>API Usage</span>
+            </a>
+            <a class="admin-nav-item <?= $adminSection==='audit'       ? 'active' : '' ?>" href="index.php?page=admin&section=audit">
+                <span class="icon">📋</span>
+                <span>Audit Log</span>
+            </a>
+        </div>
+
+        <!-- Features -->
+        <div class="admin-nav-section">
+            <div class="admin-nav-label">Features</div>
+            <a class="admin-nav-item <?= $adminSection==='embeddings'  ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">
+                <span class="icon">🧠</span>
+                <span>Semantic Search</span>
+            </a>
+            <a class="admin-nav-item <?= $adminSection==='newsletter'   ? 'active' : '' ?>" href="index.php?page=admin&section=newsletter">
+                <span class="icon">📧</span>
+                <span>Newsletter</span>
+            </a>
+        </div>
+
+        <!-- Configuration -->
+        <div class="admin-nav-section">
+            <a class="admin-nav-item <?= $adminSection==='settings'    ? 'active' : '' ?>" href="index.php?page=admin&section=settings">
+                <span class="icon">⚡</span>
+                <span>Settings</span>
+            </a>
+        </div>
     </div>
 </div>
 
