@@ -771,12 +771,10 @@ $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
     </script>
 </div>
 
-<?php if ($adminSection === 'dashboard'): ?>
-<!-- ── Dashboard section ── -->
 <?php
+// ── KPI queries for all sections ──
 require_once __DIR__ . '/../../services/BalanceMonitor.php';
 
-$kpiResearchers = (int)$conn->query("SELECT COUNT(*) FROM researchers WHERE status = 'active' AND deleted_at IS NULL")->fetch_row()[0];
 // KPI queries with fallbacks for missing deleted_at columns
 $res = @$conn->query('SELECT COUNT(*) FROM funding_calls WHERE deleted_at IS NULL');
 $kpiFunding = $res ? (int)$res->fetch_row()[0] : (int)$conn->query('SELECT COUNT(*) FROM funding_calls')->fetch_row()[0];
@@ -791,6 +789,60 @@ $res = @$conn->query("SELECT COUNT(*) FROM ai_summaries WHERE entity_type = 'res
 $kpiSummaries = $res ? (int)$res->fetch_row()[0] : (int)$conn->query("SELECT COUNT(*) FROM ai_summaries WHERE entity_type = 'researcher' AND entity_id IN (SELECT id FROM researchers WHERE status = 'active')")->fetch_row()[0];
 $kpiCostMonth   = (float)$conn->query("SELECT COALESCE(SUM(cost_usd),0) FROM api_usage WHERE created_at >= DATE_FORMAT(NOW(),'%Y-%m-01')")->fetch_row()[0];
 $aiCoverage     = $kpiMatches > 0 ? round(($kpiAiMatches / $kpiMatches) * 100) : 0;
+?>
+
+<!-- KPI Cards — Always visible on all sections -->
+<div class="panel" style="padding:20px;margin-bottom:24px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:0">
+        <div class="jq-status-card">
+            <div class="jq-status-num"><?= $kpiFunding ?></div>
+            <div class="jq-status-label">Funding Calls</div>
+        </div>
+        <div class="jq-status-card">
+            <div class="jq-status-num"><?= $kpiMatches ?></div>
+            <div class="jq-status-label">Matches Computed</div>
+        </div>
+        <div class="jq-status-card">
+            <div class="jq-status-num"><?= $aiCoverage ?>%</div>
+            <div class="jq-status-label">AI Coverage</div>
+        </div>
+        <div class="jq-status-card">
+            <div class="jq-status-num"><?= $kpiSummaries ?></div>
+            <div class="jq-status-label">Summaries Generated</div>
+        </div>
+        <div class="jq-status-card">
+            <div class="jq-status-num">$<?= number_format($kpiCostMonth, 2) ?></div>
+            <div class="jq-status-label">API Cost This Month</div>
+        </div>
+    </div>
+</div>
+
+<!-- Section tabs with dropdown menu -->
+<div class="admin-section-tabs" style="margin-bottom:28px;margin-top:0;padding-top:20px;border-top:1px solid var(--line)">
+    <a class="admin-stab <?= $adminSection==='dashboard' ? 'active' : '' ?>" href="index.php?page=admin&section=dashboard">Dashboard</a>
+    <a class="admin-stab <?= $adminSection==='users' ? 'active' : '' ?>" href="index.php?page=admin&section=users">Users</a>
+    <a class="admin-stab <?= $adminSection==='researchers' ? 'active' : '' ?>" href="index.php?page=admin&section=researchers">Researchers</a>
+    <a class="admin-stab <?= $adminSection==='funders' ? 'active' : '' ?>" href="index.php?page=admin&section=funders">Funders</a>
+
+    <!-- Tools Dropdown -->
+    <div class="admin-dropdown-wrapper">
+        <button class="admin-stab admin-dropdown-toggle <?= in_array($adminSection, ['jobs', 'api_usage', 'audit', 'embeddings']) ? 'active' : '' ?>" onclick="toggleAdminDropdown(event)">
+            Tools <span class="dropdown-arrow">▼</span>
+        </button>
+        <div class="admin-dropdown-menu" id="adminDropdown">
+            <a class="admin-dropdown-item <?= $adminSection==='jobs' ? 'active' : '' ?>" href="index.php?page=admin&section=jobs">Job Queue</a>
+            <a class="admin-dropdown-item <?= $adminSection==='api_usage' ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">API Usage</a>
+            <a class="admin-dropdown-item <?= $adminSection==='audit' ? 'active' : '' ?>" href="index.php?page=admin&section=audit">Audit Log</a>
+            <a class="admin-dropdown-item <?= $adminSection==='embeddings' ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">Semantic Search</a>
+        </div>
+    </div>
+
+    <a class="admin-stab <?= $adminSection==='newsletter' ? 'active' : '' ?>" href="index.php?page=admin&section=newsletter">Newsletter</a>
+    <a class="admin-stab <?= $adminSection==='settings' ? 'active' : '' ?>" href="index.php?page=admin&section=settings">Settings</a>
+</div>
+
+<?php if ($adminSection === 'dashboard'): ?>
+<!-- ── Dashboard section ── -->
 
 // Fetch balance status safely (skip if table not ready)
 $balanceStatus = [];
@@ -871,30 +923,6 @@ $recentAudit = $conn->query(
             <div class="jq-status-num">$<?= number_format($kpiCostMonth, 2) ?></div>
             <div class="jq-status-label">API Cost This Month</div>
         </div>
-    </div>
-
-    <!-- Section tabs with dropdown menu — moved below KPI cards -->
-    <div class="admin-section-tabs" style="margin-bottom:28px;margin-top:24px;padding-top:20px;border-top:1px solid var(--line)">
-        <a class="admin-stab <?= $adminSection==='dashboard' ? 'active' : '' ?>" href="index.php?page=admin&section=dashboard">Dashboard</a>
-        <a class="admin-stab <?= $adminSection==='users' ? 'active' : '' ?>" href="index.php?page=admin&section=users">Users</a>
-        <a class="admin-stab <?= $adminSection==='researchers' ? 'active' : '' ?>" href="index.php?page=admin&section=researchers">Researchers</a>
-        <a class="admin-stab <?= $adminSection==='funders' ? 'active' : '' ?>" href="index.php?page=admin&section=funders">Funders</a>
-
-        <!-- Tools Dropdown -->
-        <div class="admin-dropdown-wrapper">
-            <button class="admin-stab admin-dropdown-toggle <?= in_array($adminSection, ['jobs', 'api_usage', 'audit', 'embeddings']) ? 'active' : '' ?>" onclick="toggleAdminDropdown(event)">
-                Tools <span class="dropdown-arrow">▼</span>
-            </button>
-            <div class="admin-dropdown-menu" id="adminDropdown">
-                <a class="admin-dropdown-item <?= $adminSection==='jobs' ? 'active' : '' ?>" href="index.php?page=admin&section=jobs">Job Queue</a>
-                <a class="admin-dropdown-item <?= $adminSection==='api_usage' ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">API Usage</a>
-                <a class="admin-dropdown-item <?= $adminSection==='audit' ? 'active' : '' ?>" href="index.php?page=admin&section=audit">Audit Log</a>
-                <a class="admin-dropdown-item <?= $adminSection==='embeddings' ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">Semantic Search</a>
-            </div>
-        </div>
-
-        <a class="admin-stab <?= $adminSection==='newsletter' ? 'active' : '' ?>" href="index.php?page=admin&section=newsletter">Newsletter</a>
-        <a class="admin-stab <?= $adminSection==='settings' ? 'active' : '' ?>" href="index.php?page=admin&section=settings">Settings</a>
     </div>
 
     <!-- API Balance Monitoring -->
@@ -2224,45 +2252,46 @@ setInterval(updateStatus, 5000);
 
 <?php elseif ($adminSection === 'newsletter'): ?>
 <!-- Newsletter Management Section -->
-<div class="admin-panel" style="max-width: 800px">
-    <h2 style="margin-bottom: 24px">📧 Newsletter Subscribers</h2>
+<div class="panel" style="max-width: 900px; padding: 28px">
+    <h2 style="margin: 0 0 24px; font-size: 24px">Newsletter Subscribers</h2>
 
-    <div style="background: #f8fafb; border: 1.5px solid #dde6dd; border-radius: 10px; padding: 20px; margin-bottom: 24px">
-        <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px">
-            <div>
-                <p style="margin: 0 0 8px; font-weight: 600; color: var(--text)">Download Subscriber List</p>
-                <p style="margin: 0; color: var(--muted); font-size: 13px">Export all active subscribers to Excel for Mailchimp import. Includes email, name, institution, department, research topics, and how they found you.</p>
+    <div class="panel" style="border: 1px solid var(--line); background: linear-gradient(135deg,#f8fafb 0%,#f3f5f4 100%); padding: 24px; margin-bottom: 28px">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap">
+            <div style="flex: 1; min-width: 300px">
+                <p style="margin: 0 0 8px; font-weight: 600; color: var(--text); font-size: 16px">Export Subscriber List</p>
+                <p style="margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5">Download all active subscribers to Excel format for Mailchimp import. Includes email, name, institution, department, research focus, and signup source.</p>
             </div>
-            <button id="export-newsletter-btn" class="primary-btn" style="white-space: nowrap; padding: 12px 24px">
-                ⬇️ Download Excel
+            <button id="export-newsletter-btn" class="primary-btn" style="white-space: nowrap; padding: 12px 24px; font-size: 14px; font-weight: 600">
+                Download Excel
             </button>
         </div>
     </div>
 
-    <div style="margin-top: 24px">
-        <h3 style="margin-bottom: 12px">Subscriber Summary</h3>
-        <div id="newsletter-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px">
-            <div style="background: #f8fafb; border: 1px solid #dde6dd; border-radius: 8px; padding: 16px">
-                <p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase">Active Subscribers</p>
-                <p id="subscriber-count" style="margin: 0; font-size: 28px; font-weight: 700; color: var(--primary)">-</p>
+    <div style="margin-bottom: 24px">
+        <h3 style="margin: 0 0 16px; font-size: 16px; font-weight: 700; color: var(--text)">Subscriber Status</h3>
+        <div id="newsletter-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px">
+            <div class="jq-status-card">
+                <div class="jq-status-num" id="subscriber-count" style="color: var(--primary)">-</div>
+                <div class="jq-status-label">Active Subscribers</div>
             </div>
-            <div style="background: #f8fafb; border: 1px solid #dde6dd; border-radius: 8px; padding: 16px">
-                <p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase">Last Updated</p>
-                <p id="last-updated" style="margin: 0; font-size: 14px; color: var(--text)">-</p>
+            <div class="jq-status-card">
+                <div style="font-size: 14px; color: var(--text); font-weight: 600; display: block; margin-top: 8px" id="last-updated">Loading...</div>
+                <div class="jq-status-label">Last Data Refresh</div>
             </div>
         </div>
     </div>
 
-    <div id="export-message" style="display: none; margin-top: 16px; padding: 12px; border-radius: 6px; font-size: 14px"></div>
+    <div id="export-message" style="display: none; margin-top: 16px; padding: 14px 16px; border-radius: 8px; font-size: 14px; font-weight: 500"></div>
 </div>
 
 <script>
 document.getElementById('export-newsletter-btn').addEventListener('click', async function() {
     const btn = this;
     const msg = document.getElementById('export-message');
+    const originalText = btn.textContent;
 
     btn.disabled = true;
-    btn.textContent = '⏳ Exporting...';
+    btn.textContent = 'Exporting...';
     msg.style.display = 'block';
     msg.className = '';
     msg.textContent = 'Generating Excel file...';
@@ -2281,15 +2310,15 @@ document.getElementById('export-newsletter-btn').addEventListener('click', async
         window.URL.revokeObjectURL(url);
         a.remove();
 
-        msg.className = 'success';
-        msg.textContent = '✓ File downloaded successfully!';
+        msg.className = 'flash success';
+        msg.textContent = 'File downloaded successfully';
     } catch (err) {
-        msg.className = 'error';
-        msg.textContent = '✗ Failed to download file: ' + err.message;
+        msg.className = 'flash error';
+        msg.textContent = 'Failed to download file: ' + err.message;
         console.error(err);
     } finally {
         btn.disabled = false;
-        btn.textContent = '⬇️ Download Excel';
+        btn.textContent = originalText;
         setTimeout(() => { msg.style.display = 'none'; }, 5000);
     }
 });
