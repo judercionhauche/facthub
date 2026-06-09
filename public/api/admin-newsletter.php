@@ -96,7 +96,8 @@ try {
         $stmt = $conn->prepare("
             SELECT
                 ns.email,
-                CONCAT(COALESCE(r.first_name, ''), ' ', COALESCE(r.last_name, '')) as full_name,
+                r.first_name,
+                r.last_name,
                 r.institution,
                 r.source,
                 ns.subscribed_at
@@ -141,9 +142,12 @@ try {
         ]];
 
         while ($row = $result->fetch_assoc()) {
+            $fullName = trim(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? ''));
+            $fullName = !empty($fullName) ? $fullName : 'N/A';
+
             $rows[] = [
                 $row['email'] ?? '',
-                trim($row['full_name'] ?? '') ?: 'N/A',
+                $fullName,
                 $row['institution'] ?? 'N/A',
                 $row['source'] ?? 'Not specified',
                 !empty($row['subscribed_at']) ? date('Y-m-d', strtotime($row['subscribed_at'])) : 'Unknown'
