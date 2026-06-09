@@ -945,11 +945,11 @@ if (is_array($focusDetailRaw)) {
                         <label style="font-size:12.5px;font-weight:600;color:#374151;display:block;margin-bottom:8px">Quiet hours <span style="color:#9aaba4;font-weight:400">(optional)</span></label>
                         <div style="display:flex;gap:8px;align-items:center">
                             <input type="time" id="quiet_hours_start" name="quiet_hours_start"
-                                   value="<?= $editing['quiet_hours_start'] ? h($editing['quiet_hours_start']) : '' ?>"
+                                   value="<?= ($editing && !empty($editing['quiet_hours_start'])) ? h($editing['quiet_hours_start']) : '' ?>"
                                    style="padding:8px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:13px;background:white;color:#374151;flex:1">
                             <span style="color:#9aaba4">to</span>
                             <input type="time" id="quiet_hours_end" name="quiet_hours_end"
-                                   value="<?= $editing['quiet_hours_end'] ? h($editing['quiet_hours_end']) : '' ?>"
+                                   value="<?= ($editing && !empty($editing['quiet_hours_end'])) ? h($editing['quiet_hours_end']) : '' ?>"
                                    style="padding:8px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:13px;background:white;color:#374151;flex:1">
                         </div>
                         <div style="font-size:11.5px;color:#9aaba4;margin-top:4px">Notifications won't be sent outside these hours (urgent calls with < 30 days override this)</div>
