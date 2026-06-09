@@ -94,19 +94,15 @@ try {
             exit;
         }
 
-        // Export with email-based JOIN (user_id is NULL, so match by email)
+        // Export - basic data first, then add JOINs if data exists
         $stmt = $conn->prepare("
             SELECT
-                ns.email,
-                u.name,
-                r.institution,
-                r.source,
-                ns.subscribed_at
-            FROM newsletter_subscribers ns
-            LEFT JOIN users u ON LOWER(ns.email) = LOWER(u.email)
-            LEFT JOIN researchers r ON u.id = r.user_id
-            WHERE ns.status = 'active'
-            ORDER BY ns.subscribed_at DESC
+                email,
+                status,
+                subscribed_at
+            FROM newsletter_subscribers
+            WHERE status = 'active'
+            ORDER BY subscribed_at DESC
         ");
 
         if (!$stmt) {
@@ -128,18 +124,14 @@ try {
         // Build CSV with headers first
         $rows = [[
             'Email',
-            'Full Name',
-            'Institution',
-            'How They Heard About Us',
+            'Status',
             'Subscribed Date'
         ]];
 
         while ($row = $result->fetch_assoc()) {
             $rows[] = [
                 $row['email'],
-                $row['name'] ?: 'N/A',
-                $row['institution'] ?: 'N/A',
-                $row['source'] ?: 'Not specified',
+                $row['status'],
                 date('Y-m-d', strtotime($row['subscribed_at']))
             ];
         }
