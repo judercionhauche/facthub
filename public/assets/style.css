@@ -416,6 +416,17 @@ label{display:block;margin-bottom:6px;font-weight:600}
 .admin-dropdown-item:hover{background:rgba(26,107,90,0.08);color:var(--primary);border-left-color:var(--primary);padding-left:18px}
 .admin-dropdown-item.active{background:rgba(26,107,90,0.14);color:var(--primary);border-left-color:var(--primary);font-weight:600;padding-left:18px}
 
+/* Stat Cards — Top metrics with beautiful hover */
+.stat-card{background:linear-gradient(135deg,#f8fafb 0%,#f3f5f4 100%);border:1px solid var(--line);border-radius:12px;padding:22px 16px;text-align:center;transition:all 0.25s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--secondary));opacity:0;transition:opacity 0.25s ease}
+.stat-card:hover{border-color:var(--primary);box-shadow:0 8px 24px rgba(26,107,90,0.12);transform:translateY(-3px)}
+.stat-card:hover::before{opacity:1}
+.stat-num{font-size:32px;font-weight:800;color:var(--primary);line-height:1.2;margin-bottom:8px;display:block}
+.stat-label{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0.03em;text-transform:uppercase;transition:color 0.25s ease}
+.stat-card:hover .stat-label{color:var(--text)}
+.funder-num{color:#c8a85a}
+.admin-num{color:#8b5cf6}
+
 /* KPI Status Cards — Beautiful dashboard metrics */
 .jq-status-card{background:linear-gradient(135deg,#f8fafb 0%,#f3f5f4 100%);border:1px solid var(--line);border-radius:12px;padding:22px 16px;text-align:center;transition:all 0.25s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden}
 .jq-status-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--secondary));opacity:0;transition:opacity 0.25s ease}

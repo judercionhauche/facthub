@@ -743,30 +743,6 @@ $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         </div>
     </div>
 
-    <!-- Section tabs with dropdown menu -->
-    <div class="admin-section-tabs">
-        <a class="admin-stab <?= $adminSection==='dashboard' ? 'active' : '' ?>" href="index.php?page=admin&section=dashboard">Dashboard</a>
-        <a class="admin-stab <?= $adminSection==='users' ? 'active' : '' ?>" href="index.php?page=admin&section=users">Users</a>
-        <a class="admin-stab <?= $adminSection==='researchers' ? 'active' : '' ?>" href="index.php?page=admin&section=researchers">Researchers</a>
-        <a class="admin-stab <?= $adminSection==='funders' ? 'active' : '' ?>" href="index.php?page=admin&section=funders">Funders</a>
-
-        <!-- Tools Dropdown -->
-        <div class="admin-dropdown-wrapper">
-            <button class="admin-stab admin-dropdown-toggle <?= in_array($adminSection, ['jobs', 'api_usage', 'audit', 'embeddings']) ? 'active' : '' ?>" onclick="toggleAdminDropdown(event)">
-                Tools <span class="dropdown-arrow">▼</span>
-            </button>
-            <div class="admin-dropdown-menu" id="adminDropdown">
-                <a class="admin-dropdown-item <?= $adminSection==='jobs' ? 'active' : '' ?>" href="index.php?page=admin&section=jobs">Job Queue</a>
-                <a class="admin-dropdown-item <?= $adminSection==='api_usage' ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">API Usage</a>
-                <a class="admin-dropdown-item <?= $adminSection==='audit' ? 'active' : '' ?>" href="index.php?page=admin&section=audit">Audit Log</a>
-                <a class="admin-dropdown-item <?= $adminSection==='embeddings' ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">Semantic Search</a>
-            </div>
-        </div>
-
-        <a class="admin-stab <?= $adminSection==='newsletter' ? 'active' : '' ?>" href="index.php?page=admin&section=newsletter">Newsletter</a>
-        <a class="admin-stab <?= $adminSection==='settings' ? 'active' : '' ?>" href="index.php?page=admin&section=settings">Settings</a>
-    </div>
-
     <script>
     function toggleAdminDropdown(e) {
         e.preventDefault();
@@ -876,10 +852,6 @@ $recentAudit = $conn->query(
 <div class="panel" style="padding:20px">
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:28px">
         <div class="jq-status-card">
-            <div class="jq-status-num"><?= $kpiResearchers ?></div>
-            <div class="jq-status-label">Researchers</div>
-        </div>
-        <div class="jq-status-card">
             <div class="jq-status-num"><?= $kpiFunding ?></div>
             <div class="jq-status-label">Funding Calls</div>
         </div>
@@ -899,6 +871,30 @@ $recentAudit = $conn->query(
             <div class="jq-status-num">$<?= number_format($kpiCostMonth, 2) ?></div>
             <div class="jq-status-label">API Cost This Month</div>
         </div>
+    </div>
+
+    <!-- Section tabs with dropdown menu — moved below KPI cards -->
+    <div class="admin-section-tabs" style="margin-bottom:28px;margin-top:24px;padding-top:20px;border-top:1px solid var(--line)">
+        <a class="admin-stab <?= $adminSection==='dashboard' ? 'active' : '' ?>" href="index.php?page=admin&section=dashboard">Dashboard</a>
+        <a class="admin-stab <?= $adminSection==='users' ? 'active' : '' ?>" href="index.php?page=admin&section=users">Users</a>
+        <a class="admin-stab <?= $adminSection==='researchers' ? 'active' : '' ?>" href="index.php?page=admin&section=researchers">Researchers</a>
+        <a class="admin-stab <?= $adminSection==='funders' ? 'active' : '' ?>" href="index.php?page=admin&section=funders">Funders</a>
+
+        <!-- Tools Dropdown -->
+        <div class="admin-dropdown-wrapper">
+            <button class="admin-stab admin-dropdown-toggle <?= in_array($adminSection, ['jobs', 'api_usage', 'audit', 'embeddings']) ? 'active' : '' ?>" onclick="toggleAdminDropdown(event)">
+                Tools <span class="dropdown-arrow">▼</span>
+            </button>
+            <div class="admin-dropdown-menu" id="adminDropdown">
+                <a class="admin-dropdown-item <?= $adminSection==='jobs' ? 'active' : '' ?>" href="index.php?page=admin&section=jobs">Job Queue</a>
+                <a class="admin-dropdown-item <?= $adminSection==='api_usage' ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">API Usage</a>
+                <a class="admin-dropdown-item <?= $adminSection==='audit' ? 'active' : '' ?>" href="index.php?page=admin&section=audit">Audit Log</a>
+                <a class="admin-dropdown-item <?= $adminSection==='embeddings' ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">Semantic Search</a>
+            </div>
+        </div>
+
+        <a class="admin-stab <?= $adminSection==='newsletter' ? 'active' : '' ?>" href="index.php?page=admin&section=newsletter">Newsletter</a>
+        <a class="admin-stab <?= $adminSection==='settings' ? 'active' : '' ?>" href="index.php?page=admin&section=settings">Settings</a>
     </div>
 
     <!-- API Balance Monitoring -->
