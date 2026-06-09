@@ -394,7 +394,7 @@ label{display:block;margin-bottom:6px;font-weight:600}
 .breadcrumb-link:hover{text-decoration:underline}
 .breadcrumb-current{color:var(--text-primary);font-weight:500}
 /* Admin Section Tabs — Premium horizontal layout with dropdown */
-.admin-section-tabs{display:flex;gap:8px;align-items:center;margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.admin-section-tabs{display:flex;gap:8px;align-items:center;margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid var(--line);justify-content:center}
 .admin-stab{padding:11px 16px;border:none;background:transparent;color:var(--text);font-weight:600;font-size:15px;cursor:pointer;text-decoration:none;position:relative;transition:all 0.2s cubic-bezier(0.4,0,0.2,1);border-radius:6px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .admin-stab:hover{color:var(--primary);background:rgba(26,107,90,0.06)}
 .admin-stab.active{color:var(--primary);background:rgba(26,107,90,0.12);font-weight:700}
@@ -415,6 +415,15 @@ label{display:block;margin-bottom:6px;font-weight:600}
 .admin-dropdown-item{display:block;padding:12px 16px;color:var(--text);text-decoration:none;font-weight:500;font-size:14px;transition:all 0.15s;border-left:3px solid transparent;position:relative;white-space:nowrap}
 .admin-dropdown-item:hover{background:rgba(26,107,90,0.08);color:var(--primary);border-left-color:var(--primary);padding-left:18px}
 .admin-dropdown-item.active{background:rgba(26,107,90,0.14);color:var(--primary);border-left-color:var(--primary);font-weight:600;padding-left:18px}
+
+/* KPI Status Cards — Beautiful dashboard metrics */
+.jq-status-card{background:linear-gradient(135deg,#f8fafb 0%,#f3f5f4 100%);border:1px solid var(--line);border-radius:12px;padding:22px 16px;text-align:center;transition:all 0.25s cubic-bezier(0.4,0,0.2,1);position:relative;overflow:hidden}
+.jq-status-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--secondary));opacity:0;transition:opacity 0.25s ease}
+.jq-status-card:hover{border-color:var(--primary);box-shadow:0 8px 24px rgba(26,107,90,0.12);transform:translateY(-3px)}
+.jq-status-card:hover::before{opacity:1}
+.jq-status-num{font-size:32px;font-weight:800;color:var(--primary);line-height:1.2;margin-bottom:8px;display:block}
+.jq-status-label{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0.03em;text-transform:uppercase;transition:color 0.25s ease}
+.jq-status-card:hover .jq-status-label{color:var(--text)}
 
 /* Mobile Navigation */
 @media(max-width:768px){
