@@ -269,11 +269,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Subscribe to newsletter if user opted in
                     if ($newsletterSubscribed) {
                         $nlStmt = $conn->prepare("
-                            INSERT INTO newsletter_subscribers (user_id, status, subscribed_at)
-                            VALUES (?, 'active', NOW())
+                            INSERT INTO newsletter_subscribers (user_id, email, status, subscribed_at)
+                            VALUES (?, ?, 'active', NOW())
                             ON DUPLICATE KEY UPDATE status = 'active', updated_at = NOW()
                         ");
-                        $nlStmt->bind_param('i', $userId);
+                        $nlStmt->bind_param('is', $userId, $email);
                         @$nlStmt->execute();
                     }
 
@@ -431,11 +431,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Subscribe to newsletter if opted in (admin creation)
                 if ($newsletterSubscribed) {
                     $nlStmt = $conn->prepare("
-                        INSERT INTO newsletter_subscribers (user_id, status, subscribed_at)
-                        VALUES (?, 'active', NOW())
+                        INSERT INTO newsletter_subscribers (user_id, email, status, subscribed_at)
+                        VALUES (?, ?, 'active', NOW())
                         ON DUPLICATE KEY UPDATE status = 'active', updated_at = NOW()
                     ");
-                    $nlStmt->bind_param('i', $userId);
+                    $nlStmt->bind_param('is', $userId, $email);
                     @$nlStmt->execute();
                 }
 

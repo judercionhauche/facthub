@@ -35,30 +35,17 @@ try {
     $user = current_user();
     $subscribed = isset($_POST['newsletter_subscribed']) ? (bool)$_POST['newsletter_subscribed'] : false;
 
-    // Update or insert newsletter subscriber
+    // Update or insert newsletter subscriber (supports both user_id and email columns)
     if ($subscribed) {
-        // Try with user_id first (new schema)
+        // Subscribe user - provide both user_id and email for compatibility
         $stmt = $conn->prepare("
-            INSERT INTO newsletter_subscribers (user_id, status, subscribed_at)
-            VALUES (?, 'active', NOW())
+            INSERT INTO newsletter_subscribers (user_id, email, status, subscribed_at)
+            VALUES (?, ?, 'active', NOW())
             ON DUPLICATE KEY UPDATE
                 status = 'active',
                 updated_at = NOW()
         ");
-
-        if (!$stmt) {
-            // Fallback: try with email (old schema) if user_id fails
-            $stmt = $conn->prepare("
-                INSERT INTO newsletter_subscribers (email, status, subscribed_at)
-                VALUES (?, 'active', NOW())
-                ON DUPLICATE KEY UPDATE
-                    status = 'active',
-                    updated_at = NOW()
-            ");
-            $stmt->bind_param('s', $user['email']);
-        } else {
-            $stmt->bind_param('i', $user['id']);
-        }
+        $stmt->bind_param('is', $user['id'], $user['email']);
 
         if (!$stmt->execute()) {
             throw new Exception('Subscribe failed: ' . $conn->error);
@@ -66,7 +53,7 @@ try {
 
         $message = 'You have been subscribed to our newsletter';
     } else {
-        // Try to unsubscribe by user_id or email
+        // Unsubscribe user
         $stmt = $conn->prepare("
             UPDATE newsletter_subscribers
             SET status = 'unsubscribed', unsubscribed_at = NOW()
