@@ -108,19 +108,28 @@ try {
 
         if (!$stmt) {
             http_response_code(500);
-            error_log('Newsletter Export Prepare Error: ' . $conn->error);
-            echo json_encode(['error' => 'Prepare failed: ' . $conn->error]);
+            $error = 'Prepare failed: ' . $conn->error;
+            error_log('[Newsletter Export] ' . $error);
+            echo json_encode(['error' => $error]);
             exit;
         }
 
         if (!$stmt->execute()) {
             http_response_code(500);
-            error_log('Newsletter Export Execute Error: ' . $stmt->error);
-            echo json_encode(['error' => 'Execute failed: ' . $stmt->error]);
+            $error = 'Execute failed: ' . $stmt->error;
+            error_log('[Newsletter Export] ' . $error);
+            echo json_encode(['error' => $error]);
             exit;
         }
 
         $result = $stmt->get_result();
+        if (!$result) {
+            http_response_code(500);
+            $error = 'Failed to get result: ' . $conn->error;
+            error_log('[Newsletter Export] ' . $error);
+            echo json_encode(['error' => $error]);
+            exit;
+        }
 
         // Build CSV with headers first
         $rows = [[
@@ -133,16 +142,23 @@ try {
 
         while ($row = $result->fetch_assoc()) {
             $rows[] = [
-                $row['email'],
-                trim($row['full_name']) ?: 'N/A',
-                $row['institution'] ?: 'N/A',
-                $row['source'] ?: 'Not specified',
-                date('Y-m-d', strtotime($row['subscribed_at']))
+                $row['email'] ?? '',
+                trim($row['full_name'] ?? '') ?: 'N/A',
+                $row['institution'] ?? 'N/A',
+                $row['source'] ?? 'Not specified',
+                !empty($row['subscribed_at']) ? date('Y-m-d', strtotime($row['subscribed_at'])) : 'Unknown'
             ];
         }
 
         // Generate CSV file
-        generate_excel_file($rows);
+        try {
+            generate_excel_file($rows);
+        } catch (Exception $e) {
+            http_response_code(500);
+            error_log('[Newsletter Export] File generation error: ' . $e->getMessage());
+            echo json_encode(['error' => 'Failed to generate file: ' . $e->getMessage()]);
+            exit;
+        }
 
     } else {
         http_response_code(400);
