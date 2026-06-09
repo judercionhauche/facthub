@@ -78,13 +78,19 @@ try {
             INNER JOIN researchers r ON u.id = r.user_id
             WHERE ns.status = 'active'
         ");
-        $countStmt->execute();
+
+        if (!$countStmt->execute()) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Query failed: ' . $conn->error]);
+            exit;
+        }
+
         $countResult = $countStmt->get_result()->fetch_assoc();
         $subscriberCount = (int)($countResult['cnt'] ?? 0);
 
         if ($subscriberCount === 0) {
             http_response_code(400);
-            echo json_encode(['error' => 'No active subscribers to export']);
+            echo json_encode(['error' => 'No active subscribers with complete profiles to export']);
             exit;
         }
 
@@ -106,7 +112,13 @@ try {
             WHERE ns.status = 'active'
             ORDER BY ns.subscribed_at DESC
         ");
-        $stmt->execute();
+
+        if (!$stmt->execute()) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Export query failed: ' . $conn->error]);
+            exit;
+        }
+
         $result = $stmt->get_result();
 
         // Build CSV with headers first
