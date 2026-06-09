@@ -567,7 +567,8 @@ button.save-btn:hover { background: #155043; transform: translateY(-2px); box-sh
 
                     const response = await fetch('/api/newsletter-preference.php', {
                         method: 'POST',
-                        body: formData
+                        body: formData,
+                        credentials: 'include'
                     });
 
                     const data = await response.json();

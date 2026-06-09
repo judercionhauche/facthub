@@ -302,7 +302,8 @@ button.submit-btn:hover { background: #155043; transform: translateY(-1px); }
 
             const response = await fetch('/api/newsletter-preference.php', {
                 method: 'POST',
-                body: formData
+                body: formData,
+                credentials: 'include'
             });
 
             const data = await response.json();
