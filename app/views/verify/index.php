@@ -88,19 +88,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             } else {
                 $expiry = date('Y-m-d H:i:s', time() + 86400);
                 $now    = date('Y-m-d H:i:s');
+
+                // Delete old unverified tokens for this email to prevent constraint violations
+                @$conn->query("DELETE FROM email_verifications WHERE email = ? AND verified_at IS NULL");
+
                 $inserted = false;
                 $retries = 0;
-                $maxRetries = 5;
+                $maxRetries = 3;
 
                 while (!$inserted && $retries < $maxRetries) {
                     try {
                         $newToken = generate_unique_token($conn);
 
                         if ($rlRow) {
+                            // Old record exists: update it
                             $upd = $conn->prepare('UPDATE email_verifications SET token = ?, expires_at = ?, used_at = NULL, last_resent_at = ?, resend_count = resend_count + 1 WHERE email = ?');
                             $upd->bind_param('ssss', $newToken, $expiry, $now, $email);
                             $upd->execute();
                         } else {
+                            // No record yet: create one
                             $ins = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at, last_resent_at) VALUES (?, ?, ?, ?)');
                             $ins->bind_param('ssss', $email, $newToken, $expiry, $now);
                             $ins->execute();
@@ -111,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($e->getCode() == 1062) { // Duplicate entry
                             $retries++;
                             if ($retries >= $maxRetries) {
-                                error_log('[Verify] Max retries exceeded generating unique token for ' . $email);
+                                error_log('[Verify] Max retries exceeded generating unique token for ' . $email . ': ' . $e->getMessage());
                                 throw $e;
                             }
                         } else {

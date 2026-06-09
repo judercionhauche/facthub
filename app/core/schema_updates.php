@@ -381,6 +381,16 @@ function apply_security_schema_updates(mysqli $conn): void {
         // Clean up old verified and expired tokens to prevent duplicate key issues
         @$conn->query("DELETE FROM email_verifications WHERE verified_at IS NOT NULL AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
         @$conn->query("DELETE FROM email_verifications WHERE expires_at < NOW()");
+
+        // Remove UNIQUE constraint on token if it exists (tokens only need to be unique per email, not globally)
+        $constraints = @$conn->query("SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_NAME='email_verifications' AND COLUMN_NAME='token' AND CONSTRAINT_NAME != 'PRIMARY' AND TABLE_SCHEMA=DATABASE()");
+        if ($constraints && $constraints->num_rows > 0) {
+            while ($c = $constraints->fetch_assoc()) {
+                if ($c['CONSTRAINT_NAME'] !== 'idx_token' && $c['CONSTRAINT_NAME'] !== 'PRIMARY') {
+                    @$conn->query("ALTER TABLE email_verifications DROP CONSTRAINT {$c['CONSTRAINT_NAME']}");
+                }
+            }
+        }
     }
 
     // tags table
