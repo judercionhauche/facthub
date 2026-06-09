@@ -37,7 +37,7 @@ try {
 
     // Update or insert newsletter subscriber
     if ($subscribed) {
-        // Subscribe user (user_id is UNIQUE key)
+        // Try with user_id first (new schema)
         $stmt = $conn->prepare("
             INSERT INTO newsletter_subscribers (user_id, status, subscribed_at)
             VALUES (?, 'active', NOW())
@@ -45,19 +45,38 @@ try {
                 status = 'active',
                 updated_at = NOW()
         ");
-        $stmt->bind_param('i', $user['id']);
-        $stmt->execute();
+
+        if (!$stmt) {
+            // Fallback: try with email (old schema) if user_id fails
+            $stmt = $conn->prepare("
+                INSERT INTO newsletter_subscribers (email, status, subscribed_at)
+                VALUES (?, 'active', NOW())
+                ON DUPLICATE KEY UPDATE
+                    status = 'active',
+                    updated_at = NOW()
+            ");
+            $stmt->bind_param('s', $user['email']);
+        } else {
+            $stmt->bind_param('i', $user['id']);
+        }
+
+        if (!$stmt->execute()) {
+            throw new Exception('Subscribe failed: ' . $conn->error);
+        }
 
         $message = 'You have been subscribed to our newsletter';
     } else {
-        // Unsubscribe user
+        // Try to unsubscribe by user_id or email
         $stmt = $conn->prepare("
             UPDATE newsletter_subscribers
             SET status = 'unsubscribed', unsubscribed_at = NOW()
-            WHERE user_id = ?
+            WHERE user_id = ? OR email = ?
         ");
-        $stmt->bind_param('i', $user['id']);
-        $stmt->execute();
+        $stmt->bind_param('is', $user['id'], $user['email']);
+
+        if (!$stmt->execute()) {
+            throw new Exception('Unsubscribe failed: ' . $conn->error);
+        }
 
         $message = 'You have been unsubscribed from our newsletter';
     }
@@ -79,6 +98,6 @@ try {
 } catch (Exception $e) {
     error_log('[Newsletter API] Error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['error' => 'Failed to update preference']);
+    echo json_encode(['error' => $e->getMessage()]);
 }
 ?>
