@@ -743,70 +743,22 @@ $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         </div>
     </div>
 
-    <!-- Section navigation - Organized by category -->
-    <div class="admin-nav">
-        <!-- Primary -->
-        <div class="admin-nav-section">
-            <a class="admin-nav-item <?= $adminSection==='dashboard'   ? 'active' : '' ?>" href="index.php?page=admin&section=dashboard">
-                <span class="icon">📊</span>
-                <span>Dashboard</span>
-            </a>
-        </div>
-
-        <!-- Management -->
-        <div class="admin-nav-section">
-            <div class="admin-nav-label">Management</div>
-            <a class="admin-nav-item <?= $adminSection==='users'       ? 'active' : '' ?>" href="index.php?page=admin&section=users">
-                <span class="icon">👥</span>
-                <span>Users</span>
-            </a>
-            <a class="admin-nav-item <?= $adminSection==='researchers' ? 'active' : '' ?>" href="index.php?page=admin&section=researchers">
-                <span class="icon">🔬</span>
-                <span>Researchers</span>
-            </a>
-            <a class="admin-nav-item <?= $adminSection==='funders'     ? 'active' : '' ?>" href="index.php?page=admin&section=funders">
-                <span class="icon">💰</span>
-                <span>Funders</span>
-            </a>
-        </div>
-
-        <!-- Operations -->
-        <div class="admin-nav-section">
-            <div class="admin-nav-label">Operations</div>
-            <a class="admin-nav-item <?= $adminSection==='jobs'        ? 'active' : '' ?>" href="index.php?page=admin&section=jobs">
-                <span class="icon">⚙️</span>
-                <span>Job Queue</span>
-            </a>
-            <a class="admin-nav-item <?= $adminSection==='api_usage'   ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">
-                <span class="icon">📈</span>
-                <span>API Usage</span>
-            </a>
-            <a class="admin-nav-item <?= $adminSection==='audit'       ? 'active' : '' ?>" href="index.php?page=admin&section=audit">
-                <span class="icon">📋</span>
-                <span>Audit Log</span>
-            </a>
-        </div>
-
-        <!-- Features -->
-        <div class="admin-nav-section">
-            <div class="admin-nav-label">Features</div>
-            <a class="admin-nav-item <?= $adminSection==='embeddings'  ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">
-                <span class="icon">🧠</span>
-                <span>Semantic Search</span>
-            </a>
-            <a class="admin-nav-item <?= $adminSection==='newsletter'   ? 'active' : '' ?>" href="index.php?page=admin&section=newsletter">
-                <span class="icon">📧</span>
-                <span>Newsletter</span>
-            </a>
-        </div>
-
-        <!-- Configuration -->
-        <div class="admin-nav-section">
-            <a class="admin-nav-item <?= $adminSection==='settings'    ? 'active' : '' ?>" href="index.php?page=admin&section=settings">
-                <span class="icon">⚡</span>
-                <span>Settings</span>
-            </a>
-        </div>
+    <!-- Section tabs -->
+    <div class="admin-section-tabs">
+        <a class="admin-stab <?= $adminSection==='dashboard'   ? 'active' : '' ?>" href="index.php?page=admin&section=dashboard">Dashboard</a>
+        <div class="admin-stab-divider"></div>
+        <a class="admin-stab <?= $adminSection==='users'       ? 'active' : '' ?>" href="index.php?page=admin&section=users">Users</a>
+        <a class="admin-stab <?= $adminSection==='researchers' ? 'active' : '' ?>" href="index.php?page=admin&section=researchers">Researchers</a>
+        <a class="admin-stab <?= $adminSection==='funders'     ? 'active' : '' ?>" href="index.php?page=admin&section=funders">Funders</a>
+        <div class="admin-stab-divider"></div>
+        <a class="admin-stab <?= $adminSection==='jobs'        ? 'active' : '' ?>" href="index.php?page=admin&section=jobs">Job Queue</a>
+        <a class="admin-stab <?= $adminSection==='api_usage'   ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">API Usage</a>
+        <a class="admin-stab <?= $adminSection==='audit'       ? 'active' : '' ?>" href="index.php?page=admin&section=audit">Audit Log</a>
+        <div class="admin-stab-divider"></div>
+        <a class="admin-stab <?= $adminSection==='embeddings'  ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">Semantic Search</a>
+        <a class="admin-stab <?= $adminSection==='newsletter'   ? 'active' : '' ?>" href="index.php?page=admin&section=newsletter">Newsletter</a>
+        <div class="admin-stab-divider"></div>
+        <a class="admin-stab <?= $adminSection==='settings'    ? 'active' : '' ?>" href="index.php?page=admin&section=settings">Settings</a>
     </div>
 </div>
 

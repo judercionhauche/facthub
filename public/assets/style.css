@@ -393,6 +393,13 @@ label{display:block;margin-bottom:6px;font-weight:600}
 .breadcrumb-link{color:var(--primary);text-decoration:none}
 .breadcrumb-link:hover{text-decoration:underline}
 .breadcrumb-current{color:var(--text-primary);font-weight:500}
+/* Admin Section Tabs — Clean horizontal layout */
+.admin-section-tabs{display:flex;gap:2px;flex-wrap:wrap;margin-bottom:28px;border-bottom:2px solid var(--line);align-items:flex-end}
+.admin-stab{padding:14px 18px;border:none;background:transparent;color:var(--text);font-weight:600;font-size:15px;cursor:pointer;text-decoration:none;position:relative;transition:all 0.15s;border-bottom:3px solid transparent;margin-bottom:-2px}
+.admin-stab:hover{color:var(--primary);background:rgba(26,107,90,0.05)}
+.admin-stab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.admin-stab-divider{width:1px;background:var(--line);height:24px;margin:0 4px}
+
 /* Mobile Navigation */
 @media(max-width:768px){
   #hamburger{display:inline-block !important}
