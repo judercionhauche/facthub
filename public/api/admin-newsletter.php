@@ -25,7 +25,7 @@ $action = $_GET['action'] ?? 'list';
 
 try {
     if ($action === 'list') {
-        // Fetch all active subscribers
+        // Fetch all active subscribers with detailed info
         $stmt = $conn->prepare("
             SELECT
                 ns.id,
@@ -33,8 +33,11 @@ try {
                 ns.email,
                 u.name,
                 r.institution,
+                r.department,
                 r.focus_area,
                 r.topics,
+                r.source,
+                r.referrer_name,
                 ns.subscribed_at
             FROM newsletter_subscribers ns
             LEFT JOIN users u ON ns.user_id = u.id
@@ -51,8 +54,11 @@ try {
                 'name' => $row['name'] ?: 'Anonymous',
                 'email' => $row['email'],
                 'institution' => $row['institution'] ?: 'N/A',
+                'department' => $row['department'] ?: 'N/A',
                 'focus_area' => $row['focus_area'] ?: 'N/A',
                 'topics' => $row['topics'] ?: 'N/A',
+                'source' => ucfirst($row['source'] ?: 'Not specified'),
+                'referrer_name' => $row['referrer_name'] ?: 'N/A',
                 'subscribed_at' => $row['subscribed_at']
             ];
         }
@@ -64,7 +70,7 @@ try {
         ]);
 
     } elseif ($action === 'export') {
-        // Export active subscribers to Excel
+        // Export active subscribers to Excel with comprehensive data for Mailchimp
         $stmt = $conn->prepare("
             SELECT
                 u.name,
@@ -72,6 +78,9 @@ try {
                 r.institution,
                 r.focus_area,
                 r.topics,
+                r.source,
+                r.referrer_name,
+                r.department,
                 ns.subscribed_at
             FROM newsletter_subscribers ns
             LEFT JOIN users u ON ns.user_id = u.id
@@ -82,15 +91,29 @@ try {
         $stmt->execute();
         $result = $stmt->get_result();
 
-        // Generate Excel file
-        $rows = [['Full Name', 'Email', 'Institution', 'Research Focus', 'Topics', 'Subscribed Date']];
+        // Generate Excel file with Mailchimp-friendly columns
+        $rows = [[
+            'Email',
+            'Full Name',
+            'Institution',
+            'Department',
+            'Research Focus',
+            'Research Topics',
+            'How They Found Us',
+            'Referrer Name',
+            'Subscribed Date'
+        ]];
+
         while ($row = $result->fetch_assoc()) {
             $rows[] = [
-                $row['name'] ?: 'Anonymous',
                 $row['email'],
+                $row['name'] ?: 'Anonymous',
                 $row['institution'] ?: 'N/A',
+                $row['department'] ?: 'N/A',
                 $row['focus_area'] ?: 'N/A',
                 $row['topics'] ?: 'N/A',
+                ucfirst($row['source'] ?: 'Not specified'),
+                $row['referrer_name'] ?: 'N/A',
                 date('Y-m-d', strtotime($row['subscribed_at']))
             ];
         }
