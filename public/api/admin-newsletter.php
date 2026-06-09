@@ -196,14 +196,31 @@ function generate_excel_file($rows) {
 <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
 </styleSheet>');
 
+    // Calculate dimensions
+    $col_count = count($rows[0] ?? []);
+    $row_count = count($rows);
+
+    // Convert to column letter
+    $last_col = '';
+    $col_num = $col_count - 1;
+    while ($col_num >= 0) {
+        $last_col = chr(65 + ($col_num % 26)) . $last_col;
+        $col_num = floor($col_num / 26) - 1;
+    }
+    $dimension = 'A1:' . $last_col . $row_count;
+
     // xl/worksheets/sheet1.xml (with data)
     $worksheet_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetPr filterOn="false"/>
+<dimension ref="' . $dimension . '"/>
+<sheetViews><sheetView tabSelected="1" workbookViewId="0"><selection activeCell="A1" sqref="A1"/></sheetView></sheetViews>
+<sheetFormatPr baseColWidth="10" defaultRowHeight="15"/>
 <sheetData>';
 
     $row_num = 1;
     foreach ($rows as $row_data) {
-        $worksheet_xml .= '<row r="' . $row_num . '">';
+        $worksheet_xml .= '<row r="' . $row_num . '" spans="1:' . $col_count . '">';
 
         foreach ($row_data as $col_idx => $cell_value) {
             // Convert column index to letter (0=A, 1=B, ... 25=Z, 26=AA, etc)
