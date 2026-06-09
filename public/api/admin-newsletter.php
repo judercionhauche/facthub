@@ -99,10 +99,10 @@ try {
             SELECT
                 ns.email,
                 u.name,
-                u.affiliation as institution,
+                u.institution,
                 u.department,
-                u.research_focus as focus_area,
-                u.research_topics as topics,
+                u.research_focus,
+                u.research_topics,
                 u.source,
                 u.referrer_name,
                 ns.subscribed_at
@@ -112,9 +112,15 @@ try {
             ORDER BY ns.subscribed_at DESC
         ");
 
+        if (!$stmt) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Prepare failed: ' . $conn->error]);
+            exit;
+        }
+
         if (!$stmt->execute()) {
             http_response_code(500);
-            echo json_encode(['error' => 'Export query failed: ' . $conn->error]);
+            echo json_encode(['error' => 'Execute failed: ' . $stmt->error]);
             exit;
         }
 
