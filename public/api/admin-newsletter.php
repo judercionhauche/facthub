@@ -94,17 +94,18 @@ try {
             exit;
         }
 
-        // Export active subscribers with user data
+        // Export active subscribers with user and researcher data
         $stmt = $conn->prepare("
             SELECT
                 ns.email,
                 COALESCE(u.name, 'Unknown') as full_name,
-                COALESCE(u.affiliation, 'N/A') as institution,
-                COALESCE(u.source, 'Not specified') as how_heard_about_us,
+                COALESCE(r.institution, 'N/A') as institution,
+                COALESCE(r.source, 'Not specified') as how_heard_about_us,
                 u.created_at as user_joined_date,
                 ns.subscribed_at as newsletter_subscribed_date
             FROM newsletter_subscribers ns
             LEFT JOIN users u ON ns.user_id = u.id
+            LEFT JOIN researchers r ON u.id = r.user_id
             WHERE ns.status = 'active'
             ORDER BY ns.subscribed_at DESC
         ");
