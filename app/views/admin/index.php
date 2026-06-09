@@ -8,7 +8,7 @@ if (!is_array($mailCfg)) {
 $appUrl  = rtrim($mailCfg['app_url'] ?? 'http://localhost/facthub/public', '/');
 
 $adminUser   = current_user();
-$adminSection = in_array($_GET['section'] ?? '', ['dashboard','users','researchers','funders','audit','api_usage','jobs','settings','embeddings'])
+$adminSection = in_array($_GET['section'] ?? '', ['dashboard','users','researchers','funders','audit','api_usage','jobs','settings','embeddings','newsletter'])
                ? $_GET['section'] : 'dashboard';
 
 /* ── POST ACTIONS ── */
@@ -703,6 +703,10 @@ $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 .r-table tr:hover td{background:#f9fbfa}
 @media(max-width:900px){.admin-stats{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:580px){.pw-grid{grid-template-columns:1fr}}
+
+/* Newsletter messages */
+#export-message.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #81c784; padding: 12px; border-radius: 4px; }
+#export-message.error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; padding: 12px; border-radius: 4px; }
 </style>
 
 <!-- Page header + stats -->
@@ -740,6 +744,7 @@ $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
         <a class="admin-stab <?= $adminSection==='jobs'        ? 'active' : '' ?>" href="index.php?page=admin&section=jobs">Job Queue</a>
         <a class="admin-stab <?= $adminSection==='settings'    ? 'active' : '' ?>" href="index.php?page=admin&section=settings">Settings</a>
         <a class="admin-stab <?= $adminSection==='embeddings'  ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">Semantic Search</a>
+        <a class="admin-stab <?= $adminSection==='newsletter'   ? 'active' : '' ?>" href="index.php?page=admin&section=newsletter">📧 Newsletter</a>
     </div>
 </div>
 
@@ -2172,6 +2177,98 @@ async function generateFundingEmbeddings() {
 document.addEventListener('DOMContentLoaded', updateStatus);
 // Refresh status every 5 seconds
 setInterval(updateStatus, 5000);
+</script>
+
+<?php elseif ($adminSection === 'newsletter'): ?>
+<!-- Newsletter Management Section -->
+<div class="admin-panel" style="max-width: 800px">
+    <h2 style="margin-bottom: 24px">📧 Newsletter Subscribers</h2>
+
+    <div style="background: #f8fafb; border: 1.5px solid #dde6dd; border-radius: 10px; padding: 20px; margin-bottom: 24px">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 20px">
+            <div>
+                <p style="margin: 0 0 8px; font-weight: 600; color: var(--text)">Download Subscriber List</p>
+                <p style="margin: 0; color: var(--muted); font-size: 13px">Export all active subscribers to Excel for Mailchimp import. Includes email, name, institution, department, research topics, and how they found you.</p>
+            </div>
+            <button id="export-newsletter-btn" class="primary-btn" style="white-space: nowrap; padding: 12px 24px">
+                ⬇️ Download Excel
+            </button>
+        </div>
+    </div>
+
+    <div style="margin-top: 24px">
+        <h3 style="margin-bottom: 12px">Subscriber Summary</h3>
+        <div id="newsletter-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px">
+            <div style="background: #f8fafb; border: 1px solid #dde6dd; border-radius: 8px; padding: 16px">
+                <p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase">Active Subscribers</p>
+                <p id="subscriber-count" style="margin: 0; font-size: 28px; font-weight: 700; color: var(--primary)">-</p>
+            </div>
+            <div style="background: #f8fafb; border: 1px solid #dde6dd; border-radius: 8px; padding: 16px">
+                <p style="margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase">Last Updated</p>
+                <p id="last-updated" style="margin: 0; font-size: 14px; color: var(--text)">-</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="export-message" style="display: none; margin-top: 16px; padding: 12px; border-radius: 6px; font-size: 14px"></div>
+</div>
+
+<script>
+document.getElementById('export-newsletter-btn').addEventListener('click', async function() {
+    const btn = this;
+    const msg = document.getElementById('export-message');
+
+    btn.disabled = true;
+    btn.textContent = '⏳ Exporting...';
+    msg.style.display = 'block';
+    msg.className = '';
+    msg.textContent = 'Generating Excel file...';
+
+    try {
+        const response = await fetch('/api/admin-newsletter.php?action=export');
+        if (!response.ok) throw new Error('Export failed');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `FACT_Newsletter_Subscribers_${new Date().toISOString().slice(0,10)}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+
+        msg.className = 'success';
+        msg.textContent = '✓ File downloaded successfully!';
+    } catch (err) {
+        msg.className = 'error';
+        msg.textContent = '✗ Failed to download file: ' + err.message;
+        console.error(err);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = '⬇️ Download Excel';
+        setTimeout(() => { msg.style.display = 'none'; }, 5000);
+    }
+});
+
+// Load subscriber count
+async function loadNewsletterStats() {
+    try {
+        const response = await fetch('/api/admin-newsletter.php?action=list');
+        const data = await response.json();
+        if (data.success) {
+            document.getElementById('subscriber-count').textContent = data.total;
+            document.getElementById('last-updated').textContent = new Date().toLocaleString();
+        }
+    } catch (err) {
+        console.error('Failed to load stats:', err);
+    }
+}
+
+// Load stats on page load
+loadNewsletterStats();
+// Refresh stats every 30 seconds
+setInterval(loadNewsletterStats, 30000);
 </script>
 
 <?php endif; /* end section switch */ ?>
