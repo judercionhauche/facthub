@@ -8,7 +8,7 @@ if (!is_logged_in()) {
 }
 
 $tab = $_GET['tab'] ?? 'password';
-$validTabs = ['password', 'email'];
+$validTabs = ['password', 'email', 'newsletter'];
 if (!in_array($tab, $validTabs)) {
     $tab = 'password';
 }
@@ -156,6 +156,11 @@ button.submit-btn:hover { background: #155043; transform: translateY(-1px); }
 .alert { padding: 12px 14px; border-radius: 6px; margin-bottom: 20px; font-size: 14px; }
 .alert-success { background: #eef9f6; border-left: 4px solid #1a6b5a; color: #1a6b5a; }
 .alert-error { background: #fff5f5; border-left: 4px solid #b54646; color: #b54646; }
+.message { padding: 10px 12px; border-radius: 4px; font-size: 13px; animation: slideIn .3s ease; }
+.message.loading { background: #e3f2fd; color: #1565c0; }
+.message.success { background: #e8f5e9; color: #2e7d32; border: 1px solid #81c784; }
+.message.error { background: #ffebee; color: #c62828; border: 1px solid #ef9a9a; }
+@keyframes slideIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 
 <div class="account-container" style="margin-top: 20px">
@@ -171,6 +176,7 @@ button.submit-btn:hover { background: #155043; transform: translateY(-1px); }
     <div class="account-tabs">
         <button class="account-tab <?= $tab === 'password' ? 'active' : '' ?>" onclick="window.location='?page=account&tab=password'">Change Password</button>
         <button class="account-tab <?= $tab === 'email' ? 'active' : '' ?>" onclick="window.location='?page=account&tab=email'">Change Email</button>
+        <button class="account-tab <?= $tab === 'newsletter' ? 'active' : '' ?>" onclick="window.location='?page=account&tab=newsletter'">Newsletter</button>
     </div>
 
     <?php if ($tab === 'password'): ?>
@@ -246,6 +252,78 @@ button.submit-btn:hover { background: #155043; transform: translateY(-1px); }
             <button type="submit" class="submit-btn">Update Email</button>
         </form>
     </div>
+
+    <?php elseif ($tab === 'newsletter'): ?>
+    <div class="account-card">
+        <h2 style="margin-top: 0; margin-bottom: 20px; font-size: 18px">Newsletter Preferences</h2>
+
+        <?php
+        // Fetch current newsletter subscription status
+        $nlStmt = $conn->prepare("SELECT status FROM newsletter_subscribers WHERE email = ? LIMIT 1");
+        $nlStmt->bind_param('s', $user['email']);
+        $nlStmt->execute();
+        $nlResult = $nlStmt->get_result()->fetch_assoc();
+        $isSubscribed = ($nlResult && $nlResult['status'] === 'active');
+        ?>
+
+        <div style="background:#f8fafb;border:1.5px solid #dde6dd;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px">
+            <input type="checkbox" id="newsletter-sub-toggle"
+                   <?= $isSubscribed ? 'checked' : '' ?>
+                   style="width:17px;height:17px;accent-color:#1a6b5a;flex-shrink:0;cursor:pointer">
+            <div style="flex:1">
+                <label for="newsletter-sub-toggle" style="margin:0;font-size:13.5px;font-weight:600;color:#374151;cursor:pointer;line-height:1.4">
+                    Subscribe to FACT Alliance Newsletter
+                </label>
+                <p style="font-size:12.5px;color:#9aaba4;margin:4px 0 0 0">
+                    Receive monthly updates on funding opportunities and research collaborations relevant to your interests.
+                </p>
+                <div id="newsletter-message" style="display:none;margin-top:12px;padding:10px;border-radius:4px;font-size:13px"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // Newsletter preference toggle
+    document.getElementById('newsletter-sub-toggle').addEventListener('change', async function() {
+        const messageDiv = document.getElementById('newsletter-message');
+        messageDiv.style.display = 'block';
+        messageDiv.className = 'message loading';
+        messageDiv.textContent = 'Updating preference...';
+
+        try {
+            const formData = new FormData();
+            formData.append('newsletter_subscribed', this.checked ? '1' : '0');
+
+            // Get CSRF token from page
+            const csrfInput = document.querySelector('[name="_csrf"]');
+            if (csrfInput) {
+                formData.append('_csrf', csrfInput.value);
+            }
+
+            const response = await fetch('/api/newsletter-preference.php', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                messageDiv.className = 'message success';
+                messageDiv.textContent = '✓ ' + data.message;
+                setTimeout(() => {
+                    messageDiv.style.display = 'none';
+                }, 4000);
+            } else {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = '✗ ' + (data.error || 'Failed to update preference');
+            }
+        } catch (err) {
+            messageDiv.className = 'message error';
+            messageDiv.textContent = '✗ Error updating preference. Please try again.';
+            console.error(err);
+        }
+    });
+    </script>
     <?php endif; ?>
 </div>
 
