@@ -2275,7 +2275,16 @@ document.getElementById('export-newsletter-btn').addEventListener('click', async
 
     try {
         const response = await fetch('/api/admin-newsletter.php?action=export');
-        if (!response.ok) throw new Error('Export failed');
+
+        if (!response.ok) {
+            // Try to read error as JSON
+            try {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Export failed with status ' + response.status);
+            } catch {
+                throw new Error('Export failed with status ' + response.status);
+            }
+        }
 
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
@@ -2291,7 +2300,7 @@ document.getElementById('export-newsletter-btn').addEventListener('click', async
         msg.textContent = 'File downloaded successfully';
     } catch (err) {
         msg.className = 'flash error';
-        msg.textContent = 'Failed to download file: ' + err.message;
+        msg.textContent = 'Export error: ' + err.message;
         console.error(err);
     } finally {
         btn.disabled = false;
