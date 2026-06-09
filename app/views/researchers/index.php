@@ -98,6 +98,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $quietHoursEnd = null;
             }
 
+            // Newsletter subscription preference
+            $newsletterSubscribed = isset($_POST['newsletter_subscribed']) ? 1 : 0;
+
             // Growth tracking: source and referrer
             $source = in_array($_POST['source'] ?? '', ['google', 'linkedin', 'conference', 'colleague', 'organization', 'social', 'academic', 'other']) ? $_POST['source'] : null;
             $referrerName = null;
@@ -109,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // For registration errors, store form data and error to show form inline
-            $storeFormDataForRegistrationError = function($errorMsg) use ($first, $last, $email, $institution, $department, $title, $bio, $focusAreaArr, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd) {
+            $storeFormDataForRegistrationError = function($errorMsg) use ($first, $last, $email, $institution, $department, $title, $bio, $focusAreaArr, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd, $newsletterSubscribed) {
                 global $registrationError, $registrationFormData;
                 $registrationError = $errorMsg;
                 $registrationFormData = [
@@ -135,6 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'notify_threshold' => $notifyThreshold,
                     'quiet_hours_start' => $quietHoursStart,
                     'quiet_hours_end' => $quietHoursEnd,
+                    'newsletter_subscribed' => $newsletterSubscribed,
                     'password' => $_POST['password'] ?? '',
                     'confirm_password' => $_POST['confirm_password'] ?? ''
                 ];
@@ -254,6 +258,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt->bind_param('issssssssissssssissississs', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd, $source, $referrerName);
                     if (!$stmt->execute()) {
                         throw new Exception('Error creating researcher profile: ' . $stmt->error);
+                    }
+
+                    // Subscribe to newsletter if user opted in
+                    if ($newsletterSubscribed) {
+                        $nlStmt = $conn->prepare("
+                            INSERT INTO newsletter_subscribers (user_id, email, status, subscribed_at)
+                            VALUES (?, ?, 'active', NOW())
+                            ON DUPLICATE KEY UPDATE status = 'active', updated_at = NOW()
+                        ");
+                        $nlStmt->bind_param('is', $userId, $email);
+                        @$nlStmt->execute();
                     }
 
                     // Generate AI summary and semantic embedding
@@ -410,6 +425,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->bind_param('isssssssssssissssssisi', $userId, $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $status_researcher, $notifyMatches, $notifyFrequency, $notifyThreshold);
                 if (!$stmt->execute()) throw new Exception('Error creating profile: ' . $stmt->error);
                 $newResearcherId = $conn->insert_id;
+
+                // Subscribe to newsletter if opted in (admin creation)
+                if ($newsletterSubscribed) {
+                    $nlStmt = $conn->prepare("
+                        INSERT INTO newsletter_subscribers (user_id, email, status, subscribed_at)
+                        VALUES (?, ?, 'active', NOW())
+                        ON DUPLICATE KEY UPDATE status = 'active', updated_at = NOW()
+                    ");
+                    $nlStmt->bind_param('is', $userId, $email);
+                    @$nlStmt->execute();
+                }
 
                 // Generate AI summary and embedding
                 generate_researcher_summary($conn, $newResearcherId);
@@ -776,6 +802,16 @@ if (is_array($focusDetailRaw)) {
         <div><label>First name *</label><input name="first_name" value="<?= h($editing['first_name'] ?? '') ?>" required></div>
         <div><label>Last name *</label><input name="last_name" value="<?= h($editing['last_name'] ?? '') ?>" required></div>
         <div><label>Email<?= ($mode === 'add' && !$editing) ? ' *' : '' ?></label><input name="email" type="email" value="<?= h($editing['email'] ?? '') ?>"<?= ($mode === 'add' && !$editing) ? ' required' : '' ?>></div>
+
+        <div style="margin-top:16px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" name="newsletter_subscribed" value="1" <?= (!empty($editing['newsletter_subscribed'])) ? 'checked' : '' ?> style="width:18px;height:18px;accent-color:#1a6b5a;cursor:pointer">
+                <span style="font-weight:500;color:#374151;">Subscribe to FACT Alliance newsletter</span>
+            </label>
+            <p style="font-size:13px;color:#666;margin:6px 0 0 28px;">
+                Receive monthly updates on funding opportunities and research collaborations relevant to your interests.
+            </p>
+        </div>
 
         <?php if ($mode === 'add' && !$isEditingExisting): ?>
         <div><label>Password *</label><input name="password" type="password" id="reg-password" value="<?= h($editing['password'] ?? '') ?>" required placeholder="At least 8 characters"></div>
