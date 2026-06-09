@@ -70,8 +70,14 @@ try {
         ]);
 
     } elseif ($action === 'export') {
-        // Check if there are active subscribers first
-        $countStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM newsletter_subscribers WHERE status = 'active'");
+        // Check if there are active subscribers with researcher profiles
+        $countStmt = $conn->prepare("
+            SELECT COUNT(*) as cnt
+            FROM newsletter_subscribers ns
+            INNER JOIN users u ON ns.user_id = u.id
+            INNER JOIN researchers r ON u.id = r.user_id
+            WHERE ns.status = 'active'
+        ");
         $countStmt->execute();
         $countResult = $countStmt->get_result()->fetch_assoc();
         $subscriberCount = (int)($countResult['cnt'] ?? 0);
@@ -95,8 +101,8 @@ try {
                 r.referrer_name,
                 ns.subscribed_at
             FROM newsletter_subscribers ns
-            LEFT JOIN users u ON ns.user_id = u.id
-            LEFT JOIN researchers r ON u.id = r.user_id
+            INNER JOIN users u ON ns.user_id = u.id
+            INNER JOIN researchers r ON u.id = r.user_id
             WHERE ns.status = 'active'
             ORDER BY ns.subscribed_at DESC
         ");
