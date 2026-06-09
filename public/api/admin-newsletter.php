@@ -95,7 +95,7 @@ try {
         }
 
         // Export active subscribers with user and researcher data
-        // Join by user_id first, then by email if user_id is NULL
+        // Join by email (most reliable since email is always in newsletter_subscribers)
         $stmt = $conn->prepare("
             SELECT
                 ns.email,
@@ -104,7 +104,7 @@ try {
                 r.source,
                 ns.subscribed_at
             FROM newsletter_subscribers ns
-            LEFT JOIN users u ON (ns.user_id = u.id OR (ns.user_id IS NULL AND ns.email = u.email))
+            LEFT JOIN users u ON ns.email = u.email
             LEFT JOIN researchers r ON u.id = r.user_id
             WHERE ns.status = 'active'
             ORDER BY ns.subscribed_at DESC
