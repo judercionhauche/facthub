@@ -286,17 +286,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         enqueue_job($conn, 'fetch_orcid_publications', ['researcher_id' => $newResearcherId, 'orcid_id' => $orcidId]);
                     }
 
-                    // Enqueue verification email
+                    // Send verification email immediately
                     @$mailCfg = require __DIR__ . '/../../../config/mail.php';
                     if (!is_array($mailCfg)) $mailCfg = [];
                     $appUrl = rtrim($mailCfg['app_url'] ?? ('http://' . ($_SERVER['HTTP_HOST'] ?? 'localhost')), '/');
                     $verifyUrl = $appUrl . '/index.php?page=verify&token=' . urlencode($token);
                     $html = mail_tpl_verify_email($verifyUrl, $first);
-                    enqueue_job($conn, 'send_notification', [
-                        'to' => $email,
-                        'subject' => 'Verify your FACT Alliance Hub account',
-                        'html' => $html
-                    ]);
+                    send_notification_email($email, 'Verify your FACT Alliance Hub account', $html);
 
                         audit($conn, 'researcher_signup', ['type' => 'user', 'id' => $userId, 'email' => $email, 'detail' => "New researcher registration: $fullName"]);
 
