@@ -916,25 +916,56 @@ function apply_security_schema_updates(mysqli $conn): void {
  */
 function apply_newsletter_schema(mysqli $conn): void {
     try {
-        // Newsletter Subscribers Table - Simple subscription management
+        // Newsletter Subscribers Table - Only for authenticated users
         $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='newsletter_subscribers' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
         if (!$result || $result->num_rows === 0) {
             @$conn->query("
                 CREATE TABLE IF NOT EXISTS newsletter_subscribers (
                     id INT AUTO_INCREMENT PRIMARY KEY,
-                    user_id INT DEFAULT NULL,
-                    email VARCHAR(255) NOT NULL,
+                    user_id INT NOT NULL,
                     status ENUM('active', 'inactive', 'unsubscribed') NOT NULL DEFAULT 'active',
                     subscribed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     unsubscribed_at TIMESTAMP NULL DEFAULT NULL,
                     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-                    INDEX idx_email (email),
-                    INDEX idx_status (status),
-                    UNIQUE KEY unique_email (email)
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    UNIQUE KEY unique_user (user_id),
+                    INDEX idx_status (status)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
+        } else {
+            // Migration: Backfill NULL user_ids, then enforce NOT NULL
+            @$conn->query("
+                UPDATE newsletter_subscribers ns
+                LEFT JOIN researchers r ON ns.email = r.email
+                LEFT JOIN users u ON r.user_id = u.id
+                SET ns.user_id = u.id
+                WHERE ns.user_id IS NULL AND u.id IS NOT NULL
+            ");
+
+            // Remove rows with still-NULL user_id (orphaned test entries)
+            @$conn->query("DELETE FROM newsletter_subscribers WHERE user_id IS NULL");
+
+            // Drop old email column and add constraints
+            $emailColExists = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='newsletter_subscribers' AND COLUMN_NAME='email' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if ($emailColExists && $emailColExists->num_rows > 0) {
+                // Drop old unique constraint on email
+                @$conn->query("ALTER TABLE newsletter_subscribers DROP INDEX unique_email");
+                @$conn->query("ALTER TABLE newsletter_subscribers DROP COLUMN email");
+            }
+
+            // Add NOT NULL constraint to user_id
+            @$conn->query("ALTER TABLE newsletter_subscribers MODIFY COLUMN user_id INT NOT NULL");
+
+            // Add UNIQUE constraint on user_id if it doesn't exist
+            $uniqueExists = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='newsletter_subscribers' AND INDEX_NAME='unique_user' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$uniqueExists || $uniqueExists->num_rows === 0) {
+                @$conn->query("ALTER TABLE newsletter_subscribers ADD UNIQUE KEY unique_user (user_id)");
+            }
+
+            // Update FK to CASCADE on delete
+            @$conn->query("ALTER TABLE newsletter_subscribers DROP FOREIGN KEY newsletter_subscribers_ibfk_1");
+            @$conn->query("ALTER TABLE newsletter_subscribers ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE");
         }
 
     } catch (Throwable $e) {

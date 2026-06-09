@@ -269,11 +269,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Subscribe to newsletter if user opted in
                     if ($newsletterSubscribed) {
                         $nlStmt = $conn->prepare("
-                            INSERT INTO newsletter_subscribers (user_id, email, status, subscribed_at)
-                            VALUES (?, ?, 'active', NOW())
+                            INSERT INTO newsletter_subscribers (user_id, status, subscribed_at)
+                            VALUES (?, 'active', NOW())
                             ON DUPLICATE KEY UPDATE status = 'active', updated_at = NOW()
                         ");
-                        $nlStmt->bind_param('is', $userId, $email);
+                        $nlStmt->bind_param('i', $userId);
                         @$nlStmt->execute();
                     }
 
@@ -431,11 +431,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Subscribe to newsletter if opted in (admin creation)
                 if ($newsletterSubscribed) {
                     $nlStmt = $conn->prepare("
-                        INSERT INTO newsletter_subscribers (user_id, email, status, subscribed_at)
-                        VALUES (?, ?, 'active', NOW())
+                        INSERT INTO newsletter_subscribers (user_id, status, subscribed_at)
+                        VALUES (?, 'active', NOW())
                         ON DUPLICATE KEY UPDATE status = 'active', updated_at = NOW()
                     ");
-                    $nlStmt->bind_param('is', $userId, $email);
+                    $nlStmt->bind_param('i', $userId);
                     @$nlStmt->execute();
                 }
 
@@ -613,9 +613,9 @@ if ($editId > 0) {
             $editing = $r;
             $isEditingExisting = true;
             // Fetch newsletter subscription status for this user
-            if (!empty($r['email'])) {
-                $nlCheck = $conn->prepare("SELECT status FROM newsletter_subscribers WHERE email = ? LIMIT 1");
-                $nlCheck->bind_param('s', $r['email']);
+            if (!empty($r['user_id'])) {
+                $nlCheck = $conn->prepare("SELECT status FROM newsletter_subscribers WHERE user_id = ? LIMIT 1");
+                $nlCheck->bind_param('i', $r['user_id']);
                 $nlCheck->execute();
                 $nlResult = $nlCheck->get_result()->fetch_assoc();
                 $newsletterSubscribed = ($nlResult && $nlResult['status'] === 'active');

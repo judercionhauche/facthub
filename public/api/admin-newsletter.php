@@ -94,16 +94,17 @@ try {
             exit;
         }
 
-        // Export - join newsletter_subscribers to researchers by email
+        // Export - join newsletter_subscribers → users → researchers
         $stmt = $conn->prepare("
             SELECT
-                ns.email,
+                u.email,
                 CONCAT(COALESCE(r.first_name, ''), ' ', COALESCE(r.last_name, '')) as full_name,
                 r.institution,
                 r.source,
                 ns.subscribed_at
             FROM newsletter_subscribers ns
-            LEFT JOIN researchers r ON ns.email = r.email
+            JOIN users u ON ns.user_id = u.id
+            LEFT JOIN researchers r ON u.id = r.user_id
             WHERE ns.status = 'active'
             ORDER BY ns.subscribed_at DESC
         ");

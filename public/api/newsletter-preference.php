@@ -37,15 +37,15 @@ try {
 
     // Update or insert newsletter subscriber
     if ($subscribed) {
-        // Subscribe user
+        // Subscribe user (user_id is UNIQUE key)
         $stmt = $conn->prepare("
-            INSERT INTO newsletter_subscribers (user_id, email, status, subscribed_at)
-            VALUES (?, ?, 'active', NOW())
+            INSERT INTO newsletter_subscribers (user_id, status, subscribed_at)
+            VALUES (?, 'active', NOW())
             ON DUPLICATE KEY UPDATE
                 status = 'active',
                 updated_at = NOW()
         ");
-        $stmt->bind_param('is', $user['id'], $user['email']);
+        $stmt->bind_param('i', $user['id']);
         $stmt->execute();
 
         $message = 'You have been subscribed to our newsletter';
@@ -54,9 +54,9 @@ try {
         $stmt = $conn->prepare("
             UPDATE newsletter_subscribers
             SET status = 'unsubscribed', unsubscribed_at = NOW()
-            WHERE user_id = ? OR email = ?
+            WHERE user_id = ?
         ");
-        $stmt->bind_param('is', $user['id'], $user['email']);
+        $stmt->bind_param('i', $user['id']);
         $stmt->execute();
 
         $message = 'You have been unsubscribed from our newsletter';
