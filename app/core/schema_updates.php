@@ -377,6 +377,10 @@ function apply_security_schema_updates(mysqli $conn): void {
                 INDEX idx_expires (expires_at)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+    } else {
+        // Clean up old verified and expired tokens to prevent duplicate key issues
+        @$conn->query("DELETE FROM email_verifications WHERE verified_at IS NOT NULL AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+        @$conn->query("DELETE FROM email_verifications WHERE expires_at < NOW()");
     }
 
     // tags table

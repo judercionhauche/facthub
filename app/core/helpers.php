@@ -38,7 +38,8 @@ function verify_csrf(): bool {
 
 function generate_unique_token(mysqli $conn, int $maxRetries = 5): string {
     for ($i = 0; $i < $maxRetries; $i++) {
-        $token = bin2hex(random_bytes(32));
+        // Use microtime, random bytes, and process ID for maximum uniqueness
+        $token = bin2hex(hash('sha256', microtime(true) . getmypid() . random_bytes(32), true));
         $check = $conn->prepare('SELECT 1 FROM email_verifications WHERE token = ? LIMIT 1');
         $check->bind_param('s', $token);
         $check->execute();
@@ -46,8 +47,8 @@ function generate_unique_token(mysqli $conn, int $maxRetries = 5): string {
             return $token;
         }
     }
-    // Fallback: use hash of timestamp + random to stay within 64 chars
-    return hash('sha256', microtime(true) . random_bytes(16));
+    // Fallback: use multiple sources of entropy for 64-char hex string
+    return bin2hex(hash('sha256', uniqid(getmypid() . microtime(true), true) . random_bytes(32), true));
 }
 
 function is_logged_in() {
