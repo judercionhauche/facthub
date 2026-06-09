@@ -177,8 +177,9 @@ try {
 
 } catch (Exception $e) {
     error_log('[Newsletter API] Error: ' . $e->getMessage());
+    error_log('[Newsletter API] Stack: ' . $e->getTraceAsString());
     http_response_code(500);
-    echo json_encode(['error' => 'Failed to process request']);
+    echo json_encode(['error' => 'Error: ' . $e->getMessage()]);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -187,7 +188,7 @@ try {
 function generate_excel_file($rows) {
     $filename = 'FACT_Newsletter_Subscribers_' . date('Y-m-d') . '.csv';
 
-    header('Content-Type: text/csv; charset=utf-8');
+    // Set download headers (Content-Type already set in main code)
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('Cache-Control: no-cache, no-store, must-revalidate');
     header('Pragma: no-cache');
