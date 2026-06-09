@@ -70,12 +70,12 @@ try {
         ]);
 
     } elseif ($action === 'export') {
-        // Check if there are active subscribers with researcher profiles
+        // Check if there are active subscribers
         $countStmt = $conn->prepare("
             SELECT COUNT(*) as cnt
             FROM newsletter_subscribers ns
-            INNER JOIN users u ON ns.user_id = u.id
-            INNER JOIN researchers r ON u.id = r.user_id
+            LEFT JOIN users u ON ns.user_id = u.id
+            LEFT JOIN researchers r ON u.id = r.user_id
             WHERE ns.status = 'active'
         ");
 
@@ -90,9 +90,28 @@ try {
 
         if ($subscriberCount === 0) {
             http_response_code(400);
-            echo json_encode(['error' => 'No active subscribers with complete profiles to export']);
+            echo json_encode(['error' => 'No active subscribers to export']);
             exit;
         }
+
+        // Debug: Check data structure
+        $debugStmt = $conn->prepare("
+            SELECT
+                ns.email,
+                ns.user_id,
+                u.id as user_exists,
+                u.name,
+                r.id as researcher_exists,
+                r.institution
+            FROM newsletter_subscribers ns
+            LEFT JOIN users u ON ns.user_id = u.id
+            LEFT JOIN researchers r ON u.id = r.user_id
+            WHERE ns.status = 'active'
+            LIMIT 1
+        ");
+        $debugStmt->execute();
+        $debugRow = $debugStmt->get_result()->fetch_assoc();
+        error_log('Newsletter Debug: ' . json_encode($debugRow));
 
         // Export active subscribers to CSV with Mailchimp-friendly columns
         $stmt = $conn->prepare("
@@ -107,8 +126,8 @@ try {
                 r.referrer_name,
                 ns.subscribed_at
             FROM newsletter_subscribers ns
-            INNER JOIN users u ON ns.user_id = u.id
-            INNER JOIN researchers r ON u.id = r.user_id
+            LEFT JOIN users u ON ns.user_id = u.id
+            LEFT JOIN researchers r ON u.id = r.user_id
             WHERE ns.status = 'active'
             ORDER BY ns.subscribed_at DESC
         ");
