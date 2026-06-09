@@ -2277,13 +2277,17 @@ document.getElementById('export-newsletter-btn').addEventListener('click', async
         const response = await fetch('/api/admin-newsletter.php?action=export');
 
         if (!response.ok) {
-            // Try to read error as JSON
+            let errorMessage = 'Export failed';
             try {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Export failed with status ' + response.status);
-            } catch {
-                throw new Error('Export failed with status ' + response.status);
+                if (errorData.error) {
+                    errorMessage = errorData.error;
+                }
+            } catch (parseErr) {
+                // Couldn't parse JSON, use status code fallback
+                errorMessage = 'Export failed (HTTP ' + response.status + ')';
             }
+            throw new Error(errorMessage);
         }
 
         const blob = await response.blob();
