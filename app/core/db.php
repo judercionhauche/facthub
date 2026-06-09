@@ -4,10 +4,9 @@
  * Called by API endpoints and other standalone PHP files
  */
 
-// Start session if not already started
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// Initialize session with proper configuration
+require_once __DIR__ . '/session_manager.php';
+init_session();
 
 // Load database configuration
 $dbConfig = require_once __DIR__ . '/../../config/database.php';
