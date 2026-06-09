@@ -2271,7 +2271,7 @@ document.getElementById('export-newsletter-btn').addEventListener('click', async
     btn.textContent = 'Exporting...';
     msg.style.display = 'block';
     msg.className = '';
-    msg.textContent = 'Generating Excel file...';
+    msg.textContent = 'Generating file...';
 
     try {
         const response = await fetch('/api/admin-newsletter.php?action=export');
@@ -2281,7 +2281,7 @@ document.getElementById('export-newsletter-btn').addEventListener('click', async
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `FACT_Newsletter_Subscribers_${new Date().toISOString().slice(0,10)}.xlsx`;
+        a.download = `FACT_Newsletter_Subscribers_${new Date().toISOString().slice(0,10)}.csv`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
