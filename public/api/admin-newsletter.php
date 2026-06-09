@@ -156,18 +156,29 @@ function generate_excel_file($rows) {
     header('Pragma: no-cache');
     header('Expires: 0');
 
-    // Open output stream
-    $output = fopen('php://output', 'w');
+    // Build CSV content as string first
+    $csv = '';
 
-    // Write BOM for UTF-8 (Excel compatibility)
-    fwrite($output, "\xEF\xBB\xBF");
+    // Add BOM for UTF-8 (Excel compatibility)
+    $csv .= "\xEF\xBB\xBF";
 
-    // Write data rows
+    // Build CSV rows
     foreach ($rows as $row) {
-        fputcsv($output, $row);
+        // Escape and quote fields
+        $escaped_row = array_map(function($field) {
+            $field = (string)$field;
+            // Quote if contains comma, quote, or newline
+            if (strpbrk($field, "\",\n\r") !== false) {
+                $field = '"' . str_replace('"', '""', $field) . '"';
+            }
+            return $field;
+        }, $row);
+
+        $csv .= implode(',', $escaped_row) . "\r\n";
     }
 
-    fclose($output);
+    // Output CSV
+    echo $csv;
     exit;
 }
 ?>
