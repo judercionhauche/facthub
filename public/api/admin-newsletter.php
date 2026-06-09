@@ -101,7 +101,6 @@ try {
                 COALESCE(u.name, 'Unknown') as full_name,
                 COALESCE(r.institution, 'N/A') as institution,
                 COALESCE(r.source, 'Not specified') as how_heard_about_us,
-                u.created_at as user_joined_date,
                 ns.subscribed_at as newsletter_subscribed_date
             FROM newsletter_subscribers ns
             LEFT JOIN users u ON ns.user_id = u.id
@@ -130,7 +129,6 @@ try {
             'Full Name',
             'Institution',
             'How They Heard About Us',
-            'User Joined Date',
             'Newsletter Subscribed Date'
         ]];
 
@@ -140,7 +138,6 @@ try {
                 $row['full_name'],
                 $row['institution'],
                 $row['how_heard_about_us'],
-                date('Y-m-d', strtotime($row['user_joined_date'])),
                 date('Y-m-d', strtotime($row['newsletter_subscribed_date']))
             ];
         }
