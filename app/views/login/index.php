@@ -63,6 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
 
                         session_regenerate_id(true);
+                        $deviceFingerprint = generate_device_fingerprint();
                         $_SESSION['user_id']           = $userRow['id'];
                         $_SESSION['session_token']     = $sessionToken;
                         $_SESSION['device_fingerprint'] = $deviceFingerprint;
