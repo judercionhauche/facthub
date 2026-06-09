@@ -227,15 +227,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     // Create email verification token (with retry on duplicate)
                     $expiresAt = date('Y-m-d H:i:s', time() + 86400);
-                    // Delete any old unverified tokens for this email first
-                    $delStmt = $conn->prepare("DELETE FROM email_verifications WHERE email = ? AND verified_at IS NULL");
+                    // Delete any old tokens for this email first
+                    $delStmt = $conn->prepare("DELETE FROM email_verifications WHERE email = ?");
                     if ($delStmt) {
                         $delStmt->bind_param('s', $email);
                         @$delStmt->execute();
                     }
                     $tokenInserted = false;
                     $tokenRetries = 0;
-                    while (!$tokenInserted && $tokenRetries < 3) {
+                    while (!$tokenInserted && $tokenRetries < 5) {
                         try {
                             $token = generate_unique_token($conn);
                             $evStmt = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at) VALUES (?, ?, ?)');
@@ -246,7 +246,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                             $tokenInserted = true;
                         } catch (Exception $e) {
-                            if (strpos($e->getMessage(), 'Duplicate') !== false && $tokenRetries < 2) {
+                            if (strpos($e->getMessage(), 'Duplicate') !== false && $tokenRetries < 4) {
                                 $tokenRetries++;
                                 continue;
                             }

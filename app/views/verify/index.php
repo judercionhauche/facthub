@@ -89,8 +89,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $expiry = date('Y-m-d H:i:s', time() + 86400);
                 $now    = date('Y-m-d H:i:s');
 
-                // Delete old unverified tokens for this email to prevent constraint violations
-                $delStmt = $conn->prepare("DELETE FROM email_verifications WHERE email = ? AND verified_at IS NULL");
+                // Delete ALL old tokens for this email (verified or not) to prevent constraint violations
+                $delStmt = $conn->prepare("DELETE FROM email_verifications WHERE email = ?");
                 if ($delStmt) {
                     $delStmt->bind_param('s', $email);
                     @$delStmt->execute();
@@ -98,31 +98,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $inserted = false;
                 $retries = 0;
-                $maxRetries = 3;
+                $maxRetries = 5;
 
                 while (!$inserted && $retries < $maxRetries) {
                     try {
                         $newToken = generate_unique_token($conn);
 
-                        if ($rlRow) {
-                            // Old record exists: update it
-                            $upd = $conn->prepare('UPDATE email_verifications SET token = ?, expires_at = ?, used_at = NULL, last_resent_at = ?, resend_count = resend_count + 1 WHERE email = ?');
-                            $upd->bind_param('ssss', $newToken, $expiry, $now, $email);
-                            $upd->execute();
-                        } else {
-                            // No record yet: create one
-                            $ins = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at, last_resent_at) VALUES (?, ?, ?, ?)');
-                            $ins->bind_param('ssss', $email, $newToken, $expiry, $now);
-                            $ins->execute();
-                        }
+                        // Always INSERT since we deleted the old record
+                        $ins = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at, last_resent_at) VALUES (?, ?, ?, ?)');
+                        $ins->bind_param('ssss', $email, $newToken, $expiry, $now);
+                        $ins->execute();
 
                         $inserted = true;
                     } catch (mysqli_sql_exception $e) {
-                        if ($e->getCode() == 1062) { // Duplicate entry
+                        if ($e->getCode() == 1062) { // Duplicate entry - token already exists globally
                             $retries++;
                             if ($retries >= $maxRetries) {
-                                error_log('[Verify] Max retries exceeded generating unique token for ' . $email . ': ' . $e->getMessage());
-                                throw $e;
+                                error_log('[Verify] Max retries for ' . $email . ': ' . $e->getMessage());
+                                // Last resort: delete by token and use timestamp-based unique token
+                                $lastToken = hash('sha256', $email . '|' . microtime(true) . '|' . random_bytes(16));
+                                @$conn->query("DELETE FROM email_verifications WHERE token = '{$lastToken}'");
+                                $ins2 = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at, last_resent_at) VALUES (?, ?, ?, ?)');
+                                $ins2->bind_param('ssss', $email, $lastToken, $expiry, $now);
+                                $ins2->execute();
+                                $inserted = true;
                             }
                         } else {
                             throw $e;
