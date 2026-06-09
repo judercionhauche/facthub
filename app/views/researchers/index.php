@@ -228,7 +228,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Create email verification token (with retry on duplicate)
                     $expiresAt = date('Y-m-d H:i:s', time() + 86400);
                     // Delete any old unverified tokens for this email first
-                    @$conn->query("DELETE FROM email_verifications WHERE email = ? AND verified_at IS NULL");
+                    $delStmt = $conn->prepare("DELETE FROM email_verifications WHERE email = ? AND verified_at IS NULL");
+                    if ($delStmt) {
+                        $delStmt->bind_param('s', $email);
+                        @$delStmt->execute();
+                    }
                     $tokenInserted = false;
                     $tokenRetries = 0;
                     while (!$tokenInserted && $tokenRetries < 3) {

@@ -90,7 +90,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $now    = date('Y-m-d H:i:s');
 
                 // Delete old unverified tokens for this email to prevent constraint violations
-                @$conn->query("DELETE FROM email_verifications WHERE email = ? AND verified_at IS NULL");
+                $delStmt = $conn->prepare("DELETE FROM email_verifications WHERE email = ? AND verified_at IS NULL");
+                if ($delStmt) {
+                    $delStmt->bind_param('s', $email);
+                    @$delStmt->execute();
+                }
 
                 $inserted = false;
                 $retries = 0;
