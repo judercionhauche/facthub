@@ -8,20 +8,26 @@
  * - GET ?action=export - Download subscribers as Excel file
  */
 
-header('Content-Type: application/json');
-
 require_once __DIR__ . '/../../app/core/db.php';
 require_once __DIR__ . '/../../app/core/helpers.php';
 require_once __DIR__ . '/../../app/core/session_manager.php';
 
 // Require admin authentication
 if (!is_logged_in() || !is_admin()) {
+    header('Content-Type: application/json');
     http_response_code(403);
     echo json_encode(['error' => 'Unauthorized']);
     exit;
 }
 
 $action = $_GET['action'] ?? 'list';
+
+// Set content type based on action
+if ($action === 'export') {
+    header('Content-Type: text/csv; charset=utf-8');
+} else {
+    header('Content-Type: application/json');
+}
 
 try {
     if ($action === 'list') {
