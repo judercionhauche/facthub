@@ -70,18 +70,16 @@ try {
         ]);
 
     } elseif ($action === 'export') {
-        // Check if there are active subscribers
+        // Check if there are active subscribers (simple count, no JOINs)
         $countStmt = $conn->prepare("
             SELECT COUNT(*) as cnt
-            FROM newsletter_subscribers ns
-            LEFT JOIN users u ON ns.user_id = u.id
-            LEFT JOIN researchers r ON u.id = r.user_id
-            WHERE ns.status = 'active'
+            FROM newsletter_subscribers
+            WHERE status = 'active'
         ");
 
         if (!$countStmt->execute()) {
             http_response_code(500);
-            echo json_encode(['error' => 'Query failed: ' . $conn->error]);
+            echo json_encode(['error' => 'Count query failed: ' . $conn->error]);
             exit;
         }
 
@@ -94,17 +92,16 @@ try {
             exit;
         }
 
-        // Export - join newsletter_subscribers → users → researchers
+        // Export - Join by email (works whether user_id is NULL or populated)
         $stmt = $conn->prepare("
             SELECT
-                u.email,
+                ns.email,
                 CONCAT(COALESCE(r.first_name, ''), ' ', COALESCE(r.last_name, '')) as full_name,
                 r.institution,
                 r.source,
                 ns.subscribed_at
             FROM newsletter_subscribers ns
-            JOIN users u ON ns.user_id = u.id
-            LEFT JOIN researchers r ON u.id = r.user_id
+            LEFT JOIN researchers r ON ns.email = r.email
             WHERE ns.status = 'active'
             ORDER BY ns.subscribed_at DESC
         ");
