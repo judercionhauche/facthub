@@ -112,12 +112,14 @@ try {
 
         if (!$stmt) {
             http_response_code(500);
+            error_log('Newsletter Export Prepare Error: ' . $conn->error);
             echo json_encode(['error' => 'Prepare failed: ' . $conn->error]);
             exit;
         }
 
         if (!$stmt->execute()) {
             http_response_code(500);
+            error_log('Newsletter Export Execute Error: ' . $stmt->error);
             echo json_encode(['error' => 'Execute failed: ' . $stmt->error]);
             exit;
         }
