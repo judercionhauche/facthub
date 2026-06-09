@@ -94,40 +94,20 @@ try {
             exit;
         }
 
-        // Debug: Check data structure
-        $debugStmt = $conn->prepare("
-            SELECT
-                ns.email,
-                ns.user_id,
-                u.id as user_exists,
-                u.name,
-                r.id as researcher_exists,
-                r.institution
-            FROM newsletter_subscribers ns
-            LEFT JOIN users u ON ns.user_id = u.id
-            LEFT JOIN researchers r ON u.id = r.user_id
-            WHERE ns.status = 'active'
-            LIMIT 1
-        ");
-        $debugStmt->execute();
-        $debugRow = $debugStmt->get_result()->fetch_assoc();
-        error_log('Newsletter Debug: ' . json_encode($debugRow));
-
-        // Export active subscribers to CSV with Mailchimp-friendly columns
+        // Export active subscribers to CSV - get data from users table
         $stmt = $conn->prepare("
             SELECT
                 ns.email,
                 u.name,
-                r.institution,
-                r.department,
-                r.focus_area,
-                r.topics,
-                r.source,
-                r.referrer_name,
+                u.affiliation as institution,
+                u.department,
+                u.research_focus as focus_area,
+                u.research_topics as topics,
+                u.source,
+                u.referrer_name,
                 ns.subscribed_at
             FROM newsletter_subscribers ns
             LEFT JOIN users u ON ns.user_id = u.id
-            LEFT JOIN researchers r ON u.id = r.user_id
             WHERE ns.status = 'active'
             ORDER BY ns.subscribed_at DESC
         ");
