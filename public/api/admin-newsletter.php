@@ -95,13 +95,17 @@ try {
         }
 
         // Export active subscribers with user and researcher data
+        // Columns verified to exist:
+        // - newsletter_subscribers: email, user_id, status, subscribed_at
+        // - users: name
+        // - researchers: institution, source
         $stmt = $conn->prepare("
             SELECT
                 ns.email,
-                COALESCE(u.name, 'Unknown') as full_name,
-                COALESCE(r.institution, 'N/A') as institution,
-                COALESCE(r.source, 'Not specified') as how_heard_about_us,
-                ns.subscribed_at as newsletter_subscribed_date
+                u.name,
+                r.institution,
+                r.source,
+                ns.subscribed_at
             FROM newsletter_subscribers ns
             LEFT JOIN users u ON ns.user_id = u.id
             LEFT JOIN researchers r ON u.id = r.user_id
@@ -129,16 +133,16 @@ try {
             'Full Name',
             'Institution',
             'How They Heard About Us',
-            'Newsletter Subscribed Date'
+            'Subscribed Date'
         ]];
 
         while ($row = $result->fetch_assoc()) {
             $rows[] = [
-                $row['email'],
-                $row['full_name'],
-                $row['institution'],
-                $row['how_heard_about_us'],
-                date('Y-m-d', strtotime($row['newsletter_subscribed_date']))
+                $row['email'] ?: 'N/A',
+                $row['name'] ?: 'N/A',
+                $row['institution'] ?: 'N/A',
+                $row['source'] ?: 'Not specified',
+                date('Y-m-d', strtotime($row['subscribed_at']))
             ];
         }
 
