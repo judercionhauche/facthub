@@ -133,137 +133,29 @@ try {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// Generate XLSX Excel file from data rows
+// Generate XLSX Excel file from data rows (CSV fallback for compatibility)
 // ═══════════════════════════════════════════════════════════════════════
 function generate_excel_file($rows) {
-    $filename = 'FACT_Newsletter_Subscribers_' . date('Y-m-d_His') . '.xlsx';
+    $filename = 'FACT_Newsletter_Subscribers_' . date('Y-m-d') . '.csv';
 
-    // Create ZIP archive for XLSX
-    $zip = new ZipArchive();
-    $temp_file = sys_get_temp_dir() . '/' . uniqid('xlsx_') . '.zip';
-
-    if (!$zip->open($temp_file, ZipArchive::CREATE)) {
-        http_response_code(500);
-        die(json_encode(['error' => 'Failed to create ZIP file']));
-    }
-
-    // [Content_Types].xml
-    $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
-<Default Extension="xml" ContentType="application/xml"/>
-<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
-<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
-<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
-</Types>');
-
-    // _rels/.rels
-    $zip->addFromString('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
-</Relationships>');
-
-    // xl/_rels/workbook.xml.rels
-    $zip->addFromString('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
-<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
-<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
-</Relationships>');
-
-    // xl/workbook.xml
-    $zip->addFromString('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
-<workbookPr date1904="false"/>
-<sheets>
-<sheet name="Subscribers" sheetId="1" r:id="rId1"/>
-</sheets>
-</workbook>');
-
-    // xl/styles.xml
-    $zip->addFromString('xl/styles.xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="2">
-<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
-<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0"/>
-</cellXfs>
-<fonts count="2"><font><sz val="11"/><color theme="1"/><name val="Calibri"/></font>
-<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts>
-<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>
-<fill><patternFill patternType="solid"><fgColor rgb="FF1F4E78"/></patternFill></fill></fills>
-<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
-</styleSheet>');
-
-    // Calculate dimensions
-    $col_count = count($rows[0] ?? []);
-    $row_count = count($rows);
-
-    // Convert to column letter
-    $last_col = '';
-    $col_num = $col_count - 1;
-    while ($col_num >= 0) {
-        $last_col = chr(65 + ($col_num % 26)) . $last_col;
-        $col_num = floor($col_num / 26) - 1;
-    }
-    $dimension = 'A1:' . $last_col . $row_count;
-
-    // xl/worksheets/sheet1.xml (with data)
-    $worksheet_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<sheetPr filterOn="false"/>
-<dimension ref="' . $dimension . '"/>
-<sheetViews><sheetView tabSelected="1" workbookViewId="0"><selection activeCell="A1" sqref="A1"/></sheetView></sheetViews>
-<sheetFormatPr baseColWidth="10" defaultRowHeight="15"/>
-<sheetData>';
-
-    $row_num = 1;
-    foreach ($rows as $row_data) {
-        $worksheet_xml .= '<row r="' . $row_num . '" spans="1:' . $col_count . '">';
-
-        foreach ($row_data as $col_idx => $cell_value) {
-            // Convert column index to letter (0=A, 1=B, ... 25=Z, 26=AA, etc)
-            $col_letter = '';
-            $col_num = $col_idx;
-            while ($col_num >= 0) {
-                $col_letter = chr(65 + ($col_num % 26)) . $col_letter;
-                $col_num = floor($col_num / 26) - 1;
-            }
-
-            $cell_ref = $col_letter . $row_num;
-            $style = ($row_num === 1) ? ' s="1"' : '';
-            $cell_value = htmlspecialchars((string)$cell_value, ENT_XML1, 'UTF-8');
-
-            $worksheet_xml .= '<c r="' . $cell_ref . '" t="inlineStr"' . $style . '><is><t>' . $cell_value . '</t></is></c>';
-        }
-
-        $worksheet_xml .= '</row>';
-        $row_num++;
-    }
-
-    $worksheet_xml .= '</sheetData></worksheet>';
-    $zip->addFromString('xl/worksheets/sheet1.xml', $worksheet_xml);
-
-    if (!$zip->close()) {
-        http_response_code(500);
-        die(json_encode(['error' => 'Failed to close ZIP file']));
-    }
-
-    // Verify file exists and has content
-    if (!file_exists($temp_file) || filesize($temp_file) === 0) {
-        http_response_code(500);
-        die(json_encode(['error' => 'ZIP file is empty or missing']));
-    }
-
-    // Send headers and output file
-    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $filename . '"');
     header('Cache-Control: no-cache, no-store, must-revalidate');
     header('Pragma: no-cache');
     header('Expires: 0');
-    header('Content-Length: ' . filesize($temp_file));
 
-    readfile($temp_file);
-    unlink($temp_file);
+    // Open output stream
+    $output = fopen('php://output', 'w');
+
+    // Write BOM for UTF-8 (Excel compatibility)
+    fwrite($output, "\xEF\xBB\xBF");
+
+    // Write data rows
+    foreach ($rows as $row) {
+        fputcsv($output, $row);
+    }
+
+    fclose($output);
     exit;
 }
 ?>
