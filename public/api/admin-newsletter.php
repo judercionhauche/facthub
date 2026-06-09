@@ -70,6 +70,18 @@ try {
         ]);
 
     } elseif ($action === 'export') {
+        // Check if there are active subscribers first
+        $countStmt = $conn->prepare("SELECT COUNT(*) as cnt FROM newsletter_subscribers WHERE status = 'active'");
+        $countStmt->execute();
+        $countResult = $countStmt->get_result()->fetch_assoc();
+        $subscriberCount = (int)($countResult['cnt'] ?? 0);
+
+        if ($subscriberCount === 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'No active subscribers to export']);
+            exit;
+        }
+
         // Export active subscribers to CSV with Mailchimp-friendly columns
         $stmt = $conn->prepare("
             SELECT
