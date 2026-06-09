@@ -138,16 +138,14 @@ try {
 function generate_excel_file($rows) {
     $filename = 'FACT_Newsletter_Subscribers_' . date('Y-m-d_His') . '.xlsx';
 
-    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
-    header('Cache-Control: no-cache, no-store, must-revalidate');
-    header('Pragma: no-cache');
-    header('Expires: 0');
-
     // Create ZIP archive for XLSX
     $zip = new ZipArchive();
     $temp_file = sys_get_temp_dir() . '/' . uniqid('xlsx_') . '.zip';
-    $zip->open($temp_file, ZipArchive::CREATE);
+
+    if (!$zip->open($temp_file, ZipArchive::CREATE)) {
+        http_response_code(500);
+        die(json_encode(['error' => 'Failed to create ZIP file']));
+    }
 
     // [Content_Types].xml
     $zip->addFromString('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -245,9 +243,25 @@ function generate_excel_file($rows) {
     $worksheet_xml .= '</sheetData></worksheet>';
     $zip->addFromString('xl/worksheets/sheet1.xml', $worksheet_xml);
 
-    $zip->close();
+    if (!$zip->close()) {
+        http_response_code(500);
+        die(json_encode(['error' => 'Failed to close ZIP file']));
+    }
 
-    // Output and cleanup
+    // Verify file exists and has content
+    if (!file_exists($temp_file) || filesize($temp_file) === 0) {
+        http_response_code(500);
+        die(json_encode(['error' => 'ZIP file is empty or missing']));
+    }
+
+    // Send headers and output file
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    header('Cache-Control: no-cache, no-store, must-revalidate');
+    header('Pragma: no-cache');
+    header('Expires: 0');
+    header('Content-Length: ' . filesize($temp_file));
+
     readfile($temp_file);
     unlink($temp_file);
     exit;
