@@ -606,11 +606,20 @@ sort($institutions);
 
 $editing = null;
 $isEditingExisting = false;
+$newsletterSubscribed = false;
 if ($editId > 0) {
     foreach ($researchers as $r) {
         if ((int)$r['id'] === $editId) {
             $editing = $r;
             $isEditingExisting = true;
+            // Fetch newsletter subscription status for this user
+            if (!empty($r['email'])) {
+                $nlCheck = $conn->prepare("SELECT status FROM newsletter_subscribers WHERE email = ? LIMIT 1");
+                $nlCheck->bind_param('s', $r['email']);
+                $nlCheck->execute();
+                $nlResult = $nlCheck->get_result()->fetch_assoc();
+                $newsletterSubscribed = ($nlResult && $nlResult['status'] === 'active');
+            }
             break;
         }
     }
@@ -949,6 +958,23 @@ if (is_array($focusDetailRaw)) {
             </div>
         </div>
 
+        <div class="span-2">
+            <div style="background:#f8fafb;border:1.5px solid #dde6dd;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px">
+                <input type="checkbox" id="newsletter-toggle" name="newsletter_subscribed" value="1"
+                       <?= $newsletterSubscribed ? 'checked' : '' ?>
+                       style="width:17px;height:17px;accent-color:#1a6b5a;flex-shrink:0;cursor:pointer">
+                <div style="flex:1">
+                    <label for="newsletter-toggle" style="margin:0;font-size:13.5px;font-weight:600;color:#374151;cursor:pointer;line-height:1.4">
+                        Subscribe to FACT Alliance newsletter
+                    </label>
+                    <p style="font-size:12.5px;color:#9aaba4;margin:4px 0 0 0">
+                        Receive monthly updates on funding opportunities and research collaborations relevant to your interests.
+                    </p>
+                    <div id="newsletter-feedback" class="message" style="display:none;margin-top:12px;padding:10px;border-radius:4px;font-size:13px"></div>
+                </div>
+            </div>
+        </div>
+
         <div class="span-2 actions-row">
             <button class="primary-btn" type="submit">
                 <?php
@@ -982,6 +1008,11 @@ if (is_array($focusDetailRaw)) {
 .links-card-title{font-size:.82em;font-weight:800;letter-spacing:.1em;color:#60706a;text-transform:uppercase;margin-bottom:14px}
 .links-grid-inner{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 @media(max-width:640px){.links-grid-inner{grid-template-columns:1fr}}
+.message{padding:10px 12px;border-radius:4px;font-size:13px;animation:slideIn .3s ease}
+.message.loading{background:#e3f2fd;color:#1565c0}
+.message.success{background:#e8f5e9;color:#2e7d32;border:1px solid #81c784}
+.message.error{background:#ffebee;color:#c62828;border:1px solid #ef9a9a}
+@keyframes slideIn{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
 </style>
 
 <script>
@@ -1428,6 +1459,48 @@ document.addEventListener('DOMContentLoaded', function () {
                 setTimeout(() => {
                     location.reload();
                 }, 1500);
+            }
+        });
+    }
+
+    // Newsletter preference toggle
+    const newsletterToggle = document.getElementById('newsletter-toggle');
+    if (newsletterToggle) {
+        newsletterToggle.addEventListener('change', async function() {
+            const messageDiv = document.getElementById('newsletter-feedback');
+            messageDiv.style.display = 'block';
+            messageDiv.className = 'message loading';
+            messageDiv.textContent = 'Updating preference...';
+
+            try {
+                const formData = new FormData();
+                formData.append('newsletter_subscribed', this.checked ? '1' : '0');
+                const csrfToken = document.querySelector('[name="_csrf"]');
+                if (csrfToken) {
+                    formData.append('_csrf', csrfToken.value);
+                }
+
+                const response = await fetch('/api/newsletter-preference.php', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    messageDiv.className = 'message success';
+                    messageDiv.textContent = '✓ ' + data.message;
+                    setTimeout(() => {
+                        messageDiv.style.display = 'none';
+                    }, 4000);
+                } else {
+                    messageDiv.className = 'message error';
+                    messageDiv.textContent = '✗ ' + (data.error || 'Failed to update preference');
+                }
+            } catch (err) {
+                messageDiv.className = 'message error';
+                messageDiv.textContent = '✗ Error updating preference. Please try again.';
+                console.error(err);
             }
         });
     }
