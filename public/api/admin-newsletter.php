@@ -204,10 +204,16 @@ function generate_excel_file($rows) {
     $row_num = 1;
     foreach ($rows as $row_data) {
         $worksheet_xml .= '<row r="' . $row_num . '">';
-        $col_letters = ['A', 'B', 'C', 'D', 'E', 'F'];
 
         foreach ($row_data as $col_idx => $cell_value) {
-            $col_letter = $col_letters[$col_idx] ?? 'G';
+            // Convert column index to letter (0=A, 1=B, ... 25=Z, 26=AA, etc)
+            $col_letter = '';
+            $col_num = $col_idx;
+            while ($col_num >= 0) {
+                $col_letter = chr(65 + ($col_num % 26)) . $col_letter;
+                $col_num = floor($col_num / 26) - 1;
+            }
+
             $cell_ref = $col_letter . $row_num;
             $style = ($row_num === 1) ? ' s="1"' : '';
             $cell_value = htmlspecialchars((string)$cell_value, ENT_XML1, 'UTF-8');
