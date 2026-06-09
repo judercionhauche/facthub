@@ -115,9 +115,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $retries++;
                             if ($retries >= $maxRetries) {
                                 error_log('[Verify] Max retries for ' . $email . ': ' . $e->getMessage());
-                                // Last resort: delete by token and use timestamp-based unique token
-                                $lastToken = hash('sha256', $email . '|' . microtime(true) . '|' . random_bytes(16));
-                                @$conn->query("DELETE FROM email_verifications WHERE token = '{$lastToken}'");
+                                // Last resort: use timestamp-based unique token
+                                $lastToken = bin2hex(hash('sha256', $email . microtime(true) . random_bytes(8), true));
                                 $ins2 = $conn->prepare('INSERT INTO email_verifications (email, token, expires_at, last_resent_at) VALUES (?, ?, ?, ?)');
                                 $ins2->bind_param('ssss', $email, $lastToken, $expiry, $now);
                                 $ins2->execute();
