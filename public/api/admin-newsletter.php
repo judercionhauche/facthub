@@ -99,7 +99,10 @@ try {
             SELECT
                 ns.email,
                 COALESCE(u.name, 'Unknown') as full_name,
-                ns.subscribed_at
+                COALESCE(u.affiliation, 'N/A') as institution,
+                COALESCE(u.source, 'Not specified') as how_heard_about_us,
+                u.created_at as user_joined_date,
+                ns.subscribed_at as newsletter_subscribed_date
             FROM newsletter_subscribers ns
             LEFT JOIN users u ON ns.user_id = u.id
             WHERE ns.status = 'active'
@@ -124,14 +127,20 @@ try {
         $rows = [[
             'Email',
             'Full Name',
-            'Subscribed Date'
+            'Institution',
+            'How They Heard About Us',
+            'User Joined Date',
+            'Newsletter Subscribed Date'
         ]];
 
         while ($row = $result->fetch_assoc()) {
             $rows[] = [
                 $row['email'],
                 $row['full_name'],
-                date('Y-m-d', strtotime($row['subscribed_at']))
+                $row['institution'],
+                $row['how_heard_about_us'],
+                date('Y-m-d', strtotime($row['user_joined_date'])),
+                date('Y-m-d', strtotime($row['newsletter_subscribed_date']))
             ];
         }
 
