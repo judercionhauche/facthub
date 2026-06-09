@@ -94,13 +94,14 @@ try {
             exit;
         }
 
-        // Export active subscribers to CSV - get data from newsletter_subscribers only
+        // Export active subscribers with user data
         $stmt = $conn->prepare("
             SELECT
                 ns.email,
-                ns.user_id,
+                COALESCE(u.name, 'Unknown') as full_name,
                 ns.subscribed_at
             FROM newsletter_subscribers ns
+            LEFT JOIN users u ON ns.user_id = u.id
             WHERE ns.status = 'active'
             ORDER BY ns.subscribed_at DESC
         ");
@@ -122,14 +123,14 @@ try {
         // Build CSV with headers first
         $rows = [[
             'Email',
-            'User ID',
+            'Full Name',
             'Subscribed Date'
         ]];
 
         while ($row = $result->fetch_assoc()) {
             $rows[] = [
-                $row['email'] ?: 'N/A',
-                $row['user_id'] ?: 'N/A',
+                $row['email'],
+                $row['full_name'],
                 date('Y-m-d', strtotime($row['subscribed_at']))
             ];
         }
