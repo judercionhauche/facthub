@@ -1160,7 +1160,6 @@ document.addEventListener('DOMContentLoaded', function() {
         <?php if ($viewing['co_advising_details']): ?><span class="muted" style="font-size:13px"><?= h($viewing['co_advising_details']) ?></span><?php endif; ?>
     </div>
     <?php endif; ?>
-    <?php if ($viewing['bio']): ?><p class="muted block" style="margin-top:12px"><?= nl2br(h($viewing['bio'])) ?></p><?php endif; ?>
     <?php if ($researcherSummary): ?>
     <div style="margin-top:12px;padding:12px 14px;background:#eaf6f0;border:1px solid #c3dfd0;border-radius:10px">
         <div style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#1a6b5a;margin-bottom:6px">AI Summary</div>
