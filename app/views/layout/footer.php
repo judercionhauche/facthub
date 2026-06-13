@@ -9,9 +9,14 @@
                     <div class="footer-text">Massachusetts Institute of Technology · 77 Massachusetts Avenue, E38-325 · Cambridge, MA 02139</div>
                 </div>
             </a>
-            <a href="https://web.mit.edu/" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; gap: 24px; flex-shrink: 0; padding-left: 24px; border-left: 1px solid rgba(26,107,90,0.1); text-decoration: none; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Massachusetts Institute of Technology">
-                <img src="assets/mit_logo_std_rgb_silver-gray.png" alt="Massachusetts Institute of Technology" style="height: 36px; width: auto; opacity: 0.9;">
-            </a>
+            <div style="display: flex; align-items: center; gap: 24px; flex-shrink: 0; padding-left: 24px; border-left: 1px solid rgba(26,107,90,0.1);">
+                <a href="https://web.mit.edu/" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; text-decoration: none; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Massachusetts Institute of Technology">
+                    <img src="assets/mit_logo_std_rgb_silver-gray.png" alt="Massachusetts Institute of Technology" style="height: 36px; width: auto; opacity: 0.9;">
+                </a>
+                <a href="https://accessibility.mit.edu/" target="_blank" rel="noopener noreferrer" style="font-size: 12px; color: #666; text-decoration: none; transition: opacity 0.2s; padding-left: 12px; border-left: 1px solid rgba(0,0,0,0.1);" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'" title="MIT Accessibility">
+                    Accessibility
+                </a>
+            </div>
         </div>
     </footer>
 </div>
