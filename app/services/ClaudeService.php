@@ -566,8 +566,13 @@ PROMPT,
         $outputTokens = (int)($data['usage']['output_tokens'] ?? 0);
         $this->logUsage(self::MODEL_HAIKU, 'embedding', $inputTokens, $outputTokens, $durationMs, 'ok');
 
-        // Parse embedding vector from response
+        // Parse embedding vector from response (strip markdown if present)
         $response = trim($data['content'][0]['text']);
+        if (strpos($response, '```') === 0) {
+            $response = preg_replace('/^```(?:json)?\s*/i', '', $response);
+            $response = preg_replace('/\s*```$/', '', $response);
+            $response = trim($response);
+        }
         $embedding = @json_decode($response, true);
 
         if (!is_array($embedding) || empty($embedding)) {
