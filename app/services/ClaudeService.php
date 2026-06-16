@@ -529,7 +529,7 @@ PROMPT,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode([
-                'model'      => 'claude-3-5-sonnet-20241022',
+                'model'      => self::MODEL_HAIKU,
                 'max_tokens' => 1024,
                 'messages'   => [[
                     'role' => 'user',
@@ -564,7 +564,7 @@ PROMPT,
 
         $inputTokens = (int)($data['usage']['input_tokens'] ?? 0);
         $outputTokens = (int)($data['usage']['output_tokens'] ?? 0);
-        $this->logUsage('claude-3-5-sonnet-20241022', 'embedding', $inputTokens, $outputTokens, $durationMs, 'ok');
+        $this->logUsage(self::MODEL_HAIKU, 'embedding', $inputTokens, $outputTokens, $durationMs, 'ok');
 
         // Parse embedding vector from response
         $response = trim($data['content'][0]['text']);
