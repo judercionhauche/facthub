@@ -322,7 +322,7 @@ function send_admin_notification_email(string $email, string $action, string $na
                 <li>Get AI-powered research recommendations</li>
             </ul>
             <p><a href='$appUrl/index.php?page=login'>Log in now →</a></p>
-            <p>Questions? Contact us at support@factalliance.org</p>
+            <p>Questions? Contact us at factalliance@mit.edu</p>
         ";
     } elseif ($action === 'rejected') {
         $subject = 'FACT Alliance Hub application decision';
@@ -331,7 +331,7 @@ function send_admin_notification_email(string $email, string $action, string $na
             <p>Thank you for your interest in the FACT Alliance Hub.</p>
             <p>Unfortunately, your application was not approved at this time." .
             ($reason ? "<br/>Reason: " . htmlspecialchars($reason) : "") . "</p>
-            <p>You're welcome to contact us at support@factalliance.org if you have questions.</p>
+            <p>You're welcome to contact us at factalliance@mit.edu if you have questions.</p>
         ";
     } else {
         return;
