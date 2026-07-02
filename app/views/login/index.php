@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $userRow = $stmt->get_result()->fetch_assoc();
 
                 // Debug: Log password verification for admin
-                if ($userRow && $userRow['email'] === 'judercionhauche@gmail.com') {
+                if ($userRow && $userRow['email'] === 'factalliance@mit.edu') {
                     $pwd_result = password_verify($password, $userRow['password']);
                     error_log("LOGIN DEBUG [ADMIN]: pwd_verify=" . ($pwd_result ? 'TRUE' : 'FALSE') . ", status=" . $userRow['status']);
                 }
