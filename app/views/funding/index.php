@@ -330,8 +330,15 @@ $itemsPerPage = 20;
 $fundingPaginator = new Paginator(count($filtered), $itemsPerPage, $page);
 $paginatedFiltered = array_slice($filtered, $fundingPaginator->getOffset(), $fundingPaginator->getLimit());
 
-$editing = null; foreach ($fundingCalls as $fc) if ((int)$fc['id'] === $editId) $editing = $fc;
-$viewing = null; foreach ($fundingCalls as $fc) if ((int)$fc['id'] === $viewId) $viewing = $fc;
+$editing = null;
+foreach ($fundingCalls as $fc) {
+    error_log('[FUNDING] Loop checking: $fc[id]=' . $fc['id'] . ', editId=' . $editId . ', match=' . ((int)$fc['id'] === $editId ? 'YES' : 'NO'));
+    if ((int)$fc['id'] === $editId) $editing = $fc;
+}
+$viewing = null;
+foreach ($fundingCalls as $fc) {
+    if ((int)$fc['id'] === $viewId) $viewing = $fc;
+}
 error_log('[FUNDING] BEFORE modal logic: $editing is ' . ($editing === null ? 'NULL' : 'NOT NULL (id='.$editing['id'].')') . ', $viewing is ' . ($viewing === null ? 'NULL' : 'NOT NULL (id='.$viewing['id'].')'));
 error_log('[FUNDING] fundingCalls count=' . count($fundingCalls));
 error_log('[FUNDING] Modal state: editing=' . ($editing ? 'YES (id='.$editing['id'].')' : 'NO') . ', viewing=' . ($viewing ? 'YES (id='.$viewing['id'].')' : 'NO'));
