@@ -39,6 +39,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $geography = trim($_POST['geography'] ?? '');
         $amount = substr(trim($_POST['amount'] ?? ''), 0, 100);
         $url = trim($_POST['url'] ?? '');
+        // Convert empty deadline and amount to NULL for database
+        $deadline = $deadline === '' ? null : $deadline;
+        $amount = $amount === '' ? null : $amount;
         if ($title === '') { set_flash('error', 'Title is required.'); redirect_to('funding'); }
         // Capitalize geography values for consistent formatting
         $geoParts = array_map(function($g) { return mb_convert_case(trim($g), MB_CASE_TITLE, "UTF-8"); }, explode(',', $geography));
