@@ -332,6 +332,8 @@ $paginatedFiltered = array_slice($filtered, $fundingPaginator->getOffset(), $fun
 
 $editing = null; foreach ($fundingCalls as $fc) if ((int)$fc['id'] === $editId) $editing = $fc;
 $viewing = null; foreach ($fundingCalls as $fc) if ((int)$fc['id'] === $viewId) $viewing = $fc;
+error_log('[FUNDING] BEFORE modal logic: $editing is ' . ($editing === null ? 'NULL' : 'NOT NULL (id='.$editing['id'].')') . ', $viewing is ' . ($viewing === null ? 'NULL' : 'NOT NULL (id='.$viewing['id'].')'));
+error_log('[FUNDING] fundingCalls count=' . count($fundingCalls));
 error_log('[FUNDING] Modal state: editing=' . ($editing ? 'YES (id='.$editing['id'].')' : 'NO') . ', viewing=' . ($viewing ? 'YES (id='.$viewing['id'].')' : 'NO'));
 $saved = [];
 $stmt = $conn->prepare('SELECT * FROM saved_opportunities WHERE researcher_email = ? ORDER BY created_at DESC');
@@ -502,7 +504,11 @@ $hasFilters = $search !== '' || !empty($topicFilters) || !empty($geoFilters) || 
 
 <div class="lk-layout" style="grid-template-columns: 1fr;">
 
-<?php if ((is_admin() || is_funder()) && ($mode==='add' || $editing)): ?>
+<?php
+error_log('[FUNDING] FORM CONDITION CHECK: is_admin/funder=' . (is_admin() || is_funder() ? 'YES' : 'NO') . ', mode=add=' . ($mode==='add' ? 'YES' : 'NO') . ', editing=' . ($editing ? 'YES' : 'NO'));
+if ((is_admin() || is_funder()) && ($mode==='add' || $editing)):
+error_log('[FUNDING] FORM IS SHOWING!');
+?>
 <div class="panel modalish"><h2><?= $editing?'Edit Funding Call':'Add Funding Call' ?></h2><form method="post" class="form-grid two"><input type="hidden" name="action" value="save"><input type="hidden" name="_csrf" value="<?= csrf_token() ?>"><input type="hidden" name="id" value="<?= h($editing['id'] ?? '') ?>"><div class="span-2"><label>Title *</label><input name="title" value="<?= h($editing['title'] ?? '') ?>" required></div><div><label>Funder</label><input name="funder" value="<?= h($editing['funder'] ?? '') ?>"></div><div><label>Deadline</label><input type="date" name="deadline" value="<?= h($editing['deadline'] ?? '') ?>"></div><div><label>Status</label><select name="status"><option value="">-- status --</option><?php foreach(['open','rolling','closed','upcoming'] as $st): ?><option value="<?= $st ?>" <?= ($editing['status'] ?? '')===$st?'selected':'' ?>><?= ucfirst($st) ?></option><?php endforeach; ?></select></div><div><label>Committed Amount</label><input name="amount" maxlength="100" value="<?= h($editing['amount'] ?? '') ?>"></div><div class="span-2"><label>Description</label><textarea name="description"><?= h($editing['description'] ?? '') ?></textarea></div><div class="span-2"><label>External URL</label><input name="url" value="<?= h($editing['url'] ?? '') ?>"></div><div><label>Topics (comma-separated)</label><input name="topics" value="<?= h($editing['topics'] ?? '') ?>"></div><div><label>Geography (comma-separated)</label><input name="geography" value="<?= h($editing['geography'] ?? '') ?>"></div><div class="span-2 actions-row"><button class="primary-btn" type="submit">Save</button><a class="ghost-btn" href="index.php?page=funding">Cancel</a></div></form></div>
 <?php endif; ?>
 <?php if ($viewing): ?>
