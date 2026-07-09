@@ -1,11 +1,6 @@
 <?php
 require_login();
 
-// DEBUG: Log form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save') {
-    error_log('[DEBUG] Funding form submitted - id=' . ($_POST['id'] ?? '0') . ', title=' . ($_POST['title'] ?? 'EMPTY'));
-}
-
 // Check if user is approved to access funding calls
 if (!is_approved()) {
     set_flash('info', 'Your account is pending admin approval. You can access funding calls once approved.');
@@ -208,7 +203,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             set_flash('success', $flashMsg);
         }
-        error_log('[DEBUG] About to redirect to funding after save');
         redirect_to('funding');
     }
     if ($action === 'delete') {
