@@ -1,6 +1,13 @@
 <?php
 require_login();
 
+// ─── TRACKING ────────────────────────────────────────────────────────
+error_log('[FUNDING] Page loaded - REQUEST_METHOD=' . $_SERVER['REQUEST_METHOD']);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    error_log('[FUNDING] POST detected - action=' . ($_POST['action'] ?? 'NONE'));
+}
+// ──────────────────────────────────────────────────────────────────────
+
 // Check if user is approved to access funding calls
 if (!is_approved()) {
     set_flash('info', 'Your account is pending admin approval. You can access funding calls once approved.');
@@ -31,6 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     if ($action === 'save') {
+        error_log('[FUNDING] SAVE handler triggered');
         $id = (int)($_POST['id'] ?? 0);
         $title = trim($_POST['title'] ?? '');
         $funder = trim($_POST['funder'] ?? '');
@@ -203,6 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             set_flash('success', $flashMsg);
         }
+        error_log('[FUNDING] About to redirect to funding - this is the LAST thing that should happen');
         redirect_to('funding');
     }
     if ($action === 'delete') {
@@ -283,6 +292,7 @@ $statusFilter = trim($_GET['status'] ?? '');
 $mode   = $_GET['mode'] ?? '';
 $editId = (int)($_GET['edit'] ?? 0);
 $viewId = (int)($_GET['view'] ?? 0);
+error_log('[FUNDING] URL params: mode=' . $mode . ', editId=' . $editId . ', viewId=' . $viewId);
 $topicTags = get_all_tags($conn, 'topic');
 $geoTags   = get_all_tags($conn, 'geography');
 $fundingCalls = [];
@@ -322,6 +332,7 @@ $paginatedFiltered = array_slice($filtered, $fundingPaginator->getOffset(), $fun
 
 $editing = null; foreach ($fundingCalls as $fc) if ((int)$fc['id'] === $editId) $editing = $fc;
 $viewing = null; foreach ($fundingCalls as $fc) if ((int)$fc['id'] === $viewId) $viewing = $fc;
+error_log('[FUNDING] Modal state: editing=' . ($editing ? 'YES (id='.$editing['id'].')' : 'NO') . ', viewing=' . ($viewing ? 'YES (id='.$viewing['id'].')' : 'NO'));
 $saved = [];
 $stmt = $conn->prepare('SELECT * FROM saved_opportunities WHERE researcher_email = ? ORDER BY created_at DESC');
 $stmt->bind_param('s', $user['email']); $stmt->execute(); $res2 = $stmt->get_result(); while ($row = $res2->fetch_assoc()) $saved[] = $row;
