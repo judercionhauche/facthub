@@ -9,11 +9,9 @@ if (!is_approved()) {
 
 $user = current_user();
 
-// Ownership check — admins can manage any funding call, funders only their own
+// Only admins can manage funding calls
 $canManage = function(array $fc) use ($user): bool {
-    if (is_admin()) return true;
-    if (is_funder() && $fc['added_by_email'] === $user['email']) return true;
-    return false;
+    return is_admin();
 };
 
 // Role guard for write operations — only admin or funder may add/edit/delete funding calls
@@ -396,7 +394,9 @@ $hasFilters = $search !== '' || !empty($topicFilters) || !empty($geoFilters) || 
                 <a class="tab <?= $tab==='saved'?'active':'' ?>" href="index.php?page=funding&tab=saved">My Saved</a>
             </div>
         </div>
+        <?php if (is_admin()): ?>
         <a class="primary-btn" href="index.php?page=funding&mode=add">+ Add Funding</a>
+        <?php endif; ?>
     </div>
 </div>
 
