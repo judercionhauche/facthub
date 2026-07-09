@@ -814,18 +814,6 @@ if (is_array($focusDetailRaw)) {
         <div><label>Last name *</label><input name="last_name" value="<?= h($editing['last_name'] ?? '') ?>" required></div>
         <div><label>Email<?= ($mode === 'add' && !$editing) ? ' *' : '' ?></label><input name="email" type="email" value="<?= h($editing['email'] ?? '') ?>"<?= ($mode === 'add' && !$editing) ? ' required' : '' ?>></div>
 
-        <div style="margin-top:20px;background:#f8fafb;border:1.5px solid #dde6dd;border-radius:10px;padding:14px 18px;display:flex;align-items:center;gap:12px">
-            <input type="checkbox" name="newsletter_subscribed" value="1" <?= (!empty($editing['newsletter_subscribed'])) ? 'checked' : '' ?> style="width:17px;height:17px;accent-color:#1a6b5a;flex-shrink:0;cursor:pointer">
-            <div style="flex:1">
-                <label style="margin:0;font-size:13.5px;font-weight:600;color:#374151;cursor:pointer;line-height:1.4">
-                    Subscribe to FACT Alliance newsletter
-                </label>
-                <p style="font-size:12.5px;color:#9aaba4;margin:4px 0 0 0">
-                    Receive monthly updates on funding opportunities and research collaborations relevant to your interests.
-                </p>
-            </div>
-        </div>
-
         <?php if ($mode === 'add' && !$isEditingExisting): ?>
         <div><label>Password *</label><input name="password" type="password" id="reg-password" value="<?= h($editing['password'] ?? '') ?>" required placeholder="At least 8 characters"></div>
         <div>
