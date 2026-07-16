@@ -170,7 +170,7 @@ if (is_logged_in()) {
     </header>
 
     <div class="page-wrap <?= is_logged_in() ? '' : 'auth-wrap' ?>">
-        <?php if (is_logged_in()): ?>
+        <?php if (is_logged_in() && !in_array($page, ['login', 'register', 'forgot', 'verify'])): ?>
         <aside class="sidebar">
             <div class="panel sidebar-panel">
                 <div class="sidebar-title">FACT TOOLS</div>
