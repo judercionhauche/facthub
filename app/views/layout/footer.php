@@ -1,8 +1,10 @@
         </main>
     </div>
 
-    <!-- Floating Feedback Button -->
+    <!-- Floating Feedback Button (logged-in users only) -->
+    <?php if (is_logged_in()): ?>
     <div class="feedback-bubble" onclick="openFeedbackForm()" title="Share feedback on FACT Hub">💬</div>
+    <?php endif; ?>
 
     <footer class="footer" style="position: fixed; bottom: 0; left: 0; right: 0; margin-top: auto; z-index: 10;">
         <div class="footer-inner" style="display: flex; justify-content: space-between; align-items: center;">
@@ -17,9 +19,11 @@
                 <a href="https://web.mit.edu/" target="_blank" rel="noopener noreferrer" style="display: flex; align-items: center; text-decoration: none; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'" title="Massachusetts Institute of Technology">
                     <img src="assets/mit_logo_std_rgb_silver-gray.png" alt="Massachusetts Institute of Technology" style="height: 36px; width: auto; opacity: 0.9;">
                 </a>
+                <?php if (is_logged_in()): ?>
                 <a href="javascript:void(0)" onclick="openFeedbackForm()" style="font-size: 12px; color: #1a6b5a; text-decoration: none; transition: all 0.2s; padding: 4px 8px; border-radius: 6px; font-weight: 600; letter-spacing: 0.02em;" onmouseover="this.style.background='rgba(26,107,90,0.08)'" onmouseout="this.style.background='transparent'" title="Share your feedback on FACT Hub">
                     💬 Feedback
                 </a>
+                <?php endif; ?>
                 <a href="https://accessibility.mit.edu/" target="_blank" rel="noopener noreferrer" style="font-size: 12px; color: #666; text-decoration: none; transition: opacity 0.2s; padding-left: 12px; border-left: 1px solid rgba(0,0,0,0.1);" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'" title="MIT Accessibility">
                     Accessibility
                 </a>
