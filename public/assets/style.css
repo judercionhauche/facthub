@@ -286,6 +286,12 @@ label{display:block;margin-bottom:6px;font-weight:600}
 .msel-rm:hover{opacity:1}
 .msel-hid{display:none}
 
+/* ══ Feedback Button ═══════════════════════════════════════════════════ */
+.feedback-bubble{position:fixed;bottom:120px;right:24px;width:56px;height:56px;border-radius:50%;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 12px rgba(26,107,90,.25);transition:all .3s cubic-bezier(.34,.1,.64,.93);z-index:18;font-size:24px;user-select:none;border:2px solid #fff}
+.feedback-bubble:hover{transform:scale(1.15);box-shadow:0 6px 20px rgba(26,107,90,.35)}
+.feedback-bubble:active{transform:scale(0.95)}
+@media (max-width:640px){.feedback-bubble{bottom:100px;right:16px;width:50px;height:50px;font-size:20px}}
+
 /* ══ Filter panel ═════════════════════════════════════════════════════ */
 .adv-filter{padding:18px 20px 20px;margin-bottom:16px}
 .adv-filter-hd{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px;flex-wrap:wrap}
