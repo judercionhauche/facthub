@@ -105,7 +105,7 @@
 
   // Feedback form opener
   window.openFeedbackForm = function() {
-    var formUrl = 'https://forms.gle/REPLACE_WITH_YOUR_FORM_ID'; // Replace with your Google Form URL
+    var formUrl = 'https://docs.google.com/forms/d/e/1FAIpQLScPf1cSpOzN0In05iwLo1_k1iDICM3yg1SSqAMFwjhKW-sjyQ/viewform?usp=publish-editor';
     window.open(formUrl, 'feedback-form', 'width=800,height=600');
   };
 }());
