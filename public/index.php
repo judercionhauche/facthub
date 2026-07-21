@@ -119,10 +119,10 @@ if (!is_logged_in() && isset($_COOKIE['remember_token'])) {
 
 define('SESSION_TIMEOUT', 1800); // 30 minutes
 
-$page = $_GET['page'] ?? (is_logged_in() ? 'researchers' : 'login');
+$page = $_GET['page'] ?? (is_logged_in() ? 'researchers' : 'landing');
 
-$publicPages  = ['login', 'register', 'auth', 'forgot', 'reset', 'verify', 'unsubscribe'];
-$allowedPages = ['login', 'register', 'auth', 'forgot', 'reset', 'verify', 'unsubscribe', 'logout',
+$publicPages  = ['login', 'register', 'auth', 'forgot', 'reset', 'verify', 'unsubscribe', 'landing'];
+$allowedPages = ['login', 'register', 'auth', 'forgot', 'reset', 'verify', 'unsubscribe', 'logout', 'landing',
                  'researchers', 'funding', 'funders', 'matching', 'search', 'institutions',
                  'messages', 'admin', 'api', 'profile', 'account'];
 
