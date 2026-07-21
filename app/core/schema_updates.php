@@ -904,6 +904,65 @@ function apply_security_schema_updates(mysqli $conn): void {
         ");
     }
 
+    // ════════════════════════════════════════════════════════════════
+    // Landing Page — Impact Metrics for public dashboard
+    // ════════════════════════════════════════════════════════════════
+
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='impact_metrics' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS impact_metrics (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                metric_key VARCHAR(80) NOT NULL UNIQUE,
+                metric_value BIGINT NOT NULL,
+                metric_label VARCHAR(200) NOT NULL,
+                metric_unit VARCHAR(20),
+                metric_category VARCHAR(60) NOT NULL,
+                order_in_category INT DEFAULT 0,
+                description TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                updated_by INT,
+                INDEX idx_category (metric_category),
+                INDEX idx_key (metric_key),
+                FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        // Seed with initial data
+        @$conn->query("INSERT IGNORE INTO impact_metrics (metric_key, metric_value, metric_label, metric_unit, metric_category, order_in_category) VALUES
+            ('total_researchers', 847, 'Researchers in the network', '', 'network', 1),
+            ('partner_institutions', 12, 'Partner institutions', '', 'network', 2),
+            ('countries_represented', 9, 'Countries represented', '', 'network', 3),
+            ('research_disciplines', 15, 'Research disciplines', '', 'network', 4),
+            ('active_collaborations', 34, 'Active collaborations', '', 'network', 5),
+            ('students_supported', 5, 'Students supported', '', 'network', 6),
+            ('funding_secured', 5700000, 'Research funding secured', '$', 'funding', 1),
+            ('funded_projects', 6, 'Funded projects', '', 'funding', 2),
+            ('submitted_proposals', 8, 'Submitted proposals', '', 'funding', 3),
+            ('proposals_under_review', 3, 'Proposals under review', '', 'funding', 4),
+            ('proposal_success_rate', 75, 'Proposal success rate', '%', 'funding', 5),
+            ('funding_organizations', 6, 'Funding organizations', '', 'funding', 6),
+            ('phd_students', 3, 'PhD candidates', '', 'students', 1),
+            ('masters_students', 2, 'Masters students', '', 'students', 2),
+            ('faculty_advisors', 8, 'Faculty advisors', '', 'students', 3),
+            ('participating_universities', 7, 'Participating universities', '', 'students', 4),
+            ('global_countries', 9, 'Countries with presence', '', 'global', 1),
+            ('international_collaborations', 28, 'International collaborations', '', 'global', 2),
+            ('academia_partnerships', 12, 'Academia partnerships', '', 'global', 3),
+            ('government_partnerships', 5, 'Government partnerships', '', 'global', 4),
+            ('ngo_partnerships', 8, 'NGO partnerships', '', 'global', 5),
+            ('industry_partnerships', 3, 'Industry partnerships', '', 'global', 6),
+            ('registered_users', 847, 'Registered users', '', 'platform', 1),
+            ('active_researchers', 623, 'Active researchers', '', 'platform', 2),
+            ('opportunities_indexed', 156, 'Funding opportunities indexed', '', 'platform', 3),
+            ('profiles_completed', 512, 'Researcher profiles completed', '', 'platform', 4),
+            ('ai_matches_generated', 2847, 'AI-powered matches generated', '', 'platform', 5),
+            ('semantic_searches', 5632, 'Semantic searches performed', '', 'platform', 6),
+            ('collaboration_requests', 89, 'Collaboration requests facilitated', '', 'platform', 7),
+            ('messages_exchanged', 1203, 'Messages exchanged', '', 'platform', 8)
+        ");
+    }
+
     } catch (Throwable $e) {
         error_log('[Schema Migration] Error: ' . $e->getMessage());
         // Continue anyway - some tables may not exist yet
