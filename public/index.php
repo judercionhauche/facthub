@@ -223,7 +223,7 @@ if (!in_array($page, $publicPages, true)) {
 if ($page === 'logout') {
     secure_logout();
     header('Cache-Control: no-store, no-cache, must-revalidate');
-    header('Location: index.php?page=login');
+    header('Location: index.php?page=landing');
     ob_end_clean();
     exit;
 }

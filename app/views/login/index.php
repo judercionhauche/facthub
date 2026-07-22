@@ -170,6 +170,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- Right Login Form Section -->
     <div class="login-form-wrapper" style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px;background:#fafbf9;overflow-y:auto;max-width:100%">
         <div style="width:100%;max-width:340px">
+            <!-- Back to landing -->
+            <div style="margin-bottom:20px">
+                <a href="index.php?page=landing" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#1a6b5a;text-decoration:none;font-weight:600" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">← Back to home</a>
+            </div>
             <!-- Sign In Header -->
             <div style="margin-bottom:48px;text-align:center">
                 <h1 style="font-size:32px;font-weight:700;color:#1a1a1a;margin:0;letter-spacing:-0.5px">Sign In</h1>
