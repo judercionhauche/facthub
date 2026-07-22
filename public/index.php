@@ -47,6 +47,7 @@ require_once __DIR__ . '/../app/core/device_fingerprint.php';
 try {
     apply_security_schema_updates($conn);
     apply_newsletter_schema($conn);
+    apply_impact_data_schema($conn);
 } catch (Throwable $e) {
     error_log('[Schema Updates Error] ' . $e->getMessage());
     // Continue anyway - schema might already be in place

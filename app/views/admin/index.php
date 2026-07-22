@@ -2479,21 +2479,28 @@ setInterval(loadNewsletterStats, 30000);
 </div>
 
 <?php
-$impProjects = [];
-$r = $conn->query("SELECT * FROM funded_projects ORDER BY amount DESC");
-if ($r) while ($row = $r->fetch_assoc()) $impProjects[] = $row;
+// Make sure the impact tables exist (safe no-op when they already do)
+if (function_exists('apply_impact_data_schema')) {
+    apply_impact_data_schema($conn);
+}
 
-$impProposals = [];
-$r = $conn->query("SELECT * FROM submitted_proposals ORDER BY display_order, id");
-if ($r) while ($row = $r->fetch_assoc()) $impProposals[] = $row;
+$impProjects = $impProposals = $impStudents = $impHeadline = [];
+try {
+    $r = $conn->query("SELECT * FROM funded_projects ORDER BY amount DESC");
+    if ($r) while ($row = $r->fetch_assoc()) $impProjects[] = $row;
 
-$impStudents = [];
-$r = $conn->query("SELECT * FROM fact_students ORDER BY display_order, id");
-if ($r) while ($row = $r->fetch_assoc()) $impStudents[] = $row;
+    $r = $conn->query("SELECT * FROM submitted_proposals ORDER BY display_order, id");
+    if ($r) while ($row = $r->fetch_assoc()) $impProposals[] = $row;
 
-$impHeadline = [];
-$r = $conn->query("SELECT id, metric_key, metric_value, metric_label FROM impact_metrics WHERE metric_key IN ('partner_institutions','countries_represented')");
-if ($r) while ($row = $r->fetch_assoc()) $impHeadline[] = $row;
+    $r = $conn->query("SELECT * FROM fact_students ORDER BY display_order, id");
+    if ($r) while ($row = $r->fetch_assoc()) $impStudents[] = $row;
+
+    $r = $conn->query("SELECT id, metric_key, metric_value, metric_label FROM impact_metrics WHERE metric_key IN ('partner_institutions','countries_represented')");
+    if ($r) while ($row = $r->fetch_assoc()) $impHeadline[] = $row;
+} catch (Throwable $e) {
+    error_log('[Admin Impact Data] Load error: ' . $e->getMessage());
+    echo '<div class="panel" style="padding:18px;color:var(--danger)">Impact data tables could not be loaded — refresh the page to retry. (' . h($e->getMessage()) . ')</div>';
+}
 
 $impSecured  = array_sum(array_map(static fn($p) => (int)$p['amount'], $impProjects));
 $impInReview = array_sum(array_map(static fn($p) => $p['status'] === 'in_review' ? (int)$p['amount'] : 0, $impProposals));

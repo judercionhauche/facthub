@@ -963,10 +963,19 @@ function apply_security_schema_updates(mysqli $conn): void {
         ");
     }
 
-    // ════════════════════════════════════════════════════════════════
-    // Landing Page — Impact tracking data (funded research, proposals,
-    // FACT students). Maps to the "FACT Alliance Impact Tracking" sheet.
-    // ════════════════════════════════════════════════════════════════
+    } catch (Throwable $e) {
+        error_log('[Schema Migration] Error: ' . $e->getMessage());
+        // Continue anyway - some tables may not exist yet
+    }
+}
+
+/**
+ * Landing Page — Impact tracking data (funded research, submitted proposals,
+ * FACT students). Maps to the "FACT Alliance Impact Tracking" sheet.
+ * Standalone function so a failure in the main migration can't skip it.
+ */
+function apply_impact_data_schema(mysqli $conn): void {
+    try {
 
     $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='funded_projects' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
     if (!$result || $result->num_rows === 0) {
@@ -1051,8 +1060,8 @@ function apply_security_schema_updates(mysqli $conn): void {
     }
 
     } catch (Throwable $e) {
-        error_log('[Schema Migration] Error: ' . $e->getMessage());
-        // Continue anyway - some tables may not exist yet
+        error_log('[Impact Data Schema] Error: ' . $e->getMessage());
+        // Continue anyway - migration can be retried on next load
     }
 }
 
