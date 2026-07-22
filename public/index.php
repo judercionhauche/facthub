@@ -18,7 +18,7 @@ header('X-Content-Type-Options: nosniff', true);
 header('X-Frame-Options: SAMEORIGIN', true);
 header('X-XSS-Protection: 1; mode=block', true);
 header('Referrer-Policy: strict-origin-when-cross-origin', true);
-header('Content-Security-Policy: default-src \'self\'; script-src \'self\' \'unsafe-inline\'; style-src \'self\' \'unsafe-inline\'; img-src \'self\' data: https:', true);
+header('Content-Security-Policy: default-src \'self\'; script-src \'self\' \'unsafe-inline\'; style-src \'self\' \'unsafe-inline\' https://fonts.googleapis.com; font-src \'self\' https://fonts.gstatic.com; img-src \'self\' data: https:', true);
 
 // Harden PHP error visibility in production — errors must never reach the browser
 ini_set('display_errors', '0');

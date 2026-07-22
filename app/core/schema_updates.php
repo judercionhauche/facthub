@@ -963,6 +963,93 @@ function apply_security_schema_updates(mysqli $conn): void {
         ");
     }
 
+    // ════════════════════════════════════════════════════════════════
+    // Landing Page — Impact tracking data (funded research, proposals,
+    // FACT students). Maps to the "FACT Alliance Impact Tracking" sheet.
+    // ════════════════════════════════════════════════════════════════
+
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='funded_projects' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS funded_projects (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                funder VARCHAR(150) NOT NULL,
+                program VARCHAR(150) DEFAULT '',
+                title VARCHAR(255) NOT NULL,
+                description TEXT,
+                amount BIGINT NOT NULL DEFAULT 0,
+                start_year INT,
+                end_year INT,
+                fact_members VARCHAR(255) DEFAULT '',
+                display_order INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                updated_by INT,
+                INDEX idx_order (display_order),
+                FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        @$conn->query("INSERT IGNORE INTO funded_projects (id, funder, program, title, description, amount, start_year, end_year, fact_members, display_order) VALUES
+            (1, 'Community Jameel', 'Jameel Index', 'Jameel Index for Food Trade & Vulnerability', 'A global index tracking how climate shocks ripple through food-trade networks.', 2000000, 2024, 2027, 'K. Strzepek, G. Sixt', 1),
+            (2, 'USAID', 'Feed the Future', 'Climate-Resilient Staple Crops, East Africa', 'Breeding and agronomy programme for drought-tolerant staple crops.', 1250000, 2023, 2026, 'G. Sixt', 2),
+            (3, 'Gates Foundation', 'Agricultural Development', 'Reducing Smallholder Post-Harvest Loss', 'Low-cost cooling and storage to cut post-harvest losses at the farm gate.', 850000, 2024, 2026, 'J. Tingey-Holyoke', 3),
+            (4, 'National Science Foundation', 'Sustainable Regional Systems', 'Water–Food Nexus Modelling', 'Coupled models of water availability and food production under climate stress.', 620000, 2023, 2025, 'K. Strzepek', 4),
+            (5, 'Wellcome Trust', 'Climate & Health', 'Nutrition Security Under Climate Stress', 'How rising CO2 and heat reshape the nutritional value of staple crops.', 540000, 2024, 2027, 'L. Ziska', 5),
+            (6, 'Rockefeller Foundation', 'Food Systems', 'Regenerative Value Chains', 'Building market pathways for regenerative smallholder produce.', 430000, 2024, 2026, 'G. Sixt', 6)
+        ");
+    }
+
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='submitted_proposals' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS submitted_proposals (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                funder VARCHAR(150) NOT NULL,
+                program VARCHAR(150) DEFAULT '',
+                title VARCHAR(255) DEFAULT '',
+                amount BIGINT NOT NULL DEFAULT 0,
+                status ENUM('in_review','awarded','declined') NOT NULL DEFAULT 'in_review',
+                display_order INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                updated_by INT,
+                INDEX idx_status (status),
+                FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        @$conn->query("INSERT IGNORE INTO submitted_proposals (id, funder, program, title, amount, status, display_order) VALUES
+            (1, 'US Dept of State', 'Feed the Future', '', 1500000, 'in_review', 1),
+            (2, 'FAO', 'Hand-in-Hand', '', 900000, 'in_review', 2),
+            (3, 'CGIAR', 'Climate Action', '', 1100000, 'in_review', 3)
+        ");
+    }
+
+    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='fact_students' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("
+            CREATE TABLE IF NOT EXISTS fact_students (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                name VARCHAR(150) NOT NULL,
+                level ENUM('PhD','Masters') NOT NULL DEFAULT 'PhD',
+                institution VARCHAR(200) DEFAULT '',
+                advisors VARCHAR(255) DEFAULT '',
+                display_order INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                updated_by INT,
+                INDEX idx_order (display_order),
+                FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+        @$conn->query("INSERT IGNORE INTO fact_students (id, name, level, institution, advisors, display_order) VALUES
+            (1, 'Ranjita Sopatka', 'PhD', 'University of Adelaide', 'Joanne Tingey-Holyoke · Greg Sixt · Lew Ziska', 1),
+            (2, 'Clement Boucher', 'Masters', 'ETH (Visiting at J-WAFS)', 'Kenneth Strzepek · Greg Sixt', 2),
+            (3, 'Amara Okafor', 'PhD', 'University of Nairobi', 'Greg Sixt', 3),
+            (4, 'Lucas Almeida', 'Masters', 'University of São Paulo', 'Kenneth Strzepek', 4),
+            (5, 'Mei Tan', 'PhD', 'MIT', 'Lew Ziska', 5)
+        ");
+    }
+
     } catch (Throwable $e) {
         error_log('[Schema Migration] Error: ' . $e->getMessage());
         // Continue anyway - some tables may not exist yet

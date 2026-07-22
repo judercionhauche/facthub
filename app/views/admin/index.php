@@ -599,15 +599,139 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect_to('admin', ['section' => 'settings']);
     }
 
-    // Update impact metrics
+    // Update impact metrics (headline numbers on landing page)
     if ($action === 'update_metric') {
         $metricId = (int)($_POST['metric_id'] ?? 0);
         $newValue = (int)($_POST['metric_value'] ?? 0);
+        $adminId  = (int)($adminUser['id'] ?? 0);
         if ($metricId && $newValue >= 0) {
             $stmt = $conn->prepare('UPDATE impact_metrics SET metric_value = ?, updated_by = ? WHERE id = ?');
-            $stmt->bind_param('iii', $newValue, $editId, $metricId);
+            $stmt->bind_param('iii', $newValue, $adminId, $metricId);
             $stmt->execute();
             audit($conn, 'update_metric', ['type' => 'metric', 'id' => $metricId, 'detail' => "Updated to {$newValue}"]);
+            set_flash('success', 'Metric updated.');
+        }
+        redirect_to('admin', ['section' => 'metrics']);
+    }
+
+    /* ── Impact Data: funded projects ── */
+    if ($action === 'save_project') {
+        $pid     = (int)($_POST['project_id'] ?? 0);
+        $funder  = trim($_POST['funder'] ?? '');
+        $program = trim($_POST['program'] ?? '');
+        $title   = trim($_POST['title'] ?? '');
+        $desc    = trim($_POST['description'] ?? '');
+        $amount  = max(0, (int)($_POST['amount'] ?? 0));
+        $sy      = (int)($_POST['start_year'] ?? 0) ?: null;
+        $ey      = (int)($_POST['end_year'] ?? 0) ?: null;
+        $members = trim($_POST['fact_members'] ?? '');
+        $adminId = (int)($adminUser['id'] ?? 0);
+        if ($funder !== '' && $title !== '') {
+            if ($pid) {
+                $stmt = $conn->prepare('UPDATE funded_projects SET funder=?, program=?, title=?, description=?, amount=?, start_year=?, end_year=?, fact_members=?, updated_by=? WHERE id=?');
+                $stmt->bind_param('ssssiiisii', $funder, $program, $title, $desc, $amount, $sy, $ey, $members, $adminId, $pid);
+                $stmt->execute();
+                audit($conn, 'update_funded_project', ['type' => 'funded_project', 'id' => $pid, 'detail' => "{$funder} — {$title} (\${$amount})"]);
+                set_flash('success', 'Funded project updated.');
+            } else {
+                $stmt = $conn->prepare('INSERT INTO funded_projects (funder, program, title, description, amount, start_year, end_year, fact_members, updated_by) VALUES (?,?,?,?,?,?,?,?,?)');
+                $stmt->bind_param('ssssiiisi', $funder, $program, $title, $desc, $amount, $sy, $ey, $members, $adminId);
+                $stmt->execute();
+                audit($conn, 'add_funded_project', ['type' => 'funded_project', 'id' => $conn->insert_id, 'detail' => "{$funder} — {$title} (\${$amount})"]);
+                set_flash('success', 'Funded project added.');
+            }
+        } else {
+            set_flash('error', 'Funder and project title are required.');
+        }
+        redirect_to('admin', ['section' => 'metrics']);
+    }
+    if ($action === 'delete_project') {
+        $pid = (int)($_POST['project_id'] ?? 0);
+        if ($pid) {
+            $stmt = $conn->prepare('DELETE FROM funded_projects WHERE id = ?');
+            $stmt->bind_param('i', $pid);
+            $stmt->execute();
+            audit($conn, 'delete_funded_project', ['type' => 'funded_project', 'id' => $pid, 'detail' => 'Removed from impact data']);
+            set_flash('success', 'Funded project removed.');
+        }
+        redirect_to('admin', ['section' => 'metrics']);
+    }
+
+    /* ── Impact Data: submitted proposals ── */
+    if ($action === 'save_proposal') {
+        $pid     = (int)($_POST['proposal_id'] ?? 0);
+        $funder  = trim($_POST['funder'] ?? '');
+        $program = trim($_POST['program'] ?? '');
+        $title   = trim($_POST['title'] ?? '');
+        $amount  = max(0, (int)($_POST['amount'] ?? 0));
+        $status  = in_array($_POST['status'] ?? '', ['in_review', 'awarded', 'declined'], true) ? $_POST['status'] : 'in_review';
+        $adminId = (int)($adminUser['id'] ?? 0);
+        if ($funder !== '') {
+            if ($pid) {
+                $stmt = $conn->prepare('UPDATE submitted_proposals SET funder=?, program=?, title=?, amount=?, status=?, updated_by=? WHERE id=?');
+                $stmt->bind_param('sssisii', $funder, $program, $title, $amount, $status, $adminId, $pid);
+                $stmt->execute();
+                audit($conn, 'update_proposal', ['type' => 'proposal', 'id' => $pid, 'detail' => "{$funder} (\${$amount}, {$status})"]);
+                set_flash('success', 'Proposal updated.');
+            } else {
+                $stmt = $conn->prepare('INSERT INTO submitted_proposals (funder, program, title, amount, status, updated_by) VALUES (?,?,?,?,?,?)');
+                $stmt->bind_param('sssisi', $funder, $program, $title, $amount, $status, $adminId);
+                $stmt->execute();
+                audit($conn, 'add_proposal', ['type' => 'proposal', 'id' => $conn->insert_id, 'detail' => "{$funder} (\${$amount}, {$status})"]);
+                set_flash('success', 'Proposal added.');
+            }
+        } else {
+            set_flash('error', 'Funder is required.');
+        }
+        redirect_to('admin', ['section' => 'metrics']);
+    }
+    if ($action === 'delete_proposal') {
+        $pid = (int)($_POST['proposal_id'] ?? 0);
+        if ($pid) {
+            $stmt = $conn->prepare('DELETE FROM submitted_proposals WHERE id = ?');
+            $stmt->bind_param('i', $pid);
+            $stmt->execute();
+            audit($conn, 'delete_proposal', ['type' => 'proposal', 'id' => $pid, 'detail' => 'Removed from impact data']);
+            set_flash('success', 'Proposal removed.');
+        }
+        redirect_to('admin', ['section' => 'metrics']);
+    }
+
+    /* ── Impact Data: FACT students ── */
+    if ($action === 'save_student') {
+        $sid     = (int)($_POST['student_id'] ?? 0);
+        $name    = trim($_POST['name'] ?? '');
+        $level   = ($_POST['level'] ?? '') === 'Masters' ? 'Masters' : 'PhD';
+        $inst    = trim($_POST['institution'] ?? '');
+        $adv     = trim($_POST['advisors'] ?? '');
+        $adminId = (int)($adminUser['id'] ?? 0);
+        if ($name !== '') {
+            if ($sid) {
+                $stmt = $conn->prepare('UPDATE fact_students SET name=?, level=?, institution=?, advisors=?, updated_by=? WHERE id=?');
+                $stmt->bind_param('ssssii', $name, $level, $inst, $adv, $adminId, $sid);
+                $stmt->execute();
+                audit($conn, 'update_fact_student', ['type' => 'fact_student', 'id' => $sid, 'detail' => "{$name} ({$level}, {$inst})"]);
+                set_flash('success', 'Student updated.');
+            } else {
+                $stmt = $conn->prepare('INSERT INTO fact_students (name, level, institution, advisors, updated_by) VALUES (?,?,?,?,?)');
+                $stmt->bind_param('ssssi', $name, $level, $inst, $adv, $adminId);
+                $stmt->execute();
+                audit($conn, 'add_fact_student', ['type' => 'fact_student', 'id' => $conn->insert_id, 'detail' => "{$name} ({$level}, {$inst})"]);
+                set_flash('success', 'Student added.');
+            }
+        } else {
+            set_flash('error', 'Student name is required.');
+        }
+        redirect_to('admin', ['section' => 'metrics']);
+    }
+    if ($action === 'delete_student') {
+        $sid = (int)($_POST['student_id'] ?? 0);
+        if ($sid) {
+            $stmt = $conn->prepare('DELETE FROM fact_students WHERE id = ?');
+            $stmt->bind_param('i', $sid);
+            $stmt->execute();
+            audit($conn, 'delete_fact_student', ['type' => 'fact_student', 'id' => $sid, 'detail' => 'Removed from impact data']);
+            set_flash('success', 'Student removed.');
         }
         redirect_to('admin', ['section' => 'metrics']);
     }
@@ -847,7 +971,7 @@ $aiCoverage     = $kpiMatches > 0 ? round(($kpiAiMatches / $kpiMatches) * 100) :
             <a class="admin-dropdown-item <?= $adminSection==='api_usage' ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">API Usage</a>
             <a class="admin-dropdown-item <?= $adminSection==='audit' ? 'active' : '' ?>" href="index.php?page=admin&section=audit">Audit Log</a>
             <a class="admin-dropdown-item <?= $adminSection==='embeddings' ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">Semantic Search</a>
-            <a class="admin-dropdown-item <?= $adminSection==='metrics' ? 'active' : '' ?>" href="index.php?page=admin&section=metrics">Impact Metrics</a>
+            <a class="admin-dropdown-item <?= $adminSection==='metrics' ? 'active' : '' ?>" href="index.php?page=admin&section=metrics">Impact Data</a>
         </div>
     </div>
 
@@ -2348,63 +2472,279 @@ setInterval(loadNewsletterStats, 30000);
 </script>
 
 <?php elseif ($adminSection === 'metrics'): ?>
-<!-- Metrics Management Section -->
+<!-- Impact Data Management — drives the public landing page -->
 <div class="admin-section-head">
-    <h2>Landing Page Metrics</h2>
-    <p>Update impact metrics displayed on the public landing page. All changes are logged in the audit trail.</p>
+    <h2>Impact Data</h2>
+    <p>Manage the funded research, proposals, students and headline numbers shown on the public landing page. Totals (funding secured, project and student counts) are computed automatically. All changes are logged in the audit trail.</p>
 </div>
 
 <?php
-// Fetch all metrics grouped by category
-$metricsData = [];
-$metricsResult = $conn->query("SELECT id, metric_key, metric_value, metric_label, metric_unit, metric_category FROM impact_metrics ORDER BY metric_category, order_in_category");
-if ($metricsResult) {
-    while ($row = $metricsResult->fetch_assoc()) {
-        $cat = $row['metric_category'];
-        if (!isset($metricsData[$cat])) $metricsData[$cat] = [];
-        $metricsData[$cat][] = $row;
-    }
-}
+$impProjects = [];
+$r = $conn->query("SELECT * FROM funded_projects ORDER BY amount DESC");
+if ($r) while ($row = $r->fetch_assoc()) $impProjects[] = $row;
 
-$categories = ['network', 'funding', 'students', 'global', 'platform'];
-$categoryLabels = [
-    'network' => 'Network Impact',
-    'funding' => 'Funding Impact',
-    'students' => 'Students & Mentorship',
-    'global' => 'Global Reach',
-    'platform' => 'Platform Growth'
-];
+$impProposals = [];
+$r = $conn->query("SELECT * FROM submitted_proposals ORDER BY display_order, id");
+if ($r) while ($row = $r->fetch_assoc()) $impProposals[] = $row;
+
+$impStudents = [];
+$r = $conn->query("SELECT * FROM fact_students ORDER BY display_order, id");
+if ($r) while ($row = $r->fetch_assoc()) $impStudents[] = $row;
+
+$impHeadline = [];
+$r = $conn->query("SELECT id, metric_key, metric_value, metric_label FROM impact_metrics WHERE metric_key IN ('partner_institutions','countries_represented')");
+if ($r) while ($row = $r->fetch_assoc()) $impHeadline[] = $row;
+
+$impSecured  = array_sum(array_map(static fn($p) => (int)$p['amount'], $impProjects));
+$impInReview = array_sum(array_map(static fn($p) => $p['status'] === 'in_review' ? (int)$p['amount'] : 0, $impProposals));
+$impMoney = static function (int $v): string {
+    if ($v >= 1000000) return '$' . rtrim(rtrim(number_format($v / 1000000, 1), '0'), '.') . 'M';
+    if ($v >= 1000)    return '$' . round($v / 1000) . 'k';
+    return '$' . $v;
+};
 ?>
 
-<div style="display: grid; gap: 28px">
-<?php foreach ($categories as $cat): ?>
-    <div class="panel" style="padding: 24px">
-        <h3 style="margin-bottom: 18px"><?= h($categoryLabels[$cat]) ?></h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px">
-        <?php if (isset($metricsData[$cat])): ?>
-            <?php foreach ($metricsData[$cat] as $m): ?>
-            <form method="post" style="display: flex; gap: 8px; align-items: flex-end; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg)">
+<style>
+.imp-row{display:flex;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);margin-bottom:10px;flex-wrap:wrap}
+.imp-row-main{flex:1;min-width:240px}
+.imp-row-title{font-weight:700;font-size:13.5px}
+.imp-row-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.imp-amt{font-weight:800;color:var(--primary);font-size:14px;white-space:nowrap}
+.imp-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;padding:14px;border-top:1px dashed var(--line);margin-top:10px;width:100%}
+.imp-form label{font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px}
+.imp-form input,.imp-form select,.imp-form textarea{width:100%;padding:7px 9px;font-size:13px;border:1px solid var(--line);border-radius:7px;font-family:inherit;box-sizing:border-box}
+.imp-form .imp-span{grid-column:1/-1}
+.imp-actions{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end}
+.imp-summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--primary);user-select:none}
+.imp-del-btn{background:none;border:1px solid #e3c4c4;color:var(--danger);border-radius:7px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer}
+.imp-del-btn:hover{background:#fbf0f0}
+.imp-stat{display:inline-flex;align-items:baseline;gap:6px;background:var(--primary-2);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--primary)}
+</style>
+
+<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+    <span class="imp-stat"><?= h($impMoney($impSecured)) ?> <span style="font-weight:500">funding secured</span></span>
+    <span class="imp-stat"><?= count($impProjects) ?> <span style="font-weight:500">funded projects</span></span>
+    <span class="imp-stat"><?= h($impMoney($impInReview)) ?> <span style="font-weight:500">in review</span></span>
+    <span class="imp-stat"><?= count($impStudents) ?> <span style="font-weight:500">students</span></span>
+    <a href="index.php?page=landing" target="_blank" class="ghost-btn" style="margin-left:auto">View landing page ↗</a>
+</div>
+
+<div style="display:grid;gap:24px">
+
+    <!-- ── Headline metrics ── -->
+    <div class="panel" style="padding:24px">
+        <h3 style="margin:0 0 6px">Headline numbers</h3>
+        <p style="font-size:12.5px;color:var(--muted);margin:0 0 16px">Edited manually — everything else on the landing page is computed from the data below.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
+        <?php foreach ($impHeadline as $m): ?>
+            <form method="post" style="display:flex;gap:8px;align-items:flex-end;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)">
                 <input type="hidden" name="action" value="update_metric">
                 <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="metric_id" value="<?= (int)$m['id'] ?>">
-                <div style="flex: 1">
-                    <label style="font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 4px"><?= h($m['metric_label']) ?></label>
-                    <div style="display: flex; gap: 8px">
-                        <input type="number" name="metric_value" value="<?= (int)$m['metric_value'] ?>" required style="flex: 1; padding: 8px 10px; font-size: 14px; border: 1px solid var(--line); border-radius: 8px">
-                        <span style="padding: 8px 10px; color: var(--muted); font-size: 13px; font-weight: 600"><?= h($m['metric_unit'] ?: '') ?></span>
-                    </div>
+                <div style="flex:1">
+                    <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px"><?= h($m['metric_label']) ?></label>
+                    <input type="number" name="metric_value" value="<?= (int)$m['metric_value'] ?>" min="0" required style="width:100%;padding:8px 10px;font-size:14px;border:1px solid var(--line);border-radius:8px;box-sizing:border-box">
                 </div>
-                <button type="submit" class="primary-btn" style="padding: 8px 14px; font-size: 12px">Update</button>
+                <button type="submit" class="primary-btn" style="padding:8px 14px;font-size:12px">Update</button>
             </form>
-            <?php endforeach; ?>
-        <?php endif; ?>
+        <?php endforeach; ?>
         </div>
     </div>
-<?php endforeach; ?>
+
+    <!-- ── Funded projects ── -->
+    <div class="panel" style="padding:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap">
+            <h3 style="margin:0">Funded research</h3>
+            <span style="font-size:12px;color:var(--muted)">Shown as funder bars, growth chart and project cards</span>
+        </div>
+        <?php foreach ($impProjects as $p): ?>
+        <div class="imp-row">
+            <div class="imp-row-main">
+                <div class="imp-row-title"><?= h($p['title']) ?></div>
+                <div class="imp-row-sub"><?= h($p['funder']) ?><?= $p['program'] ? ' · ' . h($p['program']) : '' ?> · <?= (int)$p['start_year'] ?>–<?= (int)$p['end_year'] ?> · <?= h($p['fact_members']) ?></div>
+            </div>
+            <span class="imp-amt"><?= h($impMoney((int)$p['amount'])) ?></span>
+            <details style="width:100%">
+                <summary class="imp-summary">Edit</summary>
+                <form method="post" class="imp-form">
+                    <input type="hidden" name="action" value="save_project">
+                    <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                    <input type="hidden" name="project_id" value="<?= (int)$p['id'] ?>">
+                    <div><label>Funder *</label><input name="funder" value="<?= h($p['funder']) ?>" required></div>
+                    <div><label>Program</label><input name="program" value="<?= h($p['program']) ?>"></div>
+                    <div><label>Amount (USD)</label><input type="number" name="amount" value="<?= (int)$p['amount'] ?>" min="0"></div>
+                    <div class="imp-span"><label>Project title *</label><input name="title" value="<?= h($p['title']) ?>" required></div>
+                    <div class="imp-span"><label>Description</label><textarea name="description" rows="2"><?= h($p['description']) ?></textarea></div>
+                    <div><label>Start year</label><input type="number" name="start_year" value="<?= (int)$p['start_year'] ?>" min="2000" max="2100"></div>
+                    <div><label>End year</label><input type="number" name="end_year" value="<?= (int)$p['end_year'] ?>" min="2000" max="2100"></div>
+                    <div><label>FACT members</label><input name="fact_members" value="<?= h($p['fact_members']) ?>"></div>
+                    <div class="imp-actions">
+                        <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Save</button>
+                    </div>
+                </form>
+                <form method="post" style="display:flex;justify-content:flex-end;padding:0 14px 12px" onsubmit="return confirm('Remove this funded project from the landing page?')">
+                    <input type="hidden" name="action" value="delete_project">
+                    <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                    <input type="hidden" name="project_id" value="<?= (int)$p['id'] ?>">
+                    <button type="submit" class="imp-del-btn">Delete project</button>
+                </form>
+            </details>
+        </div>
+        <?php endforeach; ?>
+        <details style="margin-top:14px">
+            <summary class="imp-summary">+ Add funded project</summary>
+            <form method="post" class="imp-form" style="border:1px solid var(--line);border-radius:10px;margin-top:10px">
+                <input type="hidden" name="action" value="save_project">
+                <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                <input type="hidden" name="project_id" value="0">
+                <div><label>Funder *</label><input name="funder" required></div>
+                <div><label>Program</label><input name="program"></div>
+                <div><label>Amount (USD)</label><input type="number" name="amount" min="0" value="0"></div>
+                <div class="imp-span"><label>Project title *</label><input name="title" required></div>
+                <div class="imp-span"><label>Description</label><textarea name="description" rows="2"></textarea></div>
+                <div><label>Start year</label><input type="number" name="start_year" min="2000" max="2100"></div>
+                <div><label>End year</label><input type="number" name="end_year" min="2000" max="2100"></div>
+                <div><label>FACT members</label><input name="fact_members" placeholder="e.g. K. Strzepek, G. Sixt"></div>
+                <div class="imp-actions">
+                    <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Add project</button>
+                </div>
+            </form>
+        </details>
+    </div>
+
+    <!-- ── Submitted proposals ── -->
+    <div class="panel" style="padding:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap">
+            <h3 style="margin:0">Submitted proposals</h3>
+            <span style="font-size:12px;color:var(--muted)">Proposals “in review” feed the pipeline bar</span>
+        </div>
+        <?php foreach ($impProposals as $p): ?>
+        <div class="imp-row">
+            <div class="imp-row-main">
+                <div class="imp-row-title"><?= h($p['funder']) ?><?= $p['program'] ? ' · ' . h($p['program']) : '' ?></div>
+                <div class="imp-row-sub"><?= h($p['title'] ?: 'Untitled proposal') ?> · <span style="font-weight:700;color:<?= $p['status'] === 'awarded' ? '#1a6b5a' : ($p['status'] === 'declined' ? '#b54646' : '#8a6f2e') ?>"><?= h(str_replace('_', ' ', $p['status'])) ?></span></div>
+            </div>
+            <span class="imp-amt"><?= h($impMoney((int)$p['amount'])) ?></span>
+            <details style="width:100%">
+                <summary class="imp-summary">Edit</summary>
+                <form method="post" class="imp-form">
+                    <input type="hidden" name="action" value="save_proposal">
+                    <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                    <input type="hidden" name="proposal_id" value="<?= (int)$p['id'] ?>">
+                    <div><label>Funder *</label><input name="funder" value="<?= h($p['funder']) ?>" required></div>
+                    <div><label>Program</label><input name="program" value="<?= h($p['program']) ?>"></div>
+                    <div><label>Amount (USD)</label><input type="number" name="amount" value="<?= (int)$p['amount'] ?>" min="0"></div>
+                    <div><label>Status</label>
+                        <select name="status">
+                            <option value="in_review" <?= $p['status'] === 'in_review' ? 'selected' : '' ?>>In review</option>
+                            <option value="awarded"   <?= $p['status'] === 'awarded'   ? 'selected' : '' ?>>Awarded</option>
+                            <option value="declined"  <?= $p['status'] === 'declined'  ? 'selected' : '' ?>>Declined</option>
+                        </select>
+                    </div>
+                    <div class="imp-span"><label>Title (optional)</label><input name="title" value="<?= h($p['title']) ?>"></div>
+                    <div class="imp-actions">
+                        <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Save</button>
+                    </div>
+                </form>
+                <form method="post" style="display:flex;justify-content:flex-end;padding:0 14px 12px" onsubmit="return confirm('Remove this proposal?')">
+                    <input type="hidden" name="action" value="delete_proposal">
+                    <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                    <input type="hidden" name="proposal_id" value="<?= (int)$p['id'] ?>">
+                    <button type="submit" class="imp-del-btn">Delete proposal</button>
+                </form>
+            </details>
+        </div>
+        <?php endforeach; ?>
+        <details style="margin-top:14px">
+            <summary class="imp-summary">+ Add proposal</summary>
+            <form method="post" class="imp-form" style="border:1px solid var(--line);border-radius:10px;margin-top:10px">
+                <input type="hidden" name="action" value="save_proposal">
+                <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                <input type="hidden" name="proposal_id" value="0">
+                <div><label>Funder *</label><input name="funder" required></div>
+                <div><label>Program</label><input name="program"></div>
+                <div><label>Amount (USD)</label><input type="number" name="amount" min="0" value="0"></div>
+                <div><label>Status</label>
+                    <select name="status">
+                        <option value="in_review" selected>In review</option>
+                        <option value="awarded">Awarded</option>
+                        <option value="declined">Declined</option>
+                    </select>
+                </div>
+                <div class="imp-span"><label>Title (optional)</label><input name="title"></div>
+                <div class="imp-actions">
+                    <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Add proposal</button>
+                </div>
+            </form>
+        </details>
+    </div>
+
+    <!-- ── FACT students ── -->
+    <div class="panel" style="padding:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap">
+            <h3 style="margin:0">FACT students</h3>
+            <span style="font-size:12px;color:var(--muted)">Shown as the student cards and PhD/Masters donut</span>
+        </div>
+        <?php foreach ($impStudents as $s): ?>
+        <div class="imp-row">
+            <div class="imp-row-main">
+                <div class="imp-row-title"><?= h($s['name']) ?> <span style="font-weight:600;color:var(--muted);font-size:11px">(<?= h($s['level']) ?>)</span></div>
+                <div class="imp-row-sub"><?= h($s['institution']) ?> · Advised by <?= h($s['advisors']) ?></div>
+            </div>
+            <details style="width:100%">
+                <summary class="imp-summary">Edit</summary>
+                <form method="post" class="imp-form">
+                    <input type="hidden" name="action" value="save_student">
+                    <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                    <input type="hidden" name="student_id" value="<?= (int)$s['id'] ?>">
+                    <div><label>Name *</label><input name="name" value="<?= h($s['name']) ?>" required></div>
+                    <div><label>Level</label>
+                        <select name="level">
+                            <option value="PhD"     <?= $s['level'] === 'PhD'     ? 'selected' : '' ?>>PhD</option>
+                            <option value="Masters" <?= $s['level'] === 'Masters' ? 'selected' : '' ?>>Masters</option>
+                        </select>
+                    </div>
+                    <div><label>Institution</label><input name="institution" value="<?= h($s['institution']) ?>"></div>
+                    <div class="imp-span"><label>Advisors</label><input name="advisors" value="<?= h($s['advisors']) ?>" placeholder="Separate with ·"></div>
+                    <div class="imp-actions">
+                        <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Save</button>
+                    </div>
+                </form>
+                <form method="post" style="display:flex;justify-content:flex-end;padding:0 14px 12px" onsubmit="return confirm('Remove this student?')">
+                    <input type="hidden" name="action" value="delete_student">
+                    <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                    <input type="hidden" name="student_id" value="<?= (int)$s['id'] ?>">
+                    <button type="submit" class="imp-del-btn">Delete student</button>
+                </form>
+            </details>
+        </div>
+        <?php endforeach; ?>
+        <details style="margin-top:14px">
+            <summary class="imp-summary">+ Add student</summary>
+            <form method="post" class="imp-form" style="border:1px solid var(--line);border-radius:10px;margin-top:10px">
+                <input type="hidden" name="action" value="save_student">
+                <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                <input type="hidden" name="student_id" value="0">
+                <div><label>Name *</label><input name="name" required></div>
+                <div><label>Level</label>
+                    <select name="level">
+                        <option value="PhD" selected>PhD</option>
+                        <option value="Masters">Masters</option>
+                    </select>
+                </div>
+                <div><label>Institution</label><input name="institution"></div>
+                <div class="imp-span"><label>Advisors</label><input name="advisors" placeholder="Separate with ·"></div>
+                <div class="imp-actions">
+                    <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Add student</button>
+                </div>
+            </form>
+        </details>
+    </div>
+
 </div>
 
-<div style="margin-top: 28px; padding: 16px; background: #f0f7f4; border: 1px solid #cfe8d9; border-radius: 10px; color: #145c40; font-size: 13px; line-height: 1.5">
-    <strong>How it works:</strong> Change any metric value and click Update. The new value appears on the landing page immediately and is logged in the audit trail. All metrics are displayed on the public landing page with animated counters.
+<div style="margin-top:28px;padding:16px;background:#f0f7f4;border:1px solid #cfe8d9;border-radius:10px;color:#145c40;font-size:13px;line-height:1.5">
+    <strong>How it works:</strong> The landing page computes its headline totals from this data — funding secured is the sum of funded projects, the pipeline bar sums proposals in review, and the student donut counts PhD vs Masters. Only “Partner institutions” and “Countries” are set by hand above. Changes appear on the landing page immediately and are logged in the audit trail.
 </div>
 
 <?php endif; /* end section switch */ ?>
