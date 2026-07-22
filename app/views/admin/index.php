@@ -8,7 +8,7 @@ if (!is_array($mailCfg)) {
 $appUrl  = rtrim($mailCfg['app_url'] ?? 'http://localhost/facthub/public', '/');
 
 $adminUser   = current_user();
-$adminSection = in_array($_GET['section'] ?? '', ['dashboard','users','researchers','funders','audit','api_usage','jobs','settings','embeddings','newsletter'])
+$adminSection = in_array($_GET['section'] ?? '', ['dashboard','users','researchers','funders','audit','api_usage','jobs','settings','embeddings','newsletter','metrics'])
                ? $_GET['section'] : 'dashboard';
 
 /* ── POST ACTIONS ── */
@@ -598,6 +598,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         redirect_to('admin', ['section' => 'settings']);
     }
+
+    // Update impact metrics
+    if ($action === 'update_metric') {
+        $metricId = (int)($_POST['metric_id'] ?? 0);
+        $newValue = (int)($_POST['metric_value'] ?? 0);
+        if ($metricId && $newValue >= 0) {
+            $stmt = $conn->prepare('UPDATE impact_metrics SET metric_value = ?, updated_by = ? WHERE id = ?');
+            $stmt->bind_param('iii', $newValue, $editId, $metricId);
+            $stmt->execute();
+            audit($conn, 'update_metric', ['type' => 'metric', 'id' => $metricId, 'detail' => "Updated to {$newValue}"]);
+        }
+        redirect_to('admin', ['section' => 'metrics']);
+    }
 }
 
 /* ── LOAD DATA ── */
@@ -826,7 +839,7 @@ $aiCoverage     = $kpiMatches > 0 ? round(($kpiAiMatches / $kpiMatches) * 100) :
 
     <!-- Tools Dropdown -->
     <div class="admin-dropdown-wrapper">
-        <button class="admin-stab admin-dropdown-toggle <?= in_array($adminSection, ['jobs', 'api_usage', 'audit', 'embeddings']) ? 'active' : '' ?>" onclick="toggleAdminDropdown(event)">
+        <button class="admin-stab admin-dropdown-toggle <?= in_array($adminSection, ['jobs', 'api_usage', 'audit', 'embeddings', 'metrics']) ? 'active' : '' ?>" onclick="toggleAdminDropdown(event)">
             Tools <span class="dropdown-arrow">▼</span>
         </button>
         <div class="admin-dropdown-menu" id="adminDropdown">
@@ -834,6 +847,7 @@ $aiCoverage     = $kpiMatches > 0 ? round(($kpiAiMatches / $kpiMatches) * 100) :
             <a class="admin-dropdown-item <?= $adminSection==='api_usage' ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">API Usage</a>
             <a class="admin-dropdown-item <?= $adminSection==='audit' ? 'active' : '' ?>" href="index.php?page=admin&section=audit">Audit Log</a>
             <a class="admin-dropdown-item <?= $adminSection==='embeddings' ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">Semantic Search</a>
+            <a class="admin-dropdown-item <?= $adminSection==='metrics' ? 'active' : '' ?>" href="index.php?page=admin&section=metrics">Impact Metrics</a>
         </div>
     </div>
 
@@ -2332,6 +2346,66 @@ loadNewsletterStats();
 // Refresh stats every 30 seconds
 setInterval(loadNewsletterStats, 30000);
 </script>
+
+<?php elseif ($adminSection === 'metrics'): ?>
+<!-- Metrics Management Section -->
+<div class="admin-section-head">
+    <h2>Landing Page Metrics</h2>
+    <p>Update impact metrics displayed on the public landing page. All changes are logged in the audit trail.</p>
+</div>
+
+<?php
+// Fetch all metrics grouped by category
+$metricsData = [];
+$metricsResult = $conn->query("SELECT id, metric_key, metric_value, metric_label, metric_unit, metric_category FROM impact_metrics ORDER BY metric_category, order_in_category");
+if ($metricsResult) {
+    while ($row = $metricsResult->fetch_assoc()) {
+        $cat = $row['metric_category'];
+        if (!isset($metricsData[$cat])) $metricsData[$cat] = [];
+        $metricsData[$cat][] = $row;
+    }
+}
+
+$categories = ['network', 'funding', 'students', 'global', 'platform'];
+$categoryLabels = [
+    'network' => 'Network Impact',
+    'funding' => 'Funding Impact',
+    'students' => 'Students & Mentorship',
+    'global' => 'Global Reach',
+    'platform' => 'Platform Growth'
+];
+?>
+
+<div style="display: grid; gap: 28px">
+<?php foreach ($categories as $cat): ?>
+    <div class="panel" style="padding: 24px">
+        <h3 style="margin-bottom: 18px"><?= h($categoryLabels[$cat]) ?></h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px">
+        <?php if (isset($metricsData[$cat])): ?>
+            <?php foreach ($metricsData[$cat] as $m): ?>
+            <form method="post" style="display: flex; gap: 8px; align-items: flex-end; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg)">
+                <input type="hidden" name="action" value="update_metric">
+                <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                <input type="hidden" name="metric_id" value="<?= (int)$m['id'] ?>">
+                <div style="flex: 1">
+                    <label style="font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; display: block; margin-bottom: 4px"><?= h($m['metric_label']) ?></label>
+                    <div style="display: flex; gap: 8px">
+                        <input type="number" name="metric_value" value="<?= (int)$m['metric_value'] ?>" required style="flex: 1; padding: 8px 10px; font-size: 14px; border: 1px solid var(--line); border-radius: 8px">
+                        <span style="padding: 8px 10px; color: var(--muted); font-size: 13px; font-weight: 600"><?= h($m['metric_unit'] ?: '') ?></span>
+                    </div>
+                </div>
+                <button type="submit" class="primary-btn" style="padding: 8px 14px; font-size: 12px">Update</button>
+            </form>
+            <?php endforeach; ?>
+        <?php endif; ?>
+        </div>
+    </div>
+<?php endforeach; ?>
+</div>
+
+<div style="margin-top: 28px; padding: 16px; background: #f0f7f4; border: 1px solid #cfe8d9; border-radius: 10px; color: #145c40; font-size: 13px; line-height: 1.5">
+    <strong>How it works:</strong> Change any metric value and click Update. The new value appears on the landing page immediately and is logged in the audit trail. All metrics are displayed on the public landing page with animated counters.
+</div>
 
 <?php endif; /* end section switch */ ?>
 
