@@ -992,8 +992,7 @@ function apply_impact_data_schema(mysqli $conn): void {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 updated_by INT,
-                INDEX idx_order (display_order),
-                FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+                INDEX idx_order (display_order)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
     // Seed whenever empty — covers earlier runs that created the table but aborted before inserting
@@ -1021,8 +1020,7 @@ function apply_impact_data_schema(mysqli $conn): void {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 updated_by INT,
-                INDEX idx_status (status),
-                FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+                INDEX idx_status (status)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
     $seed = @$conn->query("SELECT COUNT(*) c FROM submitted_proposals");
@@ -1045,8 +1043,7 @@ function apply_impact_data_schema(mysqli $conn): void {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 updated_by INT,
-                INDEX idx_order (display_order),
-                FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
+                INDEX idx_order (display_order)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
     $seed = @$conn->query("SELECT COUNT(*) c FROM fact_students");
