@@ -977,9 +977,7 @@ function apply_security_schema_updates(mysqli $conn): void {
 function apply_impact_data_schema(mysqli $conn): void {
     try {
 
-    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='funded_projects' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
-    if (!$result || $result->num_rows === 0) {
-        @$conn->query("
+    @$conn->query("
             CREATE TABLE IF NOT EXISTS funded_projects (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 funder VARCHAR(150) NOT NULL,
@@ -998,6 +996,9 @@ function apply_impact_data_schema(mysqli $conn): void {
                 FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+    // Seed whenever empty — covers earlier runs that created the table but aborted before inserting
+    $seed = @$conn->query("SELECT COUNT(*) c FROM funded_projects");
+    if ($seed && (int)($seed->fetch_assoc()['c'] ?? 0) === 0) {
         @$conn->query("INSERT IGNORE INTO funded_projects (id, funder, program, title, description, amount, start_year, end_year, fact_members, display_order) VALUES
             (1, 'Community Jameel', 'Jameel Index', 'Jameel Index for Food Trade & Vulnerability', 'A global index tracking how climate shocks ripple through food-trade networks.', 2000000, 2024, 2027, 'K. Strzepek, G. Sixt', 1),
             (2, 'USAID', 'Feed the Future', 'Climate-Resilient Staple Crops, East Africa', 'Breeding and agronomy programme for drought-tolerant staple crops.', 1250000, 2023, 2026, 'G. Sixt', 2),
@@ -1008,9 +1009,7 @@ function apply_impact_data_schema(mysqli $conn): void {
         ");
     }
 
-    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='submitted_proposals' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
-    if (!$result || $result->num_rows === 0) {
-        @$conn->query("
+    @$conn->query("
             CREATE TABLE IF NOT EXISTS submitted_proposals (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 funder VARCHAR(150) NOT NULL,
@@ -1026,6 +1025,8 @@ function apply_impact_data_schema(mysqli $conn): void {
                 FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+    $seed = @$conn->query("SELECT COUNT(*) c FROM submitted_proposals");
+    if ($seed && (int)($seed->fetch_assoc()['c'] ?? 0) === 0) {
         @$conn->query("INSERT IGNORE INTO submitted_proposals (id, funder, program, title, amount, status, display_order) VALUES
             (1, 'US Dept of State', 'Feed the Future', '', 1500000, 'in_review', 1),
             (2, 'FAO', 'Hand-in-Hand', '', 900000, 'in_review', 2),
@@ -1033,9 +1034,7 @@ function apply_impact_data_schema(mysqli $conn): void {
         ");
     }
 
-    $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='fact_students' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
-    if (!$result || $result->num_rows === 0) {
-        @$conn->query("
+    @$conn->query("
             CREATE TABLE IF NOT EXISTS fact_students (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(150) NOT NULL,
@@ -1050,6 +1049,8 @@ function apply_impact_data_schema(mysqli $conn): void {
                 FOREIGN KEY (updated_by) REFERENCES users(id) ON DELETE SET NULL
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+    $seed = @$conn->query("SELECT COUNT(*) c FROM fact_students");
+    if ($seed && (int)($seed->fetch_assoc()['c'] ?? 0) === 0) {
         @$conn->query("INSERT IGNORE INTO fact_students (id, name, level, institution, advisors, display_order) VALUES
             (1, 'Ranjita Sopatka', 'PhD', 'University of Adelaide', 'Joanne Tingey-Holyoke · Greg Sixt · Lew Ziska', 1),
             (2, 'Clement Boucher', 'Masters', 'ETH (Visiting at J-WAFS)', 'Kenneth Strzepek · Greg Sixt', 2),

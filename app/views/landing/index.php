@@ -8,26 +8,37 @@ if (is_logged_in()) {
     redirect_to($redirectPage);
 }
 
+// Make sure the impact tables exist and are seeded (safe no-op when already done)
+if (function_exists('apply_impact_data_schema')) {
+    apply_impact_data_schema($conn);
+}
+
 $landProjects = $landProposals = $landStudents = [];
 $landInstitutions = 0; $landCountries = 0;
+
+// Each query is isolated so one failure can't blank the whole page
 try {
     $r = $conn->query("SELECT funder, program, title, description, amount, start_year, end_year, fact_members FROM funded_projects ORDER BY amount DESC");
     if ($r) while ($row = $r->fetch_assoc()) $landProjects[] = $row;
+} catch (Throwable $e) { error_log('[Landing] funded_projects fetch error: ' . $e->getMessage()); }
 
+try {
     $r = $conn->query("SELECT funder, program, amount FROM submitted_proposals WHERE status = 'in_review'");
     if ($r) while ($row = $r->fetch_assoc()) $landProposals[] = $row;
+} catch (Throwable $e) { error_log('[Landing] submitted_proposals fetch error: ' . $e->getMessage()); }
 
+try {
     $r = $conn->query("SELECT name, level, institution, advisors FROM fact_students ORDER BY display_order, id");
     if ($r) while ($row = $r->fetch_assoc()) $landStudents[] = $row;
+} catch (Throwable $e) { error_log('[Landing] fact_students fetch error: ' . $e->getMessage()); }
 
+try {
     $r = $conn->query("SELECT metric_key, metric_value FROM impact_metrics WHERE metric_key IN ('partner_institutions','countries_represented')");
     if ($r) while ($row = $r->fetch_assoc()) {
         if ($row['metric_key'] === 'partner_institutions')  $landInstitutions = (int)$row['metric_value'];
         if ($row['metric_key'] === 'countries_represented') $landCountries = (int)$row['metric_value'];
     }
-} catch (Throwable $e) {
-    error_log('[Landing] Impact data fetch error: ' . $e->getMessage());
-}
+} catch (Throwable $e) { error_log('[Landing] impact_metrics fetch error: ' . $e->getMessage()); }
 
 $fundingSecured = 0; foreach ($landProjects as $p)  $fundingSecured += (int)$p['amount'];
 $pipelineAmt    = 0; foreach ($landProposals as $p) $pipelineAmt    += (int)$p['amount'];
