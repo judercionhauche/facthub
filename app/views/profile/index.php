@@ -224,6 +224,7 @@ button.save-btn:hover { background: #155043; transform: translateY(-2px); box-sh
 }
 </style>
 
+<div style="background-image:linear-gradient(135deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.55) 100%), url('wheat.avif');background-size:cover;background-position:center;background-attachment:fixed;">
 <div class="profile-container" style="margin-top: 20px">
     <aside class="profile-sidebar">
         <div style="text-align: center; margin-bottom: 20px; padding: 20px; background: linear-gradient(135deg, var(--primary-2) 0%, rgba(220, 236, 231, 0.5) 100%); border-radius: 10px;">
@@ -629,6 +630,7 @@ button.save-btn:hover { background: #155043; transform: translateY(-2px); box-sh
         </div>
         <?php endif; ?>
     </main>
+</div>
 </div>
 
 <script>

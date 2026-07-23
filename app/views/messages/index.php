@@ -663,6 +663,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
 .undo-close:hover{color:#fff}
 </style>
 
+<div style="background-image:linear-gradient(135deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.55) 100%), url('wheat.avif');background-size:cover;background-position:center;background-attachment:fixed;">
 <div class="msg-page" data-current-tab="<?= h($tab) ?>" data-current-thread="<?= $threadId ?>">
 
 <!-- ── Top bar ── -->
@@ -1021,6 +1022,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
 <?php endif; ?>
 
 </div><!-- .msg-page -->
+</div>
 
 <!-- ── Undo Toast ── -->
 <?php if ($undoTrash): ?>

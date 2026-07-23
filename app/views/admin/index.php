@@ -856,6 +856,7 @@ $users = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
 .admin-nav-item .icon { font-size: 16px; flex-shrink: 0; }
 </style>
 
+<div style="background-image:linear-gradient(135deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.55) 100%), url('wheat.avif');background-size:cover;background-position:center;background-attachment:fixed;">
 <!-- Page header + stats -->
 <div class="panel page-head" style="padding:20px 22px;margin-bottom:16px">
     <div class="head-row">
@@ -2755,6 +2756,8 @@ $impMoney = static function (int $v): string {
 </div>
 
 <?php endif; /* end section switch */ ?>
+
+</div>
 
 <script>
 (function(){

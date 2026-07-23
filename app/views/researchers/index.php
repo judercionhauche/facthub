@@ -765,6 +765,7 @@ if (!is_admin() && is_approved()) {
 </style>
 
 <?php if (!$isRegistering): ?>
+<div style="background-image:linear-gradient(135deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.55) 100%), url('wheat.avif');background-size:cover;background-position:center;background-attachment:fixed;">
 <!-- ── Page head ────────────────────────────────────────────────── -->
 <div class="panel page-head">
     <div class="head-row">
@@ -1660,4 +1661,5 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 </script>
+</div>
 <?php endif; // end !$isRegistering ?>

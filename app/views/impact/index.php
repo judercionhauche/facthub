@@ -180,7 +180,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
   }
 </style>
 
-<div class="landing">
+<div class="landing" style="background-image:linear-gradient(135deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.55) 100%), url('wheat.avif');background-size:cover;background-position:center;background-attachment:fixed;">
 
 <!-- ===================== IMPACT KPIs ===================== -->
 <section class="l-section">

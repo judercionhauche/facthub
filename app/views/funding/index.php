@@ -388,6 +388,7 @@ $hasFilters = $search !== '' || !empty($topicFilters) || !empty($geoFilters) || 
 .ai-score { background: #eaf6f0; color: #1a6b5a; }
 .kw-score { background: #f0f4f8; color: #374151; }
 </style>
+<div style="background-image:linear-gradient(135deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.55) 100%), url('wheat.avif');background-size:cover;background-position:center;background-attachment:fixed;">
 <div class="panel page-head">
     <div class="head-row">
         <div class="title-tabs">
@@ -531,3 +532,4 @@ $hasFilters = $search !== '' || !empty($topicFilters) || !empty($geoFilters) || 
 <?php endif; ?>
     </div><!-- .lk-results -->
 </div><!-- .lk-layout -->
+</div>
