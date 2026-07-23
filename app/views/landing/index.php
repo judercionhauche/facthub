@@ -4,7 +4,7 @@
 // plus two headline values from impact_metrics. All editable in Admin → Impact Data.
 
 if (is_logged_in()) {
-    $redirectPage = ($_SESSION['user_role'] ?? '') === 'funder' ? 'funding' : 'researchers';
+    $redirectPage = ($_SESSION['user_role'] ?? '') === 'funder' ? 'funding' : 'impact';
     redirect_to($redirectPage);
 }
 
