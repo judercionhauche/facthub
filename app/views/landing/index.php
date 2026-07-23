@@ -346,7 +346,12 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Partner institutions</div><div class="sub">Universities and labs across <?= $landCountries ?> countries.</div></div>
     </div>
 
-    <?php if ($landProjects): ?>
+    <?php
+    // Funding charts (funder bars, growth over time, pipeline) hidden for now —
+    // flip to true to bring them back
+    $showFundingCharts = false;
+    ?>
+    <?php if ($landProjects && $showFundingCharts): ?>
     <div class="charts" style="margin-top:60px">
       <div class="l-panel reveal">
         <div class="cap">Funded research</div>
