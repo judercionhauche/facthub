@@ -177,6 +177,7 @@ if (is_logged_in()) {
         <aside class="sidebar">
             <div class="panel sidebar-panel">
                 <div class="sidebar-title">FACT TOOLS</div>
+                <a href="index.php?page=impact"      class="side-link <?= $page === 'impact'      ? 'active' : '' ?>">Impact</a>
                 <a href="index.php?page=researchers"  class="side-link <?= $page === 'researchers'  ? 'active' : '' ?>">Researchers</a>
                 <a href="index.php?page=funding"      class="side-link <?= $page === 'funding'      ? 'active' : '' ?>">Funding</a>
                 <a href="index.php?page=matching"     class="side-link <?= $page === 'matching'     ? 'active' : '' ?>">Matching</a>

@@ -1,14 +1,10 @@
 <?php
-// Public landing page — impact dashboard for non-logged-in visitors.
-// Data lives in funded_projects / submitted_proposals / fact_students,
-// plus two headline values from impact_metrics. All editable in Admin → Impact Data.
+// Impact dashboard for logged-in users — shows full impact data
+// Reuses all landing page styling and data loading
 
-if (is_logged_in()) {
-    $redirectPage = ($_SESSION['user_role'] ?? '') === 'funder' ? 'funding' : 'researchers';
-    redirect_to($redirectPage);
-}
+require_admin_or_user(); // Requires login
 
-// Make sure the impact tables exist and are seeded (safe no-op when already done)
+// Fetch impact data (same as landing page)
 if (function_exists('apply_impact_data_schema')) {
     apply_impact_data_schema($conn);
 }
@@ -16,21 +12,20 @@ if (function_exists('apply_impact_data_schema')) {
 $landProjects = $landProposals = $landStudents = [];
 $landInstitutions = 0; $landCountries = 0;
 
-// Each query is isolated so one failure can't blank the whole page
 try {
     $r = $conn->query("SELECT funder, program, title, description, amount, start_year, end_year, fact_members FROM funded_projects ORDER BY amount DESC");
     if ($r) while ($row = $r->fetch_assoc()) $landProjects[] = $row;
-} catch (Throwable $e) { error_log('[Landing] funded_projects fetch error: ' . $e->getMessage()); }
+} catch (Throwable $e) { error_log('[Impact] funded_projects fetch error: ' . $e->getMessage()); }
 
 try {
     $r = $conn->query("SELECT funder, program, amount FROM submitted_proposals WHERE status = 'in_review'");
     if ($r) while ($row = $r->fetch_assoc()) $landProposals[] = $row;
-} catch (Throwable $e) { error_log('[Landing] submitted_proposals fetch error: ' . $e->getMessage()); }
+} catch (Throwable $e) { error_log('[Impact] submitted_proposals fetch error: ' . $e->getMessage()); }
 
 try {
     $r = $conn->query("SELECT name, level, institution, advisors FROM fact_students ORDER BY display_order, id");
     if ($r) while ($row = $r->fetch_assoc()) $landStudents[] = $row;
-} catch (Throwable $e) { error_log('[Landing] fact_students fetch error: ' . $e->getMessage()); }
+} catch (Throwable $e) { error_log('[Impact] fact_students fetch error: ' . $e->getMessage()); }
 
 try {
     $r = $conn->query("SELECT metric_key, metric_value FROM impact_metrics WHERE metric_key IN ('partner_institutions','countries_represented')");
@@ -38,7 +33,7 @@ try {
         if ($row['metric_key'] === 'partner_institutions')  $landInstitutions = (int)$row['metric_value'];
         if ($row['metric_key'] === 'countries_represented') $landCountries = (int)$row['metric_value'];
     }
-} catch (Throwable $e) { error_log('[Landing] impact_metrics fetch error: ' . $e->getMessage()); }
+} catch (Throwable $e) { error_log('[Impact] impact_metrics fetch error: ' . $e->getMessage()); }
 
 $fundingSecured = 0; foreach ($landProjects as $p)  $fundingSecured += (int)$p['amount'];
 $pipelineAmt    = 0; foreach ($landProposals as $p) $pipelineAmt    += (int)$p['amount'];
@@ -47,22 +42,17 @@ foreach ($landStudents as $s) { if ($s['level'] === 'PhD') $phdCount++; else $ms
 $studentCount = count($landStudents);
 $projectCount = count($landProjects);
 
-// $5.7M-style short money format
 function land_money(int $v): string {
     if ($v >= 1000000) return '$' . rtrim(rtrim(number_format($v / 1000000, 1), '0'), '.') . 'M';
     if ($v >= 1000)    return '$' . round($v / 1000) . 'k';
     return '$' . $v;
 }
-$fundingSecuredNum = round($fundingSecured / 1000000, 1); // for count-up (in $M)
+$fundingSecuredNum = round($fundingSecured / 1000000, 1);
 $pipelineNum       = round($pipelineAmt / 1000000, 1);
 ?>
-<style>
-  /* Break out of the app shell: full-bleed page, no topbar/sidebar */
-  .topbar{display:none}
-  .page-wrap.auth-wrap{max-width:none;padding:0;display:block}
-  .main-area{min-width:0}
-  .footer{position:static !important}
 
+<style>
+  /* Reuse all landing page styles */
   .landing{
     --ink:#1c2a24;
     --pine:#1a6b5a;
@@ -83,7 +73,6 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
     line-height:1.55;
     font-size:15px;
     -webkit-font-smoothing:antialiased;
-    overflow-x:hidden;
   }
   .landing a{color:inherit;text-decoration:none}
   .landing .wrap{max-width:var(--maxw);margin:0 auto;padding:0 32px}
@@ -92,77 +81,12 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
     color:var(--pine);display:inline-flex;align-items:center;gap:10px;
   }
   .landing .eyebrow::before{content:"";width:20px;height:1px;background:currentColor;display:inline-block}
-
-  /* ---------- NAV ---------- */
-  .l-nav{
-    position:sticky;top:0;z-index:50;
-    display:flex;align-items:center;justify-content:space-between;
-    padding:14px 32px;
-    background:rgba(238,243,239,.92);backdrop-filter:blur(12px);
-    box-shadow:0 1px 0 var(--l-line);
-  }
-  .l-nav .brand{display:flex;align-items:center;gap:12px;color:var(--ink)}
-  .l-nav .brand img{height:34px;width:auto;display:block}
-  .l-nav .brand-sub{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--l-muted);font-weight:600;display:block;margin-top:2px}
-  .l-nav .nav-actions{display:flex;align-items:center;gap:22px}
-  .l-nav .nav-link{font-size:14px;font-weight:500;color:var(--ink);transition:color .2s}
-  .l-nav .nav-link:hover{color:var(--pine)}
-  .l-btn{
-    font-family:inherit;font-size:14px;font-weight:600;
-    padding:11px 20px;border-radius:999px;border:1px solid transparent;
-    cursor:pointer;transition:transform .15s ease,background .2s,color .2s,border-color .2s;
-    display:inline-flex;align-items:center;gap:8px;
-  }
-  .l-btn:hover{transform:translateY(-1px)}
-  .l-btn-primary{background:var(--pine);color:#fff}
-  .l-btn-primary:hover{background:var(--pine-deep);color:#fff}
-  .l-btn-gold{background:var(--gold);color:#231c0d}
-  .l-btn-gold:hover{background:#d8bc74;color:#231c0d}
-  .l-btn-ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.45)}
-  .l-btn-ghost:hover{border-color:var(--mint);color:var(--mint)}
-  .l-btn-lg{padding:15px 28px;font-size:15px}
-
-  /* ---------- HERO ---------- */
-  .l-hero{
-    position:relative;background:var(--pine);color:#fff;
-    padding:110px 0 100px;overflow:hidden;isolation:isolate;
-  }
-  .l-hero::after{
-    content:"";position:absolute;inset:0;z-index:-1;
-    background:radial-gradient(120% 90% at 78% 12%,rgba(169,214,198,.18),transparent 55%),
-               linear-gradient(180deg,rgba(17,71,59,0),rgba(17,71,59,.55));
-  }
-  #contours{position:absolute;inset:0;width:100%;height:100%;z-index:-2;opacity:.5}
-  .l-hero-inner{position:relative;max-width:820px}
-  .l-hero h1{
-    font-weight:800;font-size:clamp(2.4rem,6vw,4.4rem);line-height:1.04;letter-spacing:-.025em;
-    margin:22px 0 0;
-  }
-  .l-hero h1 em{font-style:italic;font-weight:600;color:var(--mint)}
-  .l-hero p.lead{
-    font-size:clamp(1.05rem,1.6vw,1.28rem);max-width:600px;
-    color:rgba(255,255,255,.85);margin:26px 0 0;font-weight:400;
-  }
-  .l-hero .eyebrow{color:var(--mint)}
-  .hero-cta{display:flex;gap:14px;flex-wrap:wrap;margin-top:38px}
-  .hero-strip{
-    display:flex;flex-wrap:wrap;margin-top:60px;
-    border-top:1px solid rgba(255,255,255,.18);padding-top:26px;
-  }
-  .hero-strip .cell{padding-right:44px;margin-right:44px;border-right:1px solid rgba(255,255,255,.18)}
-  .hero-strip .cell:last-child{border-right:none;margin-right:0;padding-right:0}
-  .hero-strip .num{font-weight:800;font-size:2rem;line-height:1;color:#fff;letter-spacing:-.02em}
-  .hero-strip .lbl{font-size:11px;letter-spacing:.15em;text-transform:uppercase;font-weight:600;color:rgba(255,255,255,.65);margin-top:8px}
-
-  /* ---------- SECTION BASE ---------- */
   .l-section{padding:92px 0}
   .section-head{max-width:640px;margin-bottom:52px}
   .section-head h2{
     font-weight:800;font-size:clamp(1.8rem,3.5vw,2.7rem);line-height:1.08;letter-spacing:-.02em;margin:18px 0 0;
   }
   .section-head p{color:var(--l-muted);font-size:1.05rem;margin:16px 0 0;max-width:560px}
-
-  /* ---------- KPI CARDS ---------- */
   .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
   .kpi{
     background:var(--card);border:1px solid var(--l-line);border-radius:18px;
@@ -178,13 +102,10 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
   .kpi .num{font-weight:800;font-size:clamp(2.3rem,4vw,3rem);line-height:1;letter-spacing:-.02em;color:var(--pine-deep)}
   .kpi .lbl{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:700;color:var(--l-muted);margin-top:14px}
   .kpi .sub{font-size:13.5px;color:var(--l-muted);margin-top:10px;line-height:1.4}
-
-  /* ---------- CHART ROW ---------- */
   .charts{display:grid;grid-template-columns:1.35fr 1fr;gap:24px;margin-top:8px}
   .l-panel{background:var(--card);border:1px solid var(--l-line);border-radius:20px;padding:32px}
   .l-panel h3{font-weight:800;font-size:1.3rem;letter-spacing:-.015em;margin:0}
   .l-panel .cap{font-size:11px;letter-spacing:.15em;text-transform:uppercase;font-weight:700;color:var(--l-muted);margin-bottom:6px}
-
   .bars{margin-top:26px;display:flex;flex-direction:column;gap:18px}
   .bar-row .bar-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px;gap:14px}
   .bar-row .bar-name{font-size:14px;font-weight:500}
@@ -192,19 +113,15 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
   .bar-track{height:12px;background:var(--paper-2);border-radius:999px;overflow:hidden}
   .bar-fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--gold),#dcc084);transition:width 1.1s cubic-bezier(.22,1,.36,1)}
   .bar-row:first-child .bar-fill{background:linear-gradient(90deg,var(--pine),var(--leaf))}
-
   .lg-legend{display:flex;gap:18px;margin-top:6px;flex-wrap:wrap}
   .lg-legend span{display:inline-flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:600;color:var(--l-muted)}
   .lg-dot{width:10px;height:10px;border-radius:3px;display:inline-block}
-
   .pipe{margin-top:24px;display:flex;flex-direction:column;gap:22px}
   .pipe-item .pipe-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
   .pipe-item .pipe-lbl{font-size:14px;font-weight:500}
   .pipe-item .pipe-amt{font-weight:800;font-size:1.5rem;letter-spacing:-.02em}
   .pipe-track{height:16px;border-radius:999px;background:var(--paper-2);overflow:hidden}
   .pipe-fill{height:100%;width:0;border-radius:999px;transition:width 1.2s cubic-bezier(.22,1,.36,1)}
-
-  /* ---------- STUDENTS ---------- */
   .students-wrap{display:grid;grid-template-columns:.8fr 1.2fr;gap:24px;align-items:start}
   .donut-panel{background:var(--pine);color:#fff;border-radius:20px;padding:34px;position:relative;overflow:hidden}
   .donut-panel .cap{color:rgba(255,255,255,.65)}
@@ -218,7 +135,6 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
   .donut-legend .dl b{font-size:1.3rem;font-weight:800}
   .donut-legend .dl span{font-size:13px;color:rgba(255,255,255,.8)}
   .donut-legend .dl i{width:11px;height:11px;border-radius:3px;flex:none}
-
   .student-cards{display:grid;grid-template-columns:1fr 1fr;gap:16px}
   .scard{background:var(--card);border:1px solid var(--l-line);border-radius:16px;padding:22px;transition:transform .25s,border-color .25s}
   .scard:hover{transform:translateY(-3px);border-color:var(--l-line-strong)}
@@ -229,8 +145,6 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
   .scard .inst{font-size:13.5px;color:var(--l-muted)}
   .scard .adv{font-size:12px;color:var(--l-muted);margin-top:14px;padding-top:12px;border-top:1px solid var(--l-line);line-height:1.6}
   .scard .adv b{color:var(--pine);font-weight:800;letter-spacing:.1em;text-transform:uppercase;font-size:10px;display:block;margin-bottom:3px}
-
-  /* ---------- FUNDED PROJECTS ---------- */
   .proj-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
   .pcard{background:var(--card);border:1px solid var(--l-line);border-radius:18px;padding:28px;display:flex;flex-direction:column;transition:transform .25s,box-shadow .25s}
   .pcard:hover{transform:translateY(-4px);box-shadow:0 20px 44px -26px rgba(26,107,90,.45)}
@@ -245,47 +159,18 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
   .pcard.feature .p-desc{color:rgba(255,255,255,.8)}
   .p-meta{font-size:11.5px;letter-spacing:.04em;color:var(--l-muted);margin-top:18px;padding-top:14px;border-top:1px solid var(--l-line)}
   .pcard.feature .p-meta{border-top-color:rgba(255,255,255,.2)}
-
-  /* ---------- FEATURES ---------- */
-  .reach{background:var(--paper-2)}
-  .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:8px}
-  .feat{padding:28px;background:var(--card);border:1px solid var(--l-line);border-radius:16px}
-  .feat .fi{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:var(--pine);margin-bottom:16px}
-  .feat h4{font-weight:800;font-size:1.15rem;letter-spacing:-.015em;margin:0}
-  .feat p{font-size:14px;color:var(--l-muted);margin:8px 0 0;line-height:1.5}
-
-  /* ---------- CTA ---------- */
-  .l-cta{position:relative;background:var(--pine-deep);color:#fff;padding:104px 0;overflow:hidden;isolation:isolate}
-  #contours2{position:absolute;inset:0;width:100%;height:100%;z-index:-1;opacity:.45}
-  .cta-inner{max-width:720px;position:relative}
-  .l-cta .eyebrow{color:var(--mint)}
-  .l-cta h2{font-weight:800;font-size:clamp(2rem,4.2vw,3.2rem);line-height:1.05;letter-spacing:-.02em;margin:18px 0 0}
-  .l-cta h2 em{font-style:italic;color:var(--mint)}
-  .l-cta p{color:rgba(255,255,255,.82);font-size:1.1rem;margin:22px 0 36px;max-width:520px}
-  .cta-actions{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
-  .l-cta .txtlink{color:rgba(255,255,255,.88);font-weight:500;font-size:15px;border-bottom:1px solid rgba(255,255,255,.4);padding-bottom:2px}
-  .l-cta .txtlink:hover{color:var(--mint);border-color:var(--mint)}
-
-  /* ---------- REVEAL ---------- */
   .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s cubic-bezier(.22,1,.36,1)}
   .reveal.in{opacity:1;transform:none}
-
-  /* ---------- RESPONSIVE ---------- */
   @media(max-width:960px){
     .kpi-grid{grid-template-columns:1fr 1fr}
     .charts{grid-template-columns:1fr}
     .students-wrap{grid-template-columns:1fr}
     .proj-grid{grid-template-columns:1fr 1fr}
-    .feat-grid{grid-template-columns:1fr}
   }
   @media(max-width:640px){
     .landing .wrap{padding:0 20px}
-    .l-nav{padding:12px 20px}
-    .l-nav .nav-link.hide-sm{display:none}
-    .l-hero{padding:80px 0 70px}
-    .hero-strip .cell{border-right:none;padding-right:0;margin-right:0;flex:1 0 45%;margin-bottom:22px}
-    .kpi-grid,.proj-grid,.student-cards{grid-template-columns:1fr}
     .l-section{padding:64px 0}
+    .kpi-grid,.proj-grid,.student-cards{grid-template-columns:1fr}
     .donut-wrap{flex-direction:column;align-items:flex-start}
   }
   @media(prefers-reduced-motion:reduce){
@@ -297,42 +182,8 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
 
 <div class="landing">
 
-<!-- ===================== NAV ===================== -->
-<div class="l-nav">
-  <a href="index.php?page=landing" class="brand">
-    <img src="assets/fact-alliance-logo.png" alt="FACT Alliance">
-    <span class="brand-sub hide-sm">An initiative of MIT J-WAFS</span>
-  </a>
-  <div class="nav-actions">
-    <a href="#impact" class="nav-link hide-sm">Impact</a>
-    <a href="#network" class="nav-link hide-sm">The network</a>
-    <a href="index.php?page=login" class="nav-link">Log in</a>
-    <a href="index.php?page=register" class="l-btn l-btn-primary">Join the network</a>
-  </div>
-</div>
-
-<!-- ===================== HERO ===================== -->
-<header class="l-hero" id="top">
-  <svg id="contours" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
-  <div class="wrap l-hero-inner">
-    <span class="eyebrow">Food security · Climate resilience · Sustainable systems</span>
-    <h1>Where research on food and climate <em>finds its people.</em></h1>
-    <p class="lead">The FACT Alliance Hub connects researchers, students, institutions and funders across the network — so the right collaboration, and the right funding, no longer take years to find.</p>
-    <div class="hero-cta">
-      <a href="index.php?page=register" class="l-btn l-btn-gold l-btn-lg">Explore the network</a>
-      <a href="#impact" class="l-btn l-btn-ghost l-btn-lg">See the impact</a>
-    </div>
-    <div class="hero-strip">
-      <div class="cell"><div class="num" data-count="<?= h($fundingSecuredNum) ?>" data-prefix="$" data-suffix="M"><?= h(land_money($fundingSecured)) ?></div><div class="lbl">Funding secured</div></div>
-      <div class="cell"><div class="num" data-count="<?= $studentCount ?>"><?= $studentCount ?></div><div class="lbl">Students advised</div></div>
-      <div class="cell"><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Member institutions</div></div>
-      <div class="cell"><div class="num" data-count="<?= $landCountries ?>"><?= $landCountries ?></div><div class="lbl">Countries</div></div>
-    </div>
-  </div>
-</header>
-
 <!-- ===================== IMPACT KPIs ===================== -->
-<section class="l-section" id="impact">
+<section class="l-section">
   <div class="wrap">
     <div class="section-head reveal">
       <span class="eyebrow">Impact at a glance</span>
@@ -346,11 +197,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Member institutions</div><div class="sub">Universities and labs across <?= $landCountries ?> countries.</div></div>
     </div>
 
-    <?php
-    // Funding charts (funder bars, growth over time, pipeline) shown only to logged-in users
-    $showFundingCharts = is_logged_in();
-    ?>
-    <?php if ($landProjects && $showFundingCharts): ?>
+    <?php if ($landProjects): ?>
     <div class="charts" style="margin-top:60px">
       <div class="l-panel reveal">
         <div class="cap">Funded research</div>
@@ -388,7 +235,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
 </section>
 
 <!-- ===================== STUDENTS ===================== -->
-<?php if ($landStudents && is_logged_in()): ?>
+<?php if ($landStudents): ?>
 <section class="l-section" id="network" style="padding-top:0">
   <div class="wrap">
     <div class="section-head reveal">
@@ -417,7 +264,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
 <?php endif; ?>
 
 <!-- ===================== FUNDED PROJECTS ===================== -->
-<?php if ($landProjects && is_logged_in()): ?>
+<?php if ($landProjects): ?>
 <section class="l-section" style="padding-top:0">
   <div class="wrap">
     <div class="section-head reveal">
@@ -429,53 +276,6 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
   </div>
 </section>
 <?php endif; ?>
-
-<!-- ===================== INSIDE THE HUB ===================== -->
-<section class="l-section reach">
-  <div class="wrap">
-    <div class="section-head reveal">
-      <span class="eyebrow">Inside the hub</span>
-      <h2>Built to shorten the distance between people and funding</h2>
-    </div>
-    <div class="feat-grid">
-      <div class="feat reveal">
-        <div class="fi">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#a9d6c6" stroke-width="1.8"/><path d="m16 16 4 4" stroke="#a9d6c6" stroke-width="1.8" stroke-linecap="round"/></svg>
-        </div>
-        <h4>Semantic search</h4>
-        <p>Ask in plain language and find the researchers, projects and calls that fit — no rigid filters required.</p>
-      </div>
-      <div class="feat reveal">
-        <div class="fi">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 12h16M12 4l8 8-8 8" stroke="#a9d6c6" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <h4>Smart matching</h4>
-        <p>Get suggested collaborators and funding calls matched to your research focus and eligibility.</p>
-      </div>
-      <div class="feat reveal">
-        <div class="fi">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M5 5h14v14H5z" stroke="#a9d6c6" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 9h6v6H9z" stroke="#a9d6c6" stroke-width="1.8"/></svg>
-        </div>
-        <h4>Funding, in one place</h4>
-        <p>Browse active calls filtered by topic and geography, and bookmark the ones worth returning to.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ===================== CTA ===================== -->
-<section class="l-cta">
-  <svg id="contours2" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
-  <div class="wrap cta-inner reveal">
-    <span class="eyebrow">Join the alliance</span>
-    <h2>Bring your research <em>into the network.</em></h2>
-    <p>Create a profile, add your ORCID and Google Scholar, and let the hub connect you with collaborators and funding across food and climate systems.</p>
-    <div class="cta-actions">
-      <a href="index.php?page=register" class="l-btn l-btn-gold l-btn-lg">Register as a researcher</a>
-      <a href="index.php?page=login" class="txtlink">Already a member? Log in</a>
-    </div>
-  </div>
-</section>
 
 </div><!-- /.landing -->
 
@@ -507,7 +307,7 @@ const DATA = {
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtMoney = v => v>=1e6 ? "$"+(v/1e6).toFixed(1).replace(/\.0$/,"")+"M" : "$"+Math.round(v/1e3)+"k";
 
-/* ---------- FUNDER BARS ---------- */
+/* Funder bars */
 (function(){
   const el = document.getElementById('funderBars');
   if(!el || !DATA.fundedProjects.length) return;
@@ -523,7 +323,7 @@ const fmtMoney = v => v>=1e6 ? "$"+(v/1e6).toFixed(1).replace(/\.0$/,"")+"M" : "
     </div>`).join('');
 })();
 
-/* ---------- STUDENT CARDS ---------- */
+/* Student cards */
 (function(){
   const el = document.getElementById('studentCards');
   if(!el || !DATA.students.length) return;
@@ -538,7 +338,7 @@ const fmtMoney = v => v>=1e6 ? "$"+(v/1e6).toFixed(1).replace(/\.0$/,"")+"M" : "
   }).join('');
 })();
 
-/* ---------- PROJECT CARDS ---------- */
+/* Project cards */
 (function(){
   const el = document.getElementById('projCards');
   if(!el || !DATA.fundedProjects.length) return;
@@ -553,7 +353,7 @@ const fmtMoney = v => v>=1e6 ? "$"+(v/1e6).toFixed(1).replace(/\.0$/,"")+"M" : "
     </div>`).join('');
 })();
 
-/* ---------- GROWTH LINE (cumulative funding by year) ---------- */
+/* Growth chart */
 (function(){
   const svg = document.getElementById('growthChart');
   if(!svg || !DATA.fundedProjects.length) return;
@@ -587,7 +387,7 @@ const fmtMoney = v => v>=1e6 ? "$"+(v/1e6).toFixed(1).replace(/\.0$/,"")+"M" : "
     <g class="growth-dots" style="opacity:0;transition:opacity .6s ease .9s">${dots}</g>`;
 })();
 
-/* ---------- DONUT (PhD vs Masters) ---------- */
+/* Donut */
 (function(){
   const svg = document.getElementById('donut');
   if(!svg || !DATA.students.length) return;
@@ -600,43 +400,7 @@ const fmtMoney = v => v>=1e6 ? "$"+(v/1e6).toFixed(1).replace(/\.0$/,"")+"M" : "
       class="donut-seg" style="stroke-dasharray:0 100;transition:stroke-dasharray 1.2s cubic-bezier(.4,0,.2,1)" data-d="${pct} ${100-pct}"/>`;
 })();
 
-/* ---------- TOPOGRAPHIC CONTOURS ---------- */
-function blob(cx,cy,r,seed,wob){
-  const N=64; let d='';
-  for(let i=0;i<=N;i++){
-    const t=i/N*Math.PI*2;
-    const rr=r*(1 + wob*Math.sin(t*3+seed) + wob*0.5*Math.cos(t*5+seed*1.7));
-    d+=(i?'L':'M')+(cx+rr*Math.cos(t)).toFixed(1)+','+(cy+rr*Math.sin(t)).toFixed(1)+' ';
-  }
-  return d+'Z';
-}
-function drawContours(id,cx,cy){
-  const svg=document.getElementById(id);
-  if(!svg) return;
-  svg.setAttribute('viewBox','0 0 1200 700');
-  let s='';
-  for(let k=1;k<=11;k++){
-    s+=`<path d="${blob(cx,cy,40+k*46,k*0.6,0.05)}" fill="none" stroke="#a9d6c6" stroke-width="1" opacity="${(0.5-k*0.03).toFixed(2)}"/>`;
-  }
-  svg.innerHTML=`<g class="contour-grp">${s}</g>`;
-}
-drawContours('contours',930,150);
-drawContours('contours2',980,520);
-
-if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-  let t=0;
-  (function loop(){
-    t+=0.0016;
-    document.querySelectorAll('.contour-grp').forEach((g,i)=>{
-      const s=1+0.02*Math.sin(t + i);
-      g.setAttribute('transform',`translate(${(6*Math.cos(t*0.7+i)).toFixed(2)} ${(5*Math.sin(t*0.9+i)).toFixed(2)}) scale(${s.toFixed(4)})`);
-      g.style.transformOrigin='center';
-    });
-    requestAnimationFrame(loop);
-  })();
-}
-
-/* ---------- COUNT-UP ---------- */
+/* Count-up */
 function animateCount(el){
   const target=parseFloat(el.dataset.count);
   const prefix=el.dataset.prefix||'', suffix=el.dataset.suffix||'';
@@ -653,7 +417,7 @@ function animateCount(el){
   requestAnimationFrame(step);
 }
 
-/* ---------- REVEAL + TRIGGERS ---------- */
+/* Reveal + triggers */
 const io=new IntersectionObserver((entries)=>{
   entries.forEach(e=>{
     if(!e.isIntersecting) return;
