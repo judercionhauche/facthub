@@ -444,43 +444,16 @@ label{display:block;margin-bottom:6px;font-weight:600}
 .jq-status-card:hover .jq-status-label{color:var(--text)}
 
 /* ═══════════════════════════════════════════════════════════════ */
-/* FACT TOOLS PAGES — Wheat background magic (every tab) */
+/* FACT TOOLS PAGES — Wheat background (every tab) */
 /* ═══════════════════════════════════════════════════════════════ */
 
 .page-wrap:not(.auth-wrap) {
-  background-image: url('wheat.avif');
+  background-image:
+    linear-gradient(135deg, rgba(255,255,255,0.90) 0%, rgba(238,243,239,0.88) 50%, rgba(255,255,255,0.91) 100%),
+    url('wheat.avif');
   background-size: cover;
   background-position: center;
   background-attachment: fixed;
-  position: relative;
-}
-
-.page-wrap:not(.auth-wrap)::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg,
-      rgba(255, 255, 255, 0.91) 0%,
-      rgba(238, 243, 239, 0.89) 50%,
-      rgba(255, 255, 255, 0.92) 100%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.page-wrap:not(.auth-wrap) > * {
-  position: relative;
-  z-index: 1;
-}
-
-.page-wrap:not(.auth-wrap)::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background-image:
-      radial-gradient(circle at 25% 35%, rgba(26, 107, 90, 0.025) 0%, transparent 50%),
-      radial-gradient(circle at 75% 65%, rgba(200, 168, 90, 0.02) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 2;
 }
 
 /* Mobile Navigation */
