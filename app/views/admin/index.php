@@ -2751,7 +2751,7 @@ $impMoney = static function (int $v): string {
 </div>
 
 <div style="margin-top:28px;padding:16px;background:#f0f7f4;border:1px solid #cfe8d9;border-radius:10px;color:#145c40;font-size:13px;line-height:1.5">
-    <strong>How it works:</strong> The landing page computes its headline totals from this data — funding secured is the sum of funded projects, the pipeline bar sums proposals in review, and the student donut counts PhD vs Masters. Only “Partner institutions” and “Countries” are set by hand above. Changes appear on the landing page immediately and are logged in the audit trail.
+    <strong>How it works:</strong> The landing page computes its headline totals from this data — funding secured is the sum of funded projects, the pipeline bar sums proposals in review, and the student donut counts PhD vs Masters. Only “Member institutions” and “Countries” are set by hand above. Changes appear on the landing page immediately and are logged in the audit trail.
 </div>
 
 <?php endif; /* end section switch */ ?>

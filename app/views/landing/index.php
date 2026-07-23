@@ -325,7 +325,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
     <div class="hero-strip">
       <div class="cell"><div class="num" data-count="<?= h($fundingSecuredNum) ?>" data-prefix="$" data-suffix="M"><?= h(land_money($fundingSecured)) ?></div><div class="lbl">Funding secured</div></div>
       <div class="cell"><div class="num" data-count="<?= $studentCount ?>"><?= $studentCount ?></div><div class="lbl">Students advised</div></div>
-      <div class="cell"><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Partner institutions</div></div>
+      <div class="cell"><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Member institutions</div></div>
       <div class="cell"><div class="num" data-count="<?= $landCountries ?>"><?= $landCountries ?></div><div class="lbl">Countries</div></div>
     </div>
   </div>
@@ -343,7 +343,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= h($fundingSecuredNum) ?>" data-prefix="$" data-suffix="M"><?= h(land_money($fundingSecured)) ?></div><div class="lbl">Research funding secured</div><div class="sub">Across <?= $projectCount ?> funded project<?= $projectCount === 1 ? '' : 's' ?> with FACT members leading.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $projectCount ?>"><?= $projectCount ?></div><div class="lbl">Funded projects</div><div class="sub">From smallholder systems to global food-trade modelling.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $studentCount ?>"><?= $studentCount ?></div><div class="lbl">Students advised</div><div class="sub">PhD and Masters researchers mentored by FACT advisors.</div></div>
-      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Partner institutions</div><div class="sub">Universities and labs across <?= $landCountries ?> countries.</div></div>
+      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Member institutions</div><div class="sub">Universities and labs across <?= $landCountries ?> countries.</div></div>
     </div>
 
     <?php

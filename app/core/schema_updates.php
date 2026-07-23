@@ -931,7 +931,7 @@ function apply_security_schema_updates(mysqli $conn): void {
         // Seed with initial data
         @$conn->query("INSERT IGNORE INTO impact_metrics (metric_key, metric_value, metric_label, metric_unit, metric_category, order_in_category) VALUES
             ('total_researchers', 847, 'Researchers in the network', '', 'network', 1),
-            ('partner_institutions', 12, 'Partner institutions', '', 'network', 2),
+            ('partner_institutions', 12, 'Member institutions', '', 'network', 2),
             ('countries_represented', 9, 'Countries represented', '', 'network', 3),
             ('research_disciplines', 15, 'Research disciplines', '', 'network', 4),
             ('active_collaborations', 34, 'Active collaborations', '', 'network', 5),
@@ -1046,6 +1046,9 @@ function apply_impact_data_schema(mysqli $conn): void {
                 INDEX idx_order (display_order)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+    // Keep the headline metric label in sync (renamed from "Partner institutions")
+    @$conn->query("UPDATE impact_metrics SET metric_label='Member institutions' WHERE metric_key='partner_institutions' AND metric_label<>'Member institutions'");
+
     $seed = @$conn->query("SELECT COUNT(*) c FROM fact_students");
     if ($seed && (int)($seed->fetch_assoc()['c'] ?? 0) === 0) {
         @$conn->query("INSERT IGNORE INTO fact_students (id, name, level, institution, advisors, display_order) VALUES
