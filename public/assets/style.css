@@ -443,6 +443,62 @@ label{display:block;margin-bottom:6px;font-weight:600}
 .jq-status-label{font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0.03em;text-transform:uppercase;transition:color 0.25s ease}
 .jq-status-card:hover .jq-status-label{color:var(--text)}
 
+/* ═══════════════════════════════════════════════════════════════ */
+/* FACT TOOLS PAGES — Wheat background magic (every tab) */
+/* ═══════════════════════════════════════════════════════════════ */
+
+.main-area {
+  position: relative;
+  background-image: url('wheat.avif');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+.main-area::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 220px;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg,
+      rgba(255, 255, 255, 0.92) 0%,
+      rgba(238, 243, 239, 0.90) 50%,
+      rgba(255, 255, 255, 0.93) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.main-area > * {
+  position: relative;
+  z-index: 1;
+}
+
+.main-area::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 220px;
+  right: 0;
+  bottom: 0;
+  background-image:
+      radial-gradient(circle at 25% 35%, rgba(26, 107, 90, 0.02) 0%, transparent 50%),
+      radial-gradient(circle at 75% 65%, rgba(200, 168, 90, 0.015) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Mobile: Adjust wheat background for mobile layout */
+@media(max-width:768px) {
+  .main-area::before {
+    left: 0;
+  }
+  .main-area::after {
+    left: 0;
+  }
+}
+
 /* Mobile Navigation */
 @media(max-width:768px){
   #hamburger{display:inline-block !important}

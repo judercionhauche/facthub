@@ -250,6 +250,44 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
 
   /* ---------- FEATURES ---------- */
   .reach{background:var(--paper-2)}
+
+  /* Landing page wheat background - impact sections */
+  .landing-wheat {
+    position: relative;
+    background-image: url('wheat.avif');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    overflow: hidden;
+  }
+
+  .landing-wheat::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+        rgba(238, 243, 239, 0.88) 0%,
+        rgba(255, 255, 255, 0.86) 50%,
+        rgba(238, 243, 239, 0.89) 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .landing-wheat > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .landing-wheat::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(circle at 30% 40%, rgba(26, 107, 90, 0.025) 0%, transparent 50%),
+        radial-gradient(circle at 70% 70%, rgba(200, 168, 90, 0.02) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 2;
+  }
   .feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:8px}
   .feat{padding:28px;background:var(--card);border:1px solid var(--l-line);border-radius:16px}
   .feat .fi{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;background:var(--pine);margin-bottom:16px}
@@ -334,7 +372,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
 </header>
 
 <!-- ===================== IMPACT KPIs ===================== -->
-<section class="l-section" id="impact">
+<section class="l-section landing-wheat" id="impact">
   <div class="wrap">
     <div class="section-head reveal">
       <span class="eyebrow">Impact at a glance</span>
@@ -433,7 +471,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
 <?php endif; ?>
 
 <!-- ===================== INSIDE THE HUB ===================== -->
-<section class="l-section reach">
+<section class="l-section reach landing-wheat">
   <div class="wrap">
     <div class="section-head reveal">
       <span class="eyebrow">Inside the hub</span>
