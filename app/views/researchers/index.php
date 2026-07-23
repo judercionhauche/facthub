@@ -17,6 +17,22 @@ $FACT_CATEGORIES = [
     'Crosscutting Themes'
 ];
 
+// Fetch trusted institution domains for registration
+$trustedInstitutions = [];
+try {
+    $r = $conn->query("SELECT domain, institution_name FROM trusted_domains WHERE auto_approve = 1 ORDER BY institution_name ASC");
+    if ($r) {
+        while ($row = $r->fetch_assoc()) {
+            $trustedInstitutions[] = [
+                'domain' => $row['domain'],
+                'name' => $row['institution_name']
+            ];
+        }
+    }
+} catch (Throwable $e) {
+    error_log('[Researchers] Failed to fetch trusted institutions: ' . $e->getMessage());
+}
+
 /* ── POST handler ─────────────────────────────────────────────────── */
 $registrationError = null;
 $registrationFormData = null;
@@ -55,6 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $last        = trim($_POST['last_name']  ?? '');
             $email       = trim($_POST['email']      ?? '');
             $institution = trim($_POST['institution']?? '');
+            $institutionDomain = trim($_POST['institution_domain'] ?? ''); // For validation
+            $customInstitution = trim($_POST['custom_institution'] ?? '');  // For "Other" option
             $department  = trim($_POST['department'] ?? '');
             $title       = trim($_POST['title']      ?? '');
             $bio         = trim($_POST['bio']        ?? '');
@@ -112,13 +130,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // For registration errors, store form data and error to show form inline
-            $storeFormDataForRegistrationError = function($errorMsg) use ($first, $last, $email, $institution, $department, $title, $bio, $focusAreaArr, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd, $newsletterSubscribed) {
+            $storeFormDataForRegistrationError = function($errorMsg) use ($first, $last, $email, $institution, $institutionDomain, $customInstitution, $department, $title, $bio, $focusAreaArr, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd, $newsletterSubscribed) {
                 global $registrationError, $registrationFormData;
                 $registrationError = $errorMsg;
                 $registrationFormData = [
                     'first_name' => $first,
                     'last_name' => $last,
                     'email' => $email,
+                    'institution_domain' => $institutionDomain,
+                    'custom_institution' => $customInstitution,
                     'institution' => $institution,
                     'department' => $department,
                     'title' => $title,
@@ -168,6 +188,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
                 if ($institution === '') {
                     $storeFormDataForRegistrationError('Institution is required.');
+                }
+                // Email domain validation: must match selected institution
+                if ($email && $institutionDomain && $institutionDomain !== 'other') {
+                    $emailDomain = strtolower(substr(strrchr($email, '@'), 1));
+                    $instDomain = strtolower($institutionDomain);
+                    if ($emailDomain !== $instDomain) {
+                        $storeFormDataForRegistrationError("Email domain (@{$emailDomain}) does not match selected institution (@{$instDomain}). Please use an email address from your institution or select 'Other'.");
+                    }
+                }
+                // If "Other" is selected, institution field should be filled with custom name
+                if ($institution === 'other' && $customInstitution === '') {
+                    $storeFormDataForRegistrationError('Please specify your institution name when selecting "Other".');
+                }
+                if ($institution === 'other') {
+                    $institution = $customInstitution;
                 }
                 if (strlen($geography) > 500) {
                     $storeFormDataForRegistrationError('Geographic focus cannot exceed 500 characters. Currently: ' . strlen($geography) . ' characters.');
@@ -823,7 +858,28 @@ if (is_array($focusDetailRaw)) {
         </div>
         <?php endif; ?>
 
-        <div><label>Institution <span style="color:#b54646;font-weight:600">*</span></label><input name="institution" value="<?= h($editing['institution'] ?? '') ?>" required></div>
+        <!-- Institution dropdown with "Other" option -->
+        <div>
+            <label>Institution <span style="color:#b54646;font-weight:600">*</span></label>
+            <select name="institution" id="institution-select" required style="width:100%;padding:10px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:14px;background:white;color:#374151;cursor:pointer;">
+                <option value="">-- Select your institution --</option>
+                <?php foreach ($trustedInstitutions as $inst): ?>
+                <option value="<?= h($inst['domain']) ?>" data-domain="<?= h($inst['domain']) ?>"<?= ($editing['institution'] ?? '') === $inst['name'] ? ' selected' : '' ?>>
+                    <?= h($inst['name']) ?>
+                </option>
+                <?php endforeach; ?>
+                <option value="other"<?= ($editing['institution'] ?? '') && !in_array($editing['institution'], array_column($trustedInstitutions, 'name'), true) ? ' selected' : '' ?>>Other</option>
+            </select>
+
+            <!-- Custom institution field (shown only when "Other" is selected) -->
+            <div id="custom-institution-wrapper" style="display:none;margin-top:12px;">
+                <input type="text" id="custom_institution" name="custom_institution" placeholder="Enter your institution name" maxlength="200" style="width:100%;padding:10px 12px;border:1.5px solid #dde6dd;border-radius:6px;font-size:14px;background:white;" value="<?= h($editing['institution'] ?? '') ?>">
+                <div style="background:#fef3c7;border-left:3px solid #f59e0b;border-radius:4px;padding:12px 14px;margin-top:10px;font-size:13px;color:#78350f;line-height:1.5;">
+                    <strong style="display:block;margin-bottom:4px;">⚠ Admin Approval Required</strong>
+                    Your registration will be reviewed by an administrator before activation. Institutions not in our trusted network require verification.
+                </div>
+            </div>
+        </div>
         <div><label>Department</label><input name="department" value="<?= h($editing['department'] ?? '') ?>"></div>
         <div><label>Title</label><input name="title" value="<?= h($editing['title'] ?? '') ?>"></div>
         <div class="span-2"><label>Bio</label><textarea name="bio"><?= h($editing['bio'] ?? '') ?></textarea></div>
@@ -978,6 +1034,76 @@ if (is_array($focusDetailRaw)) {
             <a class="ghost-btn" href="index.php?page=researchers">Cancel</a>
         </div>
     </form>
+
+    <script>
+    // Institution dropdown handler — show custom field for "Other"
+    document.addEventListener('DOMContentLoaded', function() {
+        const instSelect = document.getElementById('institution-select');
+        const customWrapper = document.getElementById('custom-institution-wrapper');
+        const customInput = document.getElementById('custom_institution');
+
+        if (!instSelect || !customWrapper) return;
+
+        // Show/hide custom institution field based on selection
+        function updateInstitutionField() {
+            if (instSelect.value === 'other') {
+                customWrapper.style.display = 'block';
+                customInput.setAttribute('required', 'required');
+            } else {
+                customWrapper.style.display = 'none';
+                customInput.removeAttribute('required');
+            }
+        }
+
+        // Set initial state
+        updateInstitutionField();
+
+        // Update on change
+        instSelect.addEventListener('change', updateInstitutionField);
+
+        // Email domain validation
+        const emailInput = document.querySelector('input[name="email"]');
+        const form = document.querySelector('form.form-grid');
+
+        if (emailInput && form && instSelect) {
+            form.addEventListener('submit', function(e) {
+                const email = emailInput.value.trim();
+                const domain = instSelect.value;
+
+                if (!email || !domain || domain === '') return;
+
+                if (domain === 'other') {
+                    // Custom institution doesn't require email domain match
+                    return;
+                }
+
+                const emailDomain = email.substring(email.lastIndexOf('@') + 1).toLowerCase();
+                const selectedDomain = domain.toLowerCase();
+
+                if (emailDomain !== selectedDomain) {
+                    e.preventDefault();
+                    const errorMsg = `Email domain (@${emailDomain}) does not match selected institution (@${selectedDomain}). Please use an email from your institution or select 'Other'.`;
+
+                    // Show error message
+                    const existingError = document.querySelector('.alert-error');
+                    if (existingError) {
+                        existingError.innerHTML = `<strong>Error:</strong> ${errorMsg}`;
+                        existingError.style.display = 'block';
+                    } else {
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'alert alert-error';
+                        errorDiv.innerHTML = `<strong>Error:</strong> ${errorMsg}`;
+                        errorDiv.style.cssText = 'margin-bottom:16px;background:#fff5f5;border-left:4px solid #b54646;padding:12px 16px;border-radius:6px;color:#5a2c2c';
+                        form.parentNode.insertBefore(errorDiv, form);
+                    }
+
+                    window.scrollTo({top: 0, behavior: 'smooth'});
+                    return false;
+                }
+            });
+        }
+    });
+    </script>
 </div>
 
 <style>
