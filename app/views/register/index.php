@@ -2,7 +2,7 @@
 // Registration type chooser
 ?>
 
-<div style="max-width: 900px; margin: 60px auto; padding: 0 20px;">
+<div class="register-wheat-bg" style="max-width: 900px; margin: 60px auto; padding: 0 20px; position: relative; background-image: url('wheat.avif'); background-size: cover; background-position: center; background-attachment: fixed;">
     <h1 style="text-align: center; margin-bottom: 50px; font-size: 32px; color: #1a3d2a;">Join FACT Alliance Hub</h1>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 40px;">
@@ -119,3 +119,42 @@ function showUnavailableModal() {
     };
 }
 </script>
+
+<style>
+/* Register page with maximum wheat visibility */
+.register-wheat-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.80) 0%,
+        rgba(238, 243, 239, 0.78) 50%,
+        rgba(255, 255, 255, 0.82) 100%);
+    backdrop-filter: blur(0.5px);
+    pointer-events: none;
+    z-index: 0;
+    left: -20px;
+    right: -20px;
+    margin: -60px -20px 0 -20px;
+}
+
+.register-wheat-bg > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Subtle grain texture for premium feel */
+.register-wheat-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(circle at 20% 50%, rgba(26, 107, 90, 0.04) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(200, 168, 90, 0.025) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 2;
+    left: -20px;
+    right: -20px;
+    margin: -60px -20px 0 -20px;
+}
+</style>

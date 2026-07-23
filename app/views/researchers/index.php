@@ -1122,9 +1122,9 @@ if (is_array($focusDetailRaw)) {
     position: absolute;
     inset: 0;
     background: linear-gradient(135deg,
-        rgba(255, 255, 255, 0.94) 0%,
-        rgba(238, 243, 239, 0.92) 50%,
-        rgba(255, 255, 255, 0.95) 100%);
+        rgba(255, 255, 255, 0.81) 0%,
+        rgba(238, 243, 239, 0.79) 50%,
+        rgba(255, 255, 255, 0.83) 100%);
     backdrop-filter: blur(0.5px);
     pointer-events: none;
     z-index: 0;
@@ -1141,8 +1141,8 @@ if (is_array($focusDetailRaw)) {
     position: absolute;
     inset: 0;
     background-image:
-        radial-gradient(circle at 20% 50%, rgba(26, 107, 90, 0.02) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(200, 168, 90, 0.015) 0%, transparent 50%);
+        radial-gradient(circle at 20% 50%, rgba(26, 107, 90, 0.04) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(200, 168, 90, 0.025) 0%, transparent 50%);
     pointer-events: none;
     z-index: 2;
 }
