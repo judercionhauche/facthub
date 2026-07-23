@@ -168,7 +168,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <!-- Right Login Form Section -->
-    <div class="login-form-wrapper" style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px;background:#fafbf9;overflow-y:auto;max-width:100%">
+    <div class="login-form-wrapper login-wheat-bg" style="flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px;background:#fafbf9;background-image:url('wheat.avif');background-size:cover;background-position:center;background-attachment:fixed;overflow-y:auto;max-width:100%;position:relative">
         <div style="width:100%;max-width:340px">
             <!-- Back to landing -->
             <div style="margin-bottom:20px">
@@ -255,6 +255,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <style>
+    /* Login page with boosted wheat background opacity */
+    .login-wheat-bg::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg,
+            rgba(255, 255, 255, 0.87) 0%,
+            rgba(238, 243, 239, 0.85) 50%,
+            rgba(255, 255, 255, 0.88) 100%);
+        backdrop-filter: blur(0.5px);
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .login-wheat-bg > * {
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Subtle grain texture for premium feel */
+    .login-wheat-bg::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image:
+            radial-gradient(circle at 20% 50%, rgba(26, 107, 90, 0.03) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(200, 168, 90, 0.02) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: 2;
+    }
+
     @media (max-width: 1024px) {
         .login-container { flex-direction: column; height: auto; }
         .login-hero { padding: 40px 30px; min-height: 280px; }
