@@ -827,7 +827,7 @@ if (is_array($focusDetailRaw)) {
     $selectedSubcats = array_values(array_filter(array_map('trim', explode(',', $focusDetailRaw))));
 }
 ?>
-<div class="panel modalish<?php echo ($mode === 'add' && !is_logged_in()) ? ' reg-form-bg' : ''; ?>">
+<div class="panel modalish<?php echo ($mode === 'add' && !is_logged_in()) ? ' reg-form-bg' : ''; ?>"<?php echo ($mode === 'add' && !is_logged_in()) ? " style=\"background-image: url('wheat.avif');\"" : ''; ?>>
     <h2><?php
         if ($editing) echo 'Edit Researcher';
         elseif ($mode === 'add' && !is_logged_in()) echo 'Register as Researcher';
@@ -1111,7 +1111,6 @@ if (is_array($focusDetailRaw)) {
 .panel.modalish.reg-form-bg {
     position: relative;
     background-color: #ffffff;
-    background-image: url('assets/wheat.avif');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
