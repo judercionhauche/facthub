@@ -2,7 +2,7 @@
 // Impact dashboard for logged-in users — shows full impact data
 // Reuses all landing page styling and data loading
 
-require_admin_or_user(); // Requires login
+require_login();
 
 // Fetch impact data (same as landing page)
 if (function_exists('apply_impact_data_schema')) {
