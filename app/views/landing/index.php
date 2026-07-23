@@ -32,11 +32,13 @@ try {
     if ($r) while ($row = $r->fetch_assoc()) $landStudents[] = $row;
 } catch (Throwable $e) { error_log('[Landing] fact_students fetch error: ' . $e->getMessage()); }
 
+$landCollaborations = 0;
 try {
-    $r = $conn->query("SELECT metric_key, metric_value FROM impact_metrics WHERE metric_key IN ('partner_institutions','countries_represented')");
+    $r = $conn->query("SELECT metric_key, metric_value FROM impact_metrics WHERE metric_key IN ('member_institutions','countries_represented','collaborations')");
     if ($r) while ($row = $r->fetch_assoc()) {
-        if ($row['metric_key'] === 'partner_institutions')  $landInstitutions = (int)$row['metric_value'];
-        if ($row['metric_key'] === 'countries_represented') $landCountries = (int)$row['metric_value'];
+        if ($row['metric_key'] === 'member_institutions')    $landInstitutions = (int)$row['metric_value'];
+        if ($row['metric_key'] === 'countries_represented')  $landCountries = (int)$row['metric_value'];
+        if ($row['metric_key'] === 'collaborations')         $landCollaborations = (int)$row['metric_value'];
     }
 } catch (Throwable $e) { error_log('[Landing] impact_metrics fetch error: ' . $e->getMessage()); }
 
@@ -340,10 +342,10 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
       <p>A live view of the funding won, the researchers supported, and the institutions working side by side across the network.</p>
     </div>
     <div class="kpi-grid">
-      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= h($fundingSecuredNum) ?>" data-prefix="$" data-suffix="M"><?= h(land_money($fundingSecured)) ?></div><div class="lbl">Research funding secured</div><div class="sub">Across <?= $projectCount ?> funded project<?= $projectCount === 1 ? '' : 's' ?> with FACT members leading.</div></div>
-      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $projectCount ?>"><?= $projectCount ?></div><div class="lbl">Funded projects</div><div class="sub">From smallholder systems to global food-trade modelling.</div></div>
-      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $studentCount ?>"><?= $studentCount ?></div><div class="lbl">Students advised</div><div class="sub">PhD and Masters researchers mentored by FACT advisors.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Member institutions</div><div class="sub">Universities and labs across <?= $landCountries ?> countries.</div></div>
+      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $landCollaborations ?>"><?= $landCollaborations ?></div><div class="lbl">Collaborations</div><div class="sub">Active partnerships across the alliance network.</div></div>
+      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $projectCount ?>"><?= $projectCount ?></div><div class="lbl">Funded projects</div><div class="sub">From smallholder systems to global food-trade modelling.</div></div>
+      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $studentCount ?>"><?= $studentCount ?></div><div class="lbl">Students co-advised</div><div class="sub">Doctoral and Masters researchers mentored through collaborative projects.</div></div>
     </div>
 
     <?php

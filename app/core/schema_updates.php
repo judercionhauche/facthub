@@ -931,8 +931,9 @@ function apply_security_schema_updates(mysqli $conn): void {
         // Seed with initial data
         @$conn->query("INSERT IGNORE INTO impact_metrics (metric_key, metric_value, metric_label, metric_unit, metric_category, order_in_category) VALUES
             ('total_researchers', 847, 'Researchers in the network', '', 'network', 1),
-            ('partner_institutions', 12, 'Member institutions', '', 'network', 2),
+            ('member_institutions', 12, 'Member institutions', '', 'network', 2),
             ('countries_represented', 9, 'Countries represented', '', 'network', 3),
+            ('collaborations', 0, 'Collaborations', '', 'network', 5),
             ('research_disciplines', 15, 'Research disciplines', '', 'network', 4),
             ('active_collaborations', 34, 'Active collaborations', '', 'network', 5),
             ('students_supported', 5, 'Students supported', '', 'network', 6),
@@ -1046,8 +1047,14 @@ function apply_impact_data_schema(mysqli $conn): void {
                 INDEX idx_order (display_order)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
-    // Keep the headline metric label in sync (renamed from "Partner institutions")
-    @$conn->query("UPDATE impact_metrics SET metric_label='Member institutions' WHERE metric_key='partner_institutions' AND metric_label<>'Member institutions'");
+    // Migrate old 'partner_institutions' key to 'member_institutions' if it exists
+    @$conn->query("UPDATE impact_metrics SET metric_key='member_institutions' WHERE metric_key='partner_institutions' LIMIT 1");
+
+    // Ensure collaborations metric exists
+    $checkCollab = @$conn->query("SELECT 1 FROM impact_metrics WHERE metric_key='collaborations' LIMIT 1");
+    if (!$checkCollab || $checkCollab->num_rows === 0) {
+        @$conn->query("INSERT INTO impact_metrics (metric_key, metric_value, metric_label, metric_unit, metric_category, order_in_category) VALUES ('collaborations', 0, 'Collaborations', '', 'network', 5)");
+    }
 
     $seed = @$conn->query("SELECT COUNT(*) c FROM fact_students");
     if ($seed && (int)($seed->fetch_assoc()['c'] ?? 0) === 0) {

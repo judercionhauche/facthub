@@ -197,40 +197,6 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Member institutions</div><div class="sub">Universities and labs across <?= $landCountries ?> countries.</div></div>
     </div>
 
-    <?php if ($landProjects): ?>
-    <div class="charts" style="margin-top:60px">
-      <div class="l-panel reveal">
-        <div class="cap">Funded research</div>
-        <h3>Where the funding comes from</h3>
-        <div class="bars" id="funderBars"></div>
-      </div>
-      <div class="l-panel reveal">
-        <div class="cap">Cumulative</div>
-        <h3>Funding secured over time</h3>
-        <svg id="growthChart" viewBox="0 0 420 260" style="width:100%;height:auto;margin-top:18px" aria-label="Cumulative funding growth by year"></svg>
-        <div class="lg-legend">
-          <span><i class="lg-dot" style="background:var(--leaf)"></i>Cumulative funding ($M)</span>
-        </div>
-      </div>
-    </div>
-
-    <div class="l-panel reveal" style="margin-top:24px">
-      <div class="cap">Secured vs. in review</div>
-      <h3>An active pipeline</h3>
-      <div class="pipe">
-        <div class="pipe-item">
-          <div class="pipe-top"><span class="pipe-lbl">Secured funding</span><span class="pipe-amt" style="color:var(--pine)"><?= h(land_money($fundingSecured)) ?></span></div>
-          <div class="pipe-track"><div class="pipe-fill" data-w="100" style="background:linear-gradient(90deg,var(--pine),var(--leaf))"></div></div>
-        </div>
-        <?php if ($pipelineAmt > 0): ?>
-        <div class="pipe-item">
-          <div class="pipe-top"><span class="pipe-lbl">Proposals in review</span><span class="pipe-amt" style="color:var(--gold)"><?= h(land_money($pipelineAmt)) ?></span></div>
-          <div class="pipe-track"><div class="pipe-fill" data-w="<?= $fundingSecured > 0 ? round($pipelineAmt / $fundingSecured * 100) : 100 ?>" style="background:linear-gradient(90deg,var(--gold),#dcc084)"></div></div>
-        </div>
-        <?php endif; ?>
-      </div>
-    </div>
-    <?php endif; ?>
   </div>
 </section>
 
