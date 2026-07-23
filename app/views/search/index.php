@@ -24,7 +24,7 @@ if (!$sessionKey) {
 }
 ?>
 
-<div class="search-container">
+<div class="search-container" style="background-image:linear-gradient(135deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.55) 100%), url('wheat.avif');background-size:cover;background-position:center;background-attachment:fixed;">
     <div class="search-header">
         <h1>Search FACT Hub</h1>
         <a href="?page=search" class="ghost-btn" style="font-size:12px">+ New Chat</a>
