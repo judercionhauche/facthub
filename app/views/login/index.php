@@ -112,7 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($loginReturn) {
                             $returnParams = [];
                             parse_str($loginReturn, $returnParams);
-                            $safePages = ['researchers', 'funding', 'matching', 'institutions', 'messages'];
+                            $safePages = ['impact', 'researchers', 'funding', 'matching', 'institutions', 'messages'];
                             if (!empty($returnParams['page']) && in_array($returnParams['page'], $safePages, true)) {
                                 $destPage = $returnParams['page'];
                                 unset($returnParams['page']);
@@ -120,7 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 redirect_to($destPage, array_filter($returnParams, fn($v) => $v !== '' && $v !== null));
                             }
                         }
-                        $redirectTo = ($userRow['role'] === 'funder') ? 'funding' : 'researchers';
+                        $redirectTo = ($userRow['role'] === 'funder') ? 'funding' : 'impact';
                         error_log("[LOGIN] Redirecting to: $redirectTo");
                         redirect_to($redirectTo);
                     }
