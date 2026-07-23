@@ -827,7 +827,7 @@ if (is_array($focusDetailRaw)) {
     $selectedSubcats = array_values(array_filter(array_map('trim', explode(',', $focusDetailRaw))));
 }
 ?>
-<div class="panel modalish">
+<div class="panel modalish<?php echo ($mode === 'add' && !is_logged_in()) ? ' reg-form-bg' : ''; ?>">
     <h2><?php
         if ($editing) echo 'Edit Researcher';
         elseif ($mode === 'add' && !is_logged_in()) echo 'Register as Researcher';
@@ -1107,6 +1107,47 @@ if (is_array($focusDetailRaw)) {
 </div>
 
 <style>
+/* Registration form with dope wheat background */
+.panel.modalish.reg-form-bg {
+    position: relative;
+    background-color: #ffffff;
+    background-image: url('assets/wheat.avif');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    overflow: hidden;
+}
+
+.panel.modalish.reg-form-bg::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg,
+        rgba(255, 255, 255, 0.94) 0%,
+        rgba(238, 243, 239, 0.92) 50%,
+        rgba(255, 255, 255, 0.95) 100%);
+    backdrop-filter: blur(0.5px);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.panel.modalish.reg-form-bg > * {
+    position: relative;
+    z-index: 1;
+}
+
+/* Subtle grain texture overlay for premium feel */
+.panel.modalish.reg-form-bg::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+        radial-gradient(circle at 20% 50%, rgba(26, 107, 90, 0.02) 0%, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(200, 168, 90, 0.015) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 2;
+}
+
 .subcategory-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:6px 28px}
 .subcategory-grid label{display:flex;align-items:flex-start;gap:10px;font-size:13.5px;font-weight:500;background:#f8f9fa;border-radius:6px;padding:6px 12px;margin:0;cursor:pointer;transition:background .15s}
 .subcategory-grid label:hover{background:#e6f0fa}
