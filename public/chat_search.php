@@ -174,7 +174,7 @@ function fetchCandidates(mysqli $conn, string $table, array $allTerms, string $s
     // Try FULLTEXT first, fall back to LIKE if it fails
     if ($ftQuery) {
         try {
-            $sql = "SELECT *, MATCH({$ftField}) AGAINST (? IN NATURAL LANGUAGE MODE) AS ft_relevance FROM {$table} WHERE MATCH({$ftField}) AGAINST (? IN NATURAL LANGUAGE MODE)";
+            $sql = "SELECT *, MATCH({$ftField}) AGAINST (? IN NATURAL LANGUAGE MODE) AS ft_relevance FROM {$table} WHERE MATCH({$ftField}) AGAINST (? IN NATURAL LANGUAGE MODE) AND deleted_at IS NULL";
             $params = [$ftQuery, $ftQuery];
             $types = 'ss';
             if ($statusFilter) { $sql .= ' AND status = ?'; $params[] = $statusFilter; $types .= 's'; }
@@ -201,7 +201,7 @@ function fetchCandidates(mysqli $conn, string $table, array $allTerms, string $s
                 foreach ($cols as $col) { $sub[] = trim($col) . ' LIKE ?'; $params[] = '%' . $term . '%'; $types .= 's'; }
                 $orClauses[] = '(' . implode(' OR ', $sub) . ')';
             }
-            $sql = "SELECT *, 0.0 AS ft_relevance FROM {$table} WHERE " . implode(' OR ', $orClauses);
+            $sql = "SELECT *, 0.0 AS ft_relevance FROM {$table} WHERE (" . implode(' OR ', $orClauses) . ") AND deleted_at IS NULL";
             if ($statusFilter) { $sql .= ' AND status = ?'; $params[] = $statusFilter; $types .= 's'; }
             $sql .= ' LIMIT 60';
             $stmt = $conn->prepare($sql);
