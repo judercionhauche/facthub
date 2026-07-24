@@ -23,12 +23,16 @@ $conn->set_charset('utf8mb4');
 
 require_once __DIR__ . '/../app/core/session_manager.php';
 require_once __DIR__ . '/../app/core/helpers.php';
+require_once __DIR__ . '/../app/core/schema_updates.php';
 require_once __DIR__ . '/../app/services/ClaudeService.php';
 require_once __DIR__ . '/../app/services/EmbeddingService.php';
 require_once __DIR__ . '/../app/services/SemanticSearchService.php';
 require_once __DIR__ . '/../app/services/OrcidService.php';
 
 init_session();
+
+// Auto-migrate ORCID schema if needed
+apply_orcid_schema($conn);
 
 // NOW send headers & buffering (after session init, before auth check)
 header('Content-Type: text/event-stream');
