@@ -247,12 +247,13 @@ function scoreResearcher(array $r, array $topicFilters, array $geoFilters, array
     foreach ($expandedGeos as $g) { if (in_array($g, $geos, true)) $score += 0.5; }
     foreach ($synonyms as $syn) { if (in_array($syn, $tags, true) || strpos($name, $syn) !== false) $score += 0.5; }
 
-    // ORCID boost: publication count + relevance
+    // ORCID boost: comprehensive data (publications + affiliations + education + fundings + peer reviews)
     if ($orcid && !empty($r['orcid_id'])) {
         $orcidData = $orcid->getEnrichedResearcher((int)$r['id'], $r['orcid_id']);
         if ($orcidData) {
-            $pubScore = $orcid->calculatePublicationRelevance($orcidData, $tags, $keywords);
-            $score += min(10, ($orcidData['publication_count'] ?? 0) / 10) + ($pubScore / 10);
+            $orcidScore = $orcid->calculateOrcidRelevance($orcidData, $tags, $keywords);
+            // ORCID contributes up to 15 points to the score (major boost)
+            $score += min(15, ($orcidScore / 10) + (($orcidData['activity_score'] ?? 0) / 10));
         }
     }
 

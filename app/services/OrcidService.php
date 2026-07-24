@@ -18,8 +18,8 @@ class OrcidService {
     }
 
     /**
-     * Fetch researcher profile from ORCID (public data only, no auth required)
-     * Returns: [publications, affiliations, name, email, employment, bio]
+     * Fetch comprehensive researcher profile from ORCID (public data only, no auth required)
+     * Returns: [publications, affiliations, education, fundings, peer-reviews, keywords, activity_score]
      */
     public function fetchProfile(string $orcidId): ?array {
         if (!$this->isValidOrcid($orcidId)) return null;
@@ -29,58 +29,22 @@ class OrcidService {
         if ($cached) return $cached;
 
         try {
-            // Public API endpoint — no authentication needed
-            $url = self::ORCID_API . '/' . $orcidId . '/works';
-            $context = stream_context_create(['http' => [
-                'timeout' => 5,
-                'user_agent' => 'FACT-Hub/1.0 (+https://factalliancehub.mit.edu)',
-                'header' => 'Accept: application/json'
-            ]]);
-
-            $response = @file_get_contents($url, false, $context);
-            if (!$response) return null;
-
-            $data = json_decode($response, true);
-            if (!isset($data['group'])) return null;
-
-            // Extract publications with keywords/abstracts
-            $publications = [];
-            $pubCount = 0;
-            $keywords = [];
-            $subjects = [];
-
-            foreach ($data['group'] as $group) {
-                if (isset($group['work-summary'][0])) {
-                    $work = $group['work-summary'][0];
-                    $pubCount++;
-
-                    // Capture title + abstract for semantic matching
-                    if (!empty($work['title']['title']['value'])) {
-                        $publications[] = [
-                            'title' => $work['title']['title']['value'],
-                            'year' => $work['publication-date']['year']['value'] ?? null,
-                            'type' => $work['type'] ?? 'unknown',
-                            'doi' => $work['external-ids']['external-id'][0]['external-id-value'] ?? null
-                        ];
-                    }
-
-                    // Extract keywords from work metadata if available
-                    if (isset($work['journal-title'])) {
-                        $keywords[] = strtolower($work['journal-title']['value']);
-                    }
-                }
-            }
-
             $result = [
                 'orcid_id' => $orcidId,
-                'publication_count' => $pubCount,
-                'publications' => array_slice($publications, 0, 10), // Top 10
-                'keywords' => array_unique($keywords),
+                'publications' => $this->fetchWorks($orcidId),
+                'affiliations' => $this->fetchAffiliations($orcidId),
+                'education' => $this->fetchEducation($orcidId),
+                'fundings' => $this->fetchFundings($orcidId),
+                'peer_reviews' => $this->fetchPeerReviews($orcidId),
                 'last_updated' => date('Y-m-d H:i:s'),
-                'is_active' => $pubCount > 0
             ];
 
-            // Cache the result
+            // Compute activity score (0-100)
+            $result['activity_score'] = $this->computeActivityScore($result);
+            $result['keywords'] = $this->extractKeywords($result);
+            $result['is_active'] = $result['activity_score'] > 20;
+
+            // Cache the comprehensive result
             $this->setCache($orcidId, $result);
             return $result;
 
@@ -90,28 +54,288 @@ class OrcidService {
         }
     }
 
+    private function fetchWorks(string $orcidId): array {
+        try {
+            $url = self::ORCID_API . '/' . $orcidId . '/works';
+            $response = @file_get_contents($url, false, $this->getContext());
+            if (!$response) return [];
+
+            $data = json_decode($response, true);
+            if (!isset($data['group'])) return [];
+
+            $publications = [];
+            foreach (array_slice($data['group'], 0, 20) as $group) {
+                if (isset($group['work-summary'][0])) {
+                    $work = $group['work-summary'][0];
+                    if (!empty($work['title']['title']['value'])) {
+                        $publications[] = [
+                            'title' => $work['title']['title']['value'],
+                            'year' => $work['publication-date']['year']['value'] ?? null,
+                            'type' => $work['type'] ?? 'unknown',
+                            'doi' => $work['external-ids']['external-id'][0]['external-id-value'] ?? null,
+                            'journal' => $work['journal-title']['value'] ?? null
+                        ];
+                    }
+                }
+            }
+            return $publications;
+        } catch (Exception $e) {
+            error_log('[OrcidService] Works fetch failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function fetchAffiliations(string $orcidId): array {
+        try {
+            $url = self::ORCID_API . '/' . $orcidId . '/employments';
+            $response = @file_get_contents($url, false, $this->getContext());
+            if (!$response) return [];
+
+            $data = json_decode($response, true);
+            if (!isset($data['affiliation-group'])) return [];
+
+            $affiliations = [];
+            foreach (array_slice($data['affiliation-group'], 0, 10) as $aff) {
+                if (isset($aff['summaries'][0])) {
+                    $summary = $aff['summaries'][0];
+                    $affiliations[] = [
+                        'organization' => $summary['organization']['name'] ?? null,
+                        'role' => $summary['role-title'] ?? null,
+                        'start_year' => $summary['start-date']['year']['value'] ?? null,
+                        'end_year' => $summary['end-date']['year']['value'] ?? null,
+                        'country' => $summary['organization']['address']['country'] ?? null
+                    ];
+                }
+            }
+            return $affiliations;
+        } catch (Exception $e) {
+            error_log('[OrcidService] Affiliations fetch failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function fetchEducation(string $orcidId): array {
+        try {
+            $url = self::ORCID_API . '/' . $orcidId . '/educations';
+            $response = @file_get_contents($url, false, $this->getContext());
+            if (!$response) return [];
+
+            $data = json_decode($response, true);
+            if (!isset($data['affiliation-group'])) return [];
+
+            $education = [];
+            foreach (array_slice($data['affiliation-group'], 0, 10) as $edu) {
+                if (isset($edu['summaries'][0])) {
+                    $summary = $edu['summaries'][0];
+                    $education[] = [
+                        'institution' => $summary['organization']['name'] ?? null,
+                        'degree' => $summary['role-title'] ?? null,
+                        'field' => $summary['department-name'] ?? null,
+                        'year' => $summary['end-date']['year']['value'] ?? null,
+                        'country' => $summary['organization']['address']['country'] ?? null
+                    ];
+                }
+            }
+            return $education;
+        } catch (Exception $e) {
+            error_log('[OrcidService] Education fetch failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function fetchFundings(string $orcidId): array {
+        try {
+            $url = self::ORCID_API . '/' . $orcidId . '/fundings';
+            $response = @file_get_contents($url, false, $this->getContext());
+            if (!$response) return [];
+
+            $data = json_decode($response, true);
+            if (!isset($data['group'])) return [];
+
+            $fundings = [];
+            foreach (array_slice($data['group'], 0, 15) as $group) {
+                if (isset($group['funding-summary'][0])) {
+                    $fund = $group['funding-summary'][0];
+                    $fundings[] = [
+                        'title' => $fund['title']['title']['value'] ?? null,
+                        'funder' => $fund['organization']['name'] ?? null,
+                        'type' => $fund['type'] ?? null,
+                        'amount' => $fund['amount']['value'] ?? null,
+                        'currency' => $fund['amount']['currency'] ?? null,
+                        'start_year' => $fund['start-date']['year']['value'] ?? null,
+                        'end_year' => $fund['end-date']['year']['value'] ?? null
+                    ];
+                }
+            }
+            return $fundings;
+        } catch (Exception $e) {
+            error_log('[OrcidService] Fundings fetch failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function fetchPeerReviews(string $orcidId): array {
+        try {
+            $url = self::ORCID_API . '/' . $orcidId . '/peer-reviews';
+            $response = @file_get_contents($url, false, $this->getContext());
+            if (!$response) return [];
+
+            $data = json_decode($response, true);
+            if (!isset($data['group'])) return [];
+
+            $reviews = [];
+            foreach (array_slice($data['group'], 0, 10) as $group) {
+                if (isset($group['peer-review-summary'][0])) {
+                    $review = $group['peer-review-summary'][0];
+                    $reviews[] = [
+                        'title' => $review['review-type'] ?? null,
+                        'completion_year' => $review['completion-date']['year']['value'] ?? null,
+                        'organization' => $review['organization']['name'] ?? null
+                    ];
+                }
+            }
+            return $reviews;
+        } catch (Exception $e) {
+            error_log('[OrcidService] Peer reviews fetch failed: ' . $e->getMessage());
+            return [];
+        }
+    }
+
+    private function computeActivityScore(array $profile): float {
+        $score = 0;
+
+        // Publications (0-40 points)
+        $pubCount = count($profile['publications'] ?? []);
+        $score += min(40, $pubCount * 2);
+
+        // Affiliations (0-20 points)
+        $score += min(20, count($profile['affiliations'] ?? []) * 5);
+
+        // Education (0-10 points)
+        $score += min(10, count($profile['education'] ?? []) * 3);
+
+        // Fundings (0-20 points)
+        $score += min(20, count($profile['fundings'] ?? []) * 2);
+
+        // Peer reviews (0-10 points)
+        $score += min(10, count($profile['peer_reviews'] ?? []) * 2);
+
+        // Recent activity boost (0-20 points extra)
+        if ($pubCount > 0 && !empty($profile['publications'][0]['year'])) {
+            $lastPubYear = (int)$profile['publications'][0]['year'];
+            if ($lastPubYear >= date('Y') - 1) $score += 20; // Recent pub
+            elseif ($lastPubYear >= date('Y') - 2) $score += 10;
+            elseif ($lastPubYear >= date('Y') - 3) $score += 5;
+        }
+
+        return min(100, $score);
+    }
+
+    private function extractKeywords(array $profile): array {
+        $keywords = [];
+
+        // From publications
+        foreach ($profile['publications'] ?? [] as $pub) {
+            if (!empty($pub['journal'])) {
+                $keywords[] = strtolower($pub['journal']);
+            }
+            if (!empty($pub['title'])) {
+                // Extract key terms from title
+                $terms = preg_split('/[\s\-,;:]+/', strtolower($pub['title']));
+                $keywords = array_merge($keywords, array_filter($terms, fn($t) => strlen($t) > 3));
+            }
+        }
+
+        // From affiliations
+        foreach ($profile['affiliations'] ?? [] as $aff) {
+            if (!empty($aff['role'])) {
+                $keywords[] = strtolower($aff['role']);
+            }
+        }
+
+        // From education
+        foreach ($profile['education'] ?? [] as $edu) {
+            if (!empty($edu['field'])) {
+                $keywords[] = strtolower($edu['field']);
+            }
+        }
+
+        // From fundings
+        foreach ($profile['fundings'] ?? [] as $fund) {
+            if (!empty($fund['title'])) {
+                $terms = preg_split('/[\s\-,;:]+/', strtolower($fund['title']));
+                $keywords = array_merge($keywords, array_filter($terms, fn($t) => strlen($t) > 3));
+            }
+        }
+
+        return array_unique(array_slice(array_values($keywords), 0, 20));
+    }
+
+    private function getContext() {
+        return stream_context_create(['http' => [
+            'timeout' => 5,
+            'user_agent' => 'FACT-Hub/1.0 (+https://factalliancehub.mit.edu)',
+            'header' => 'Accept: application/json'
+        ]]);
+    }
+
     /**
-     * Enrich researcher record with ORCID publication metrics
-     * Updates researcher_orcid_cache table
+     * Enrich researcher record with comprehensive ORCID data
+     * Stores publications, affiliations, education, fundings, peer reviews, activity score
      */
     public function enrichResearcher(int $researcherId, string $orcidId): void {
         $profile = $this->fetchProfile($orcidId);
         if (!$profile) return;
 
-        // Store cache in DB for aggregation
         $stmt = $this->conn->prepare('
-            INSERT INTO researcher_orcid_cache (researcher_id, orcid_id, pub_count, publication_data, keywords, last_synced)
-            VALUES (?, ?, ?, ?, ?, NOW())
+            INSERT INTO researcher_orcid_cache (
+                researcher_id, orcid_id, activity_score,
+                pub_count, affiliation_count, education_count, funding_count, peer_review_count,
+                publication_data, affiliation_data, education_data, funding_data, peer_review_data,
+                keywords, is_active, last_synced
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
             ON DUPLICATE KEY UPDATE
+                activity_score = VALUES(activity_score),
                 pub_count = VALUES(pub_count),
+                affiliation_count = VALUES(affiliation_count),
+                education_count = VALUES(education_count),
+                funding_count = VALUES(funding_count),
+                peer_review_count = VALUES(peer_review_count),
                 publication_data = VALUES(publication_data),
+                affiliation_data = VALUES(affiliation_data),
+                education_data = VALUES(education_data),
+                funding_data = VALUES(funding_data),
+                peer_review_data = VALUES(peer_review_data),
                 keywords = VALUES(keywords),
+                is_active = VALUES(is_active),
                 last_synced = NOW()
         ');
 
-        $pubJson = json_encode($profile['publications']);
-        $keywordsJson = json_encode($profile['keywords']);
-        $stmt->bind_param('isiss', $researcherId, $orcidId, $profile['publication_count'], $pubJson, $keywordsJson);
+        $pubCount = count($profile['publications'] ?? []);
+        $affCount = count($profile['affiliations'] ?? []);
+        $eduCount = count($profile['education'] ?? []);
+        $fundCount = count($profile['fundings'] ?? []);
+        $prCount = count($profile['peer_reviews'] ?? []);
+        $isActive = $profile['is_active'] ? 1 : 0;
+
+        $stmt->bind_param(
+            'isdiiiisssssii',
+            $researcherId,
+            $orcidId,
+            $profile['activity_score'],
+            $pubCount,
+            $affCount,
+            $eduCount,
+            $fundCount,
+            $prCount,
+            json_encode($profile['publications']),
+            json_encode($profile['affiliations']),
+            json_encode($profile['education']),
+            json_encode($profile['fundings']),
+            json_encode($profile['peer_reviews']),
+            json_encode($profile['keywords']),
+            $isActive
+        );
         $stmt->execute();
     }
 
@@ -151,32 +375,69 @@ class OrcidService {
     }
 
     /**
-     * Search boost: publications in user's research topics
-     * Returns relevance score 0-100
+     * Calculate comprehensive ORCID relevance score (0-100)
+     * Factors: publications, affiliations, education, fundings, activity, keyword matches
      */
-    public function calculatePublicationRelevance(array $orcidData, array $userTopics, array $userKeywords): float {
-        if (empty($orcidData['publications'])) return 0;
-
+    public function calculateOrcidRelevance(array $orcidData, array $userTopics, array $userKeywords): float {
         $score = 0;
-        $topicMatches = 0;
 
-        foreach ($orcidData['publications'] as $pub) {
-            $title = strtolower($pub['title'] ?? '');
+        // Publication relevance (0-35 points)
+        foreach ($orcidData['publications'] ?? [] as $pub) {
+            $titleBody = strtolower(($pub['title'] ?? '') . ' ' . ($pub['journal'] ?? ''));
             foreach ($userKeywords as $kw) {
-                if (strpos($title, strtolower($kw)) !== false) {
-                    $topicMatches++;
-                    $score += 5;
+                if (strpos($titleBody, strtolower($kw)) !== false) {
+                    $score += 3;
+                }
+            }
+            // Recency boost
+            $year = (int)($pub['year'] ?? 0);
+            if ($year >= date('Y') - 1) $score += 3;
+            elseif ($year >= date('Y') - 2) $score += 1.5;
+        }
+        $score = min(35, $score);
+
+        // Affiliation relevance (0-20 points)
+        foreach ($orcidData['affiliations'] ?? [] as $aff) {
+            $orgRole = strtolower(($aff['organization'] ?? '') . ' ' . ($aff['role'] ?? ''));
+            foreach ($userKeywords as $kw) {
+                if (strpos($orgRole, strtolower($kw)) !== false) {
+                    $score += 2;
                 }
             }
         }
 
-        // Boost: recent publications (within 3 years)
-        foreach ($orcidData['publications'] as $pub) {
-            $year = (int)($pub['year'] ?? 0);
-            if ($year > date('Y') - 3) $score += 2;
+        // Education relevance (0-15 points)
+        foreach ($orcidData['education'] ?? [] as $edu) {
+            $eduText = strtolower(($edu['institution'] ?? '') . ' ' . ($edu['field'] ?? ''));
+            foreach ($userTopics as $topic) {
+                if (strpos($eduText, strtolower($topic)) !== false) {
+                    $score += 2;
+                }
+            }
         }
 
+        // Funding relevance (0-20 points)
+        foreach ($orcidData['fundings'] ?? [] as $fund) {
+            $fundText = strtolower(($fund['title'] ?? '') . ' ' . ($fund['funder'] ?? ''));
+            foreach ($userKeywords as $kw) {
+                if (strpos($fundText, strtolower($kw)) !== false) {
+                    $score += 2;
+                }
+            }
+        }
+
+        // Activity score (0-10 points) — researchers with diverse activity rank higher
+        $activity = $orcidData['activity_score'] ?? 0;
+        $score += min(10, $activity / 10);
+
         return min(100, $score);
+    }
+
+    /**
+     * Legacy method for backwards compatibility
+     */
+    public function calculatePublicationRelevance(array $orcidData, array $userTopics, array $userKeywords): float {
+        return $this->calculateOrcidRelevance($orcidData, $userTopics, $userKeywords);
     }
 
     private function isValidOrcid(string $orcid): bool {
