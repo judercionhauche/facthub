@@ -317,23 +317,30 @@ class OrcidService {
         $fundCount = count($profile['fundings'] ?? []);
         $prCount = count($profile['peer_reviews'] ?? []);
         $isActive = $profile['is_active'] ? 1 : 0;
+        $activityScore = (float)($profile['activity_score'] ?? 0);
+        $pubData = json_encode($profile['publications']);
+        $affData = json_encode($profile['affiliations']);
+        $eduData = json_encode($profile['education']);
+        $fundData = json_encode($profile['fundings']);
+        $prData = json_encode($profile['peer_reviews']);
+        $keywordData = json_encode($profile['keywords']);
 
         $stmt->bind_param(
             'isdiiiisssssii',
             $researcherId,
             $orcidId,
-            $profile['activity_score'],
+            $activityScore,
             $pubCount,
             $affCount,
             $eduCount,
             $fundCount,
             $prCount,
-            json_encode($profile['publications']),
-            json_encode($profile['affiliations']),
-            json_encode($profile['education']),
-            json_encode($profile['fundings']),
-            json_encode($profile['peer_reviews']),
-            json_encode($profile['keywords']),
+            $pubData,
+            $affData,
+            $eduData,
+            $fundData,
+            $prData,
+            $keywordData,
             $isActive
         );
         $stmt->execute();
