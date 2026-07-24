@@ -1142,6 +1142,7 @@ function apply_orcid_schema(mysqli $conn): void {
         // Check if researcher_orcid_cache table exists
         $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='researcher_orcid_cache' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
         if (!$result || $result->num_rows === 0) {
+            // Create table without FK first (more reliable)
             @$conn->query("
                 CREATE TABLE IF NOT EXISTS researcher_orcid_cache (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -1157,28 +1158,34 @@ function apply_orcid_schema(mysqli $conn): void {
                     peer_review_count INT DEFAULT 0,
 
                     -- Full data (JSON for flexibility)
-                    publication_data JSON,
-                    affiliation_data JSON,
-                    education_data JSON,
-                    funding_data JSON,
-                    peer_review_data JSON,
-                    keywords JSON,
+                    publication_data LONGTEXT,
+                    affiliation_data LONGTEXT,
+                    education_data LONGTEXT,
+                    funding_data LONGTEXT,
+                    peer_review_data LONGTEXT,
+                    keywords LONGTEXT,
 
                     -- Metadata
                     is_active BOOLEAN DEFAULT FALSE,
                     last_synced TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-                    FOREIGN KEY (researcher_id) REFERENCES researchers(id) ON DELETE CASCADE,
-                    INDEX (activity_score),
-                    INDEX (is_active),
-                    INDEX (last_synced)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                    INDEX idx_researcher (researcher_id),
+                    INDEX idx_activity (activity_score),
+                    INDEX idx_active (is_active),
+                    INDEX idx_synced (last_synced)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
             ");
             error_log('[ORCID Schema] Created researcher_orcid_cache table');
+
+            // Try to add FK constraint after table exists
+            $fkCheck = @$conn->query("SELECT 1 FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_NAME='researcher_orcid_cache_ibfk_1' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$fkCheck || $fkCheck->num_rows === 0) {
+                @$conn->query("ALTER TABLE researcher_orcid_cache ADD FOREIGN KEY (researcher_id) REFERENCES researchers(id) ON DELETE CASCADE");
+            }
         }
     } catch (Throwable $e) {
         error_log('[ORCID Schema Migration] Error: ' . $e->getMessage());
-        // Continue anyway - migration can be retried
+        // Continue anyway - search will work without FK constraint
     }
 }
 
