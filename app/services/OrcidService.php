@@ -326,7 +326,7 @@ class OrcidService {
         $keywordData = json_encode($profile['keywords']);
 
         $stmt->bind_param(
-            'isdiiiisssssii',
+            'isdiiiiiisssssi',
             $researcherId,
             $orcidId,
             $activityScore,
