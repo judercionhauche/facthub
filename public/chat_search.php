@@ -26,6 +26,7 @@ require_once __DIR__ . '/../app/core/helpers.php';
 require_once __DIR__ . '/../app/services/ClaudeService.php';
 require_once __DIR__ . '/../app/services/EmbeddingService.php';
 require_once __DIR__ . '/../app/services/SemanticSearchService.php';
+require_once __DIR__ . '/../app/services/OrcidService.php';
 
 init_session();
 
@@ -233,7 +234,7 @@ function scoreFC(array $fc, array $topicFilters, array $geoFilters, array $keywo
     return $score;
 }
 
-function scoreResearcher(array $r, array $topicFilters, array $geoFilters, array $keywords, array $expandedTopics, array $expandedGeos, array $synonyms): float {
+function scoreResearcher(array $r, array $topicFilters, array $geoFilters, array $keywords, array $expandedTopics, array $expandedGeos, array $synonyms, ?OrcidService $orcid = null): float {
     $score = (float)($r['ft_relevance'] ?? 0) * 5;
     $name = strtolower(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
     $body = strtolower(($r['bio'] ?? '') . ' ' . ($r['institution'] ?? '') . ' ' . ($r['title'] ?? ''));
@@ -245,6 +246,16 @@ function scoreResearcher(array $r, array $topicFilters, array $geoFilters, array
     foreach ($expandedTopics as $t) { if (in_array($t, $tags, true)) $score += 1; }
     foreach ($expandedGeos as $g) { if (in_array($g, $geos, true)) $score += 0.5; }
     foreach ($synonyms as $syn) { if (in_array($syn, $tags, true) || strpos($name, $syn) !== false) $score += 0.5; }
+
+    // ORCID boost: publication count + relevance
+    if ($orcid && !empty($r['orcid_id'])) {
+        $orcidData = $orcid->getEnrichedResearcher((int)$r['id'], $r['orcid_id']);
+        if ($orcidData) {
+            $pubScore = $orcid->calculatePublicationRelevance($orcidData, $tags, $keywords);
+            $score += min(10, ($orcidData['publication_count'] ?? 0) / 10) + ($pubScore / 10);
+        }
+    }
+
     return $score;
 }
 
@@ -378,6 +389,9 @@ if (($filterType === '' || $filterType === 'institution') && !empty($allSearchTe
 }
 
 // Step 5: Score results
+// Initialize ORCID service for real-time researcher enrichment
+$orcid = new OrcidService($conn);
+
 $fcResults = [];
 foreach ($fcCandidates as $fc) {
     $s = scoreFC($fc, $topicFilters, $geoFilters, $keywords, $expandedTopics, $expandedGeos, $synonyms);
@@ -392,7 +406,7 @@ if (!is_approved()) {
 
 $rResults = [];
 foreach ($rCandidates as $r) {
-    $keywordScore = scoreResearcher($r, $topicFilters, $geoFilters, $keywords, $expandedTopics, $expandedGeos, $synonyms);
+    $keywordScore = scoreResearcher($r, $topicFilters, $geoFilters, $keywords, $expandedTopics, $expandedGeos, $synonyms, $orcid);
 
     // If semantic search found this researcher, use hybrid scoring
     $finalScore = $keywordScore;
