@@ -182,6 +182,8 @@ function fetchCandidates(mysqli $conn, string $table, array $allTerms, string $s
             $sql = "SELECT *, MATCH({$ftField}) AGAINST (? IN NATURAL LANGUAGE MODE) AS ft_relevance FROM {$table} WHERE MATCH({$ftField}) AGAINST (? IN NATURAL LANGUAGE MODE) AND deleted_at IS NULL";
             $params = [$ftQuery, $ftQuery];
             $types = 'ss';
+            // For researchers, only show active ones (not inactive/pending)
+            if ($table === 'researchers') { $sql .= ' AND status = ?'; $params[] = 'active'; $types .= 's'; }
             if ($statusFilter) { $sql .= ' AND status = ?'; $params[] = $statusFilter; $types .= 's'; }
             $sql .= ' LIMIT 60';
             $stmt = $conn->prepare($sql);
@@ -207,6 +209,8 @@ function fetchCandidates(mysqli $conn, string $table, array $allTerms, string $s
                 $orClauses[] = '(' . implode(' OR ', $sub) . ')';
             }
             $sql = "SELECT *, 0.0 AS ft_relevance FROM {$table} WHERE (" . implode(' OR ', $orClauses) . ") AND deleted_at IS NULL";
+            // For researchers, only show active ones (not inactive/pending)
+            if ($table === 'researchers') { $sql .= ' AND status = ?'; $params[] = 'active'; $types .= 's'; }
             if ($statusFilter) { $sql .= ' AND status = ?'; $params[] = $statusFilter; $types .= 's'; }
             $sql .= ' LIMIT 60';
             $stmt = $conn->prepare($sql);
