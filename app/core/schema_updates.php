@@ -1137,4 +1137,49 @@ function apply_newsletter_schema(mysqli $conn): void {
     }
 }
 
+function apply_orcid_schema(mysqli $conn): void {
+    try {
+        // Check if researcher_orcid_cache table exists
+        $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='researcher_orcid_cache' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("
+                CREATE TABLE IF NOT EXISTS researcher_orcid_cache (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    researcher_id INT NOT NULL UNIQUE,
+                    orcid_id VARCHAR(50) NOT NULL,
+
+                    -- Activity metrics
+                    activity_score FLOAT DEFAULT 0,
+                    pub_count INT DEFAULT 0,
+                    affiliation_count INT DEFAULT 0,
+                    education_count INT DEFAULT 0,
+                    funding_count INT DEFAULT 0,
+                    peer_review_count INT DEFAULT 0,
+
+                    -- Full data (JSON for flexibility)
+                    publication_data JSON,
+                    affiliation_data JSON,
+                    education_data JSON,
+                    funding_data JSON,
+                    peer_review_data JSON,
+                    keywords JSON,
+
+                    -- Metadata
+                    is_active BOOLEAN DEFAULT FALSE,
+                    last_synced TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+
+                    FOREIGN KEY (researcher_id) REFERENCES researchers(id) ON DELETE CASCADE,
+                    INDEX (activity_score),
+                    INDEX (is_active),
+                    INDEX (last_synced)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+            error_log('[ORCID Schema] Created researcher_orcid_cache table');
+        }
+    } catch (Throwable $e) {
+        error_log('[ORCID Schema Migration] Error: ' . $e->getMessage());
+        // Continue anyway - migration can be retried
+    }
+}
+
 ?>
