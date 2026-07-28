@@ -374,6 +374,37 @@ function scoreFunder(array $f, array $topicFilters, array $geoFilters, array $ke
     return $score;
 }
 
+function getPlatformStats(mysqli $conn): array {
+    $stats = [];
+
+    // Total researchers
+    $res = $conn->query("SELECT COUNT(*) as cnt FROM researchers WHERE deleted_at IS NULL AND status = 'active'");
+    $stats['active_researchers'] = $res->fetch_assoc()['cnt'] ?? 0;
+
+    // Total funding calls
+    $res = $conn->query("SELECT COUNT(*) as cnt FROM funding_calls WHERE deleted_at IS NULL AND status = 'open'");
+    $stats['open_funding_calls'] = $res->fetch_assoc()['cnt'] ?? 0;
+
+    // Total institutions
+    $res = $conn->query("SELECT COUNT(DISTINCT institution) as cnt FROM researchers WHERE deleted_at IS NULL AND institution IS NOT NULL");
+    $stats['institutions'] = $res->fetch_assoc()['cnt'] ?? 0;
+
+    // Total funders
+    $res = $conn->query("SELECT COUNT(*) as cnt FROM funders WHERE deleted_at IS NULL");
+    $stats['funders'] = $res->fetch_assoc()['cnt'] ?? 0;
+
+    return $stats;
+}
+
+function isMetaQuery(string $query): bool {
+    $metaKeywords = ['how many', 'total', 'count', 'researchers in', 'all researchers', 'all funding', 'platform', 'statistics', 'data', 'coverage'];
+    $queryLower = strtolower($query);
+    foreach ($metaKeywords as $kw) {
+        if (stripos($queryLower, $kw) !== false) return true;
+    }
+    return false;
+}
+
 function stripMarkdown(string $text): string {
     $text = preg_replace('/\*\*(.*?)\*\*/u', '$1', $text);
     $text = preg_replace('/\*(.*?)\*/u', '$1', $text);
@@ -761,6 +792,17 @@ if (!empty($institutionCandidates)) {
 // Add access restriction notice if user is pending approval
 if (!is_approved()) {
     $resultsSummary .= "\n⚠️  IMPORTANT: Your account is currently pending admin approval. You can search and view researchers, but funding calls are not available until your account is approved. Please wait for admin approval to access funding opportunities.\n";
+}
+
+// ── Smart meta-query handling: Inject platform stats for "how many" questions ──
+if (isMetaQuery($q) || (empty($fcResults) && empty($rResults) && empty($institutionCandidates))) {
+    $stats = getPlatformStats($conn);
+    $resultsSummary = "PLATFORM STATISTICS:\n";
+    $resultsSummary .= "- Active Researchers: " . $stats['active_researchers'] . "\n";
+    $resultsSummary .= "- Open Funding Calls: " . $stats['open_funding_calls'] . "\n";
+    $resultsSummary .= "- Institutions Represented: " . $stats['institutions'] . "\n";
+    $resultsSummary .= "- Funders on Platform: " . $stats['funders'] . "\n\n";
+    $resultsSummary .= "User Query: \"" . $q . "\"\n";
 }
 
 // ── Stream Claude response (or auto-response fallback) ──
