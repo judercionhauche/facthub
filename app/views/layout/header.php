@@ -18,8 +18,15 @@ if (is_logged_in()) {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500;1,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="assets/style.css">
-    <script src="assets/app.js"></script>
+    <?php
+    // Cache-bust static assets on every deploy: the file's mtime changes on git pull,
+    // so browsers fetch the new version instead of serving a stale cached copy
+    $assetsDir = dirname(__DIR__, 3) . '/public/assets';
+    $cssV = @filemtime($assetsDir . '/style.css') ?: 1;
+    $jsV  = @filemtime($assetsDir . '/app.js') ?: 1;
+    ?>
+    <link rel="stylesheet" href="assets/style.css?v=<?= $cssV ?>">
+    <script src="assets/app.js?v=<?= $jsV ?>"></script>
 
     <!-- Global CMD+K search shortcut -->
     <script>
