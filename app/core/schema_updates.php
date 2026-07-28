@@ -1189,4 +1189,96 @@ function apply_orcid_schema(mysqli $conn): void {
     }
 }
 
+function apply_research_publications_schema(mysqli $conn): void {
+    try {
+        // Check if research_projects table exists
+        $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='research_projects' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("
+                CREATE TABLE IF NOT EXISTS research_projects (
+                    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    title VARCHAR(255) NOT NULL,
+                    description LONGTEXT,
+                    status ENUM('active', 'completed', 'paused') DEFAULT 'active',
+                    funder_name VARCHAR(255),
+                    grant_amount DECIMAL(15, 2),
+                    grant_id VARCHAR(100),
+                    start_year INT,
+                    end_year INT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    deleted_at TIMESTAMP NULL,
+                    KEY idx_status (status),
+                    KEY idx_deleted (deleted_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+            error_log('[Research Schema] Created research_projects table');
+        }
+
+        // Check if research_project_team table exists
+        $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='research_project_team' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("
+                CREATE TABLE IF NOT EXISTS research_project_team (
+                    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    research_project_id INT NOT NULL,
+                    researcher_id INT NOT NULL,
+                    display_order INT DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    KEY idx_project (research_project_id),
+                    KEY idx_researcher (researcher_id),
+                    FOREIGN KEY (research_project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
+                    FOREIGN KEY (researcher_id) REFERENCES researchers(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+            error_log('[Research Schema] Created research_project_team table');
+        }
+
+        // Check if publications_showcase table exists
+        $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='publications_showcase' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("
+                CREATE TABLE IF NOT EXISTS publications_showcase (
+                    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    title VARCHAR(500) NOT NULL,
+                    description LONGTEXT,
+                    url VARCHAR(500) NOT NULL,
+                    publication_year INT,
+                    funder_name VARCHAR(255),
+                    grant_amount DECIMAL(15, 2),
+                    grant_id VARCHAR(100),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    deleted_at TIMESTAMP NULL,
+                    KEY idx_year (publication_year),
+                    KEY idx_deleted (deleted_at)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+            error_log('[Publications Schema] Created publications_showcase table');
+        }
+
+        // Check if publication_team table exists
+        $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='publication_team' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$result || $result->num_rows === 0) {
+            @$conn->query("
+                CREATE TABLE IF NOT EXISTS publication_team (
+                    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                    publication_id INT NOT NULL,
+                    researcher_id INT NOT NULL,
+                    display_order INT DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    KEY idx_publication (publication_id),
+                    KEY idx_researcher (researcher_id),
+                    FOREIGN KEY (publication_id) REFERENCES publications_showcase(id) ON DELETE CASCADE,
+                    FOREIGN KEY (researcher_id) REFERENCES researchers(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
+            error_log('[Publications Schema] Created publication_team table');
+        }
+
+    } catch (Throwable $e) {
+        error_log('[Research/Publications Schema Migration] Error: ' . $e->getMessage());
+    }
+}
+
 ?>
