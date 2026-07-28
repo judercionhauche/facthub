@@ -239,6 +239,7 @@ function fetchCandidatesFromOrcidKeywords(mysqli $conn, array $allTerms): array 
         if ($stmt) {
             $stmt->execute();
             $allRows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+            error_log("[fetchCandidatesFromOrcidKeywords] Found " . count($allRows) . " researchers with ORCID keywords");
 
             // Filter: check if keywords match any search term
             foreach ($allRows as $row) {
@@ -254,6 +255,7 @@ function fetchCandidatesFromOrcidKeywords(mysqli $conn, array $allTerms): array 
                     $termLower = strtolower($term);
                     foreach ($keywords as $kw) {
                         if (stripos($kw, $termLower) !== false) {
+                            error_log("[fetchCandidatesFromOrcidKeywords] Match found for " . $row['first_name'] . " " . $row['last_name'] . ": term '$term' in keyword '$kw'");
                             $row['orcid_keyword_match'] = true;
                             $results[] = $row;
                             break 2; // Break both loops
@@ -261,6 +263,7 @@ function fetchCandidatesFromOrcidKeywords(mysqli $conn, array $allTerms): array 
                     }
                 }
             }
+            error_log("[fetchCandidatesFromOrcidKeywords] Returning " . count($results) . " results");
         }
     } catch (Exception $e) {
         error_log("[fetchCandidatesFromOrcidKeywords] Error: " . $e->getMessage());
