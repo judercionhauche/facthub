@@ -1214,10 +1214,15 @@ function apply_research_publications_schema(mysqli $conn): void {
             ");
             error_log('[Research Schema] Created research_projects table');
         } else {
-            // Table exists, ensure url column exists (for existing installations)
+            // Table exists, ensure missing columns exist (for existing installations)
             $colCheck = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='research_projects' AND COLUMN_NAME='url' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
             if (!$colCheck || $colCheck->num_rows === 0) {
                 @$conn->query("ALTER TABLE research_projects ADD COLUMN url VARCHAR(500) AFTER description");
+            }
+            $delCheck = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='research_projects' AND COLUMN_NAME='deleted_at' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$delCheck || $delCheck->num_rows === 0) {
+                @$conn->query("ALTER TABLE research_projects ADD COLUMN deleted_at TIMESTAMP NULL AFTER updated_at");
+                @$conn->query("ALTER TABLE research_projects ADD KEY idx_deleted (deleted_at)");
             }
 
             // One-time migration: copy funded_projects rows into research_projects (only if empty)
@@ -1293,6 +1298,13 @@ function apply_research_publications_schema(mysqli $conn): void {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
             error_log('[Publications Schema] Created publications_showcase table');
+        } else {
+            // Table exists, ensure deleted_at column exists (for existing installations)
+            $delCheck = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='publications_showcase' AND COLUMN_NAME='deleted_at' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$delCheck || $delCheck->num_rows === 0) {
+                @$conn->query("ALTER TABLE publications_showcase ADD COLUMN deleted_at TIMESTAMP NULL AFTER updated_at");
+                @$conn->query("ALTER TABLE publications_showcase ADD KEY idx_deleted (deleted_at)");
+            }
         }
 
         // Check if publication_team table exists
