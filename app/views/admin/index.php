@@ -658,7 +658,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     /* ── Research & Publications ── */
-    require_once __DIR__ . '/../../app/services/ResearchPublicationsService.php';
+    require_once __DIR__ . '/../../services/ResearchPublicationsService.php';
     $rpService = new ResearchPublicationsService($conn);
 
     if ($action === 'save_research_project') {
