@@ -183,11 +183,15 @@ if (empty($research) && empty($publications)) {
       <!-- Research Section -->
       <div style="margin-bottom: 64px;">
         <div style="margin-bottom: 36px;">
-          <p style="font-size: 0.95rem; color: #60706a; margin: 0; font-weight: 500;">Convergence research for innovative food systems solutions</p>
+          <p style="font-size: 1.1rem; color: #1a6b5a; margin: 0; font-weight: 700; letter-spacing: -0.01em;">Building resilience. Transforming food systems. Saving lives.</p>
         </div>
         <div class="rp-matrix">
           <?php foreach ($research as $project):
-            $teamDisplay = !empty($project['team_members']) ? str_replace(', ', ' · ', $project['team_members']) : '';
+            $teamDisplay = !empty($project['team_members']) ? $project['team_members'] : '';
+            // Clean description: remove "Team: " prefix if present
+            $desc = $project['description'] ?? '';
+            $desc = preg_replace('/\s*Team:\s*.+$/is', '', $desc);
+            $desc = trim($desc);
           ?>
           <div class="rp-card reveal">
             <span class="rp-card-badge">Research Project</span>
@@ -197,9 +201,9 @@ if (empty($research) && empty($publications)) {
             <div class="rp-card-team-badge"><?= h($teamDisplay) ?></div>
             <?php endif; ?>
 
-            <?php if (!empty($project['description'])): ?>
+            <?php if (!empty($desc)): ?>
             <div class="rp-card-description">
-              <?= h(mb_substr($project['description'], 0, 160)) ?><?= strlen($project['description']) > 160 ? '…' : '' ?>
+              <?= h(mb_substr($desc, 0, 160)) ?><?= strlen($desc) > 160 ? '…' : '' ?>
             </div>
             <?php endif; ?>
 
@@ -246,7 +250,7 @@ if (empty($research) && empty($publications)) {
       <!-- Publications Section -->
       <div>
         <div style="margin-bottom: 36px;">
-          <p style="font-size: 0.95rem; color: #60706a; margin: 0; font-weight: 500;">Publications from the FACT Alliance</p>
+          <p style="font-size: 1.1rem; color: #1a6b5a; margin: 0; font-weight: 700; letter-spacing: -0.01em;">Advancing knowledge. Inspiring action. Changing the world.</p>
         </div>
         <div class="rp-matrix">
           <?php foreach ($publications as $pub):
