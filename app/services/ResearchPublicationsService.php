@@ -18,22 +18,22 @@ class ResearchPublicationsService {
     public function createResearchProject(array $data): ?int {
         $stmt = $this->conn->prepare("
             INSERT INTO research_projects
-            (title, description, status, funder_name, grant_amount, grant_id, start_year, end_year)
+            (title, description, url, status, funder_name, grant_amount, start_year, end_year)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
         $title = $data['title'];
         $desc = $data['description'] ?? null;
+        $url = $data['url'] ?? null;
         $status = $data['status'] ?? 'active';
         $funder = $data['funder_name'] ?? null;
         $amount = $data['grant_amount'] ?? null;
-        $grantId = $data['grant_id'] ?? null;
         $startYear = $data['start_year'] ?? null;
         $endYear = $data['end_year'] ?? null;
 
         $stmt->bind_param(
-            'ssssdsii',
-            $title, $desc, $status, $funder, $amount, $grantId, $startYear, $endYear
+            'sssssdii',
+            $title, $desc, $url, $status, $funder, $amount, $startYear, $endYear
         );
 
         if ($stmt->execute()) {
@@ -45,24 +45,24 @@ class ResearchPublicationsService {
     public function updateResearchProject(int $id, array $data): bool {
         $stmt = $this->conn->prepare("
             UPDATE research_projects
-            SET title = ?, description = ?, status = ?,
-                funder_name = ?, grant_amount = ?, grant_id = ?,
+            SET title = ?, description = ?, url = ?, status = ?,
+                funder_name = ?, grant_amount = ?,
                 start_year = ?, end_year = ?
             WHERE id = ?
         ");
 
         $title = $data['title'];
         $desc = $data['description'] ?? null;
+        $url = $data['url'] ?? null;
         $status = $data['status'] ?? 'active';
         $funder = $data['funder_name'] ?? null;
         $amount = $data['grant_amount'] ?? null;
-        $grantId = $data['grant_id'] ?? null;
         $startYear = $data['start_year'] ?? null;
         $endYear = $data['end_year'] ?? null;
 
         $stmt->bind_param(
-            'ssssdsiii',
-            $title, $desc, $status, $funder, $amount, $grantId, $startYear, $endYear, $id
+            'sssssdiii',
+            $title, $desc, $url, $status, $funder, $amount, $startYear, $endYear, $id
         );
 
         return $stmt->execute();
