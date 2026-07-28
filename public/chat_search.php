@@ -224,12 +224,28 @@ function fetchCandidates(mysqli $conn, string $table, array $allTerms, string $s
     return $results;
 }
 
-function fetchCandidatesFromOrcidKeywords(mysqli $conn, array $allTerms): array {
+function fetchCandidatesFromOrcidKeywords(mysqli $conn, array $allTerms, $orcidService = null): array {
     if (empty($allTerms)) return [];
     $results = [];
 
     try {
-        // Search researcher_orcid_cache.keywords JSON field for matching keywords
+        // First, enrich researchers with ORCID data if they don't have cache yet
+        if ($orcidService) {
+            $researchersNeedingEnrichment = $conn->query("
+                SELECT id, orcid_id FROM researchers r
+                WHERE deleted_at IS NULL AND status = 'active' AND orcid_id IS NOT NULL
+                AND NOT EXISTS (SELECT 1 FROM researcher_orcid_cache c WHERE c.researcher_id = r.id)
+                LIMIT 50
+            ");
+
+            if ($researchersNeedingEnrichment) {
+                while ($r = $researchersNeedingEnrichment->fetch_assoc()) {
+                    $orcidService->enrichResearcher((int)$r['id'], $r['orcid_id']);
+                }
+            }
+        }
+
+        // Now search all researchers with ORCID cache
         $sql = "SELECT DISTINCT r.*, c.keywords FROM researchers r
                 JOIN researcher_orcid_cache c ON r.id = c.researcher_id
                 WHERE r.deleted_at IS NULL AND r.status = 'active' AND c.keywords IS NOT NULL
@@ -397,7 +413,7 @@ $rCandidates = ($filterType !== 'funding' && $filterType !== 'institution' && !e
 
 // Also search ORCID keywords for researchers (finds researchers by their publication topics)
 if ($filterType !== 'funding' && $filterType !== 'institution' && !empty($allSearchTerms)) {
-    $orcidKeywordMatches = fetchCandidatesFromOrcidKeywords($conn, $allSearchTerms);
+    $orcidKeywordMatches = fetchCandidatesFromOrcidKeywords($conn, $allSearchTerms, $orcid);
     // Merge ORCID results, avoiding duplicate researcher IDs
     $existingIds = array_column($rCandidates, 'id');
     foreach ($orcidKeywordMatches as $match) {
