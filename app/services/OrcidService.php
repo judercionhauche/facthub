@@ -386,59 +386,111 @@ class OrcidService {
 
     /**
      * Calculate comprehensive ORCID relevance score (0-100)
-     * Factors: publications, affiliations, education, fundings, activity, keyword matches
+     * Checks ENTIRE ORCID profile: publications, affiliations, education, fundings for keyword matches
      */
     public function calculateOrcidRelevance(array $orcidData, array $userTopics, array $userKeywords): float {
         $score = 0;
+        $pubMatchCount = 0;
 
-        // Publication relevance (0-35 points)
+        // PUBLICATION RELEVANCE (0-45 points) — most important signal
+        // Check EVERY publication title + journal thoroughly
         foreach ($orcidData['publications'] ?? [] as $pub) {
-            $titleBody = strtolower(($pub['title'] ?? '') . ' ' . ($pub['journal'] ?? ''));
+            $title = strtolower($pub['title'] ?? '');
+            $journal = strtolower($pub['journal'] ?? '');
+            $fullPub = $title . ' ' . $journal;
+
+            // Check EACH keyword against publication
             foreach ($userKeywords as $kw) {
-                if (strpos($titleBody, strtolower($kw)) !== false) {
-                    $score += 3;
+                $kwLower = strtolower($kw);
+                // Exact phrase match gets bonus
+                if (strpos($fullPub, $kwLower) !== false) {
+                    $score += 4;
+                    $pubMatchCount++;
+                }
+                // Also check for word variants (e.g., "water" in "water harvesting")
+                else {
+                    // Check if keyword is contained as a word (not substring)
+                    $words = preg_split('/[\s\-,;:()]+/', $fullPub);
+                    foreach ($words as $word) {
+                        if (strlen($word) > 2 && strpos($word, $kwLower) !== false) {
+                            $score += 2;
+                            $pubMatchCount++;
+                        }
+                    }
                 }
             }
-            // Recency boost
+
+            // Also check topics (research areas)
+            foreach ($userTopics as $topic) {
+                if (strpos($title, strtolower($topic)) !== false) {
+                    $score += 3;
+                    $pubMatchCount++;
+                }
+            }
+
+            // Recency boost (recent pubs = more active researcher)
             $year = (int)($pub['year'] ?? 0);
             if ($year >= date('Y') - 1) $score += 3;
             elseif ($year >= date('Y') - 2) $score += 1.5;
         }
-        $score = min(35, $score);
+        $score = min(45, $score);
 
-        // Affiliation relevance (0-20 points)
+        // AFFILIATION RELEVANCE (0-20 points)
+        // Check organization name + role for keywords
         foreach ($orcidData['affiliations'] ?? [] as $aff) {
             $orgRole = strtolower(($aff['organization'] ?? '') . ' ' . ($aff['role'] ?? ''));
             foreach ($userKeywords as $kw) {
                 if (strpos($orgRole, strtolower($kw)) !== false) {
+                    $score += 3;
+                }
+            }
+            foreach ($userTopics as $topic) {
+                if (strpos($orgRole, strtolower($topic)) !== false) {
                     $score += 2;
                 }
             }
         }
 
-        // Education relevance (0-15 points)
+        // EDUCATION RELEVANCE (0-15 points)
+        // Check institution + degree + field
         foreach ($orcidData['education'] ?? [] as $edu) {
-            $eduText = strtolower(($edu['institution'] ?? '') . ' ' . ($edu['field'] ?? ''));
+            $eduText = strtolower(($edu['institution'] ?? '') . ' ' . ($edu['degree'] ?? '') . ' ' . ($edu['field'] ?? ''));
             foreach ($userTopics as $topic) {
                 if (strpos($eduText, strtolower($topic)) !== false) {
-                    $score += 2;
+                    $score += 3;
+                }
+            }
+            foreach ($userKeywords as $kw) {
+                if (strpos($eduText, strtolower($kw)) !== false) {
+                    $score += 1;
                 }
             }
         }
 
-        // Funding relevance (0-20 points)
+        // FUNDING RELEVANCE (0-20 points)
+        // Check funding title + funder for keywords
         foreach ($orcidData['fundings'] ?? [] as $fund) {
             $fundText = strtolower(($fund['title'] ?? '') . ' ' . ($fund['funder'] ?? ''));
             foreach ($userKeywords as $kw) {
                 if (strpos($fundText, strtolower($kw)) !== false) {
+                    $score += 3;
+                }
+            }
+            foreach ($userTopics as $topic) {
+                if (strpos($fundText, strtolower($topic)) !== false) {
                     $score += 2;
                 }
             }
         }
 
-        // Activity score (0-10 points) — researchers with diverse activity rank higher
+        // ACTIVITY SCORE (0-10 points) — researchers with diverse activity (pubs + funding + teaching) rank higher
         $activity = $orcidData['activity_score'] ?? 0;
         $score += min(10, $activity / 10);
+
+        // PUBLICATION COUNT BONUS (0-10 points)
+        // Researchers with many relevant publications get extra boost
+        if ($pubMatchCount > 3) $score += 10;
+        elseif ($pubMatchCount > 1) $score += 5;
 
         return min(100, $score);
     }
