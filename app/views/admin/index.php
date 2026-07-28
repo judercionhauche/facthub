@@ -694,7 +694,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_flash('success', 'Research project added.');
             }
 
-            $teamIds = array_filter(array_map('intval', $_POST['team_members[]'] ?? []), fn($id) => $id > 0);
+            $teamIds = array_filter(array_map('intval', $_POST['team_members[]'] ?? []), function($id) { return $id > 0; });
             $validIds = array_column($rpService->getResearcherOptions(), 'id');
             $sanitized = array_intersect($teamIds, $validIds);
             if ($pid && !empty($sanitized)) {
@@ -724,7 +724,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $year = (int)($_POST['publication_year'] ?? 0) ?: null;
         $funder = trim($_POST['funder_name'] ?? '');
         $amount = max(0, (int)($_POST['grant_amount'] ?? 0)) ?: null;
-        $grantId = trim($_POST['grant_id'] ?? '') ?: null;
 
         if ($title !== '' && $url !== '') {
             $data = [
@@ -734,7 +733,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'publication_year' => $year,
                 'funder_name' => $funder ?: null,
                 'grant_amount' => $amount,
-                'grant_id' => $grantId,
             ];
 
             if ($pid) {
@@ -747,7 +745,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_flash('success', 'Publication added.');
             }
 
-            $teamIds = array_filter(array_map('intval', $_POST['team_members[]'] ?? []), fn($id) => $id > 0);
+            $teamIds = array_filter(array_map('intval', $_POST['team_members[]'] ?? []), function($id) { return $id > 0; });
             $validIds = array_column($rpService->getResearcherOptions(), 'id');
             $sanitized = array_intersect($teamIds, $validIds);
             if ($pid && !empty($sanitized)) {
@@ -2944,7 +2942,7 @@ $researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id
                     <div class="rp-span"><label>Description</label><textarea name="description" rows="2"><?= h($p['description']) ?></textarea></div>
                     <div><label>Publication Year</label><input type="number" name="publication_year" value="<?= (int)($p['publication_year'] ?? 0) ?>" min="2000" max="2100"></div>
                     <div><label>Funder</label><input name="funder_name" value="<?= h($p['funder_name'] ?? '') ?>"></div>
-                    <div><label>Grant Amount</label><input type="number" name="grant_amount" value="<?= (int)($p['grant_amount'] ?? 0) ?>" min="0"></div>
+                    <div><label>Amount</label><input type="number" name="grant_amount" value="<?= (int)($p['grant_amount'] ?? 0) ?>" min="0"></div>
                     <div class="rp-span"><label>Authors</label><div id="rp-team-msel-pub-<?= (int)$p['id'] ?>"></div></div>
                     <div class="rp-actions">
                         <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Save</button>
@@ -2971,8 +2969,7 @@ $researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id
                 <div class="rp-span"><label>Description</label><textarea name="description" rows="2" placeholder="Optional abstract or summary"></textarea></div>
                 <div><label>Publication Year</label><input type="number" name="publication_year" min="2000" max="2100"></div>
                 <div><label>Funder</label><input name="funder_name" placeholder="Optional"></div>
-                <div><label>Grant Amount</label><input type="number" name="grant_amount" value="0" min="0"></div>
-                <div><label>Grant ID</label><input name="grant_id" placeholder="Optional"></div>
+                <div><label>Amount</label><input type="number" name="grant_amount" value="0" min="0"></div>
                 <div class="rp-span"><label>Authors</label><div id="rp-team-msel-pub-0"></div></div>
                 <div class="rp-actions">
                     <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Add publication</button>
