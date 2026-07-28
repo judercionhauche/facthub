@@ -497,14 +497,28 @@ foreach ($rForResponse as $item) {
     $r = $item['r'];
     $name = trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
 
-    // Fetch researcher's publications
-    $pubStmt = $conn->prepare(
-        'SELECT title, publication_year, journal_name FROM researcher_publications
-         WHERE researcher_id = ? ORDER BY publication_year DESC LIMIT 5'
-    );
-    $pubStmt->bind_param('i', $r['id']);
-    $pubStmt->execute();
-    $publications = $pubStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    // PRIORITY: Fetch ORCID publications first (more comprehensive)
+    $orcidPubs = [];
+    $orcidCount = 0;
+    if (!empty($r['orcid_id']) && $orcid) {
+        $orcidData = $orcid->getEnrichedResearcher((int)$r['id'], $r['orcid_id']);
+        if ($orcidData && !empty($orcidData['publications'])) {
+            $orcidPubs = array_slice($orcidData['publications'], 0, 10);
+            $orcidCount = count($orcidData['publications']);
+        }
+    }
+
+    // Fallback: Fetch researcher's local publications if no ORCID
+    $publications = $orcidPubs;
+    if (empty($publications)) {
+        $pubStmt = $conn->prepare(
+            'SELECT title, publication_year, journal_name FROM researcher_publications
+             WHERE researcher_id = ? ORDER BY publication_year DESC LIMIT 5'
+        );
+        $pubStmt->bind_param('i', $r['id']);
+        $pubStmt->execute();
+        $publications = $pubStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+    }
 
     $rJsonItem = [
         'id' => (int)$r['id'],
@@ -514,10 +528,13 @@ foreach ($rForResponse as $item) {
         'topics' => parse_tags($r['topics'] ?? ''),
         'geography' => parse_tags($r['geography'] ?? ''),
         'publications' => array_map(fn($p) => [
-            'title' => h($p['title'] ?? ''),
-            'year' => (int)($p['publication_year'] ?? 0),
-            'journal' => h($p['journal_name'] ?? '')
+            'title' => h(is_string($p['title']) ? $p['title'] : ($p['title'] ?? '')),
+            'year' => (int)(is_string($p['year']) ? $p['year'] : ($p['publication_year'] ?? 0)),
+            'journal' => h(is_string($p['journal']) ? $p['journal'] : ($p['journal_name'] ?? ''))
         ], $publications),
+        'publication_source' => !empty($orcidPubs) ? 'ORCID' : 'local',
+        'orcid_publication_count' => $orcidCount,
+        'orcid_id' => h($r['orcid_id'] ?? ''),
         'destination_url' => getEntityUrl('researcher', (int)$r['id']),
     ];
 
