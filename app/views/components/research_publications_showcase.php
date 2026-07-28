@@ -21,11 +21,42 @@ if (empty($research) && empty($publications)) {
   margin: 0;
 }
 
+.rp-section-head {
+  margin-bottom: 32px;
+}
+
+.rp-section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #1a6b5a;
+}
+
+.rp-section-label::before {
+  content: "";
+  width: 20px;
+  height: 1px;
+  background: currentColor;
+  display: inline-block;
+}
+
+.rp-section-tagline {
+  font-size: clamp(1.15rem, 2vw, 1.4rem);
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  color: #1c2a24;
+  margin: 10px 0 0;
+  line-height: 1.3;
+}
+
 .rp-matrix {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 28px;
-  margin-top: 48px;
 }
 
 .rp-card {
@@ -181,9 +212,10 @@ if (empty($research) && empty($publications)) {
 
     <div class="rp-showcase">
       <!-- Research Section -->
-      <div style="margin-bottom: 64px;">
-        <div style="margin-bottom: 36px;">
-          <p style="font-size: 1.1rem; color: #1a6b5a; margin: 0; font-weight: 700; letter-spacing: -0.01em;">Building resilience. Transforming food systems. Saving lives.</p>
+      <div style="margin-bottom: 72px;">
+        <div class="rp-section-head reveal">
+          <span class="rp-section-label">Research Projects</span>
+          <p class="rp-section-tagline">Building resilience. Transforming food systems. Saving lives.</p>
         </div>
         <div class="rp-matrix">
           <?php foreach ($research as $project):
@@ -229,7 +261,7 @@ if (empty($research) && empty($publications)) {
               </div>
               <?php endif; ?>
 
-              <?php if (!empty($project['grant_amount'])): ?>
+              <?php if ((float)($project['grant_amount'] ?? 0) > 0): ?>
               <div class="rp-meta-row">
                 <span class="rp-meta-label">Amount</span>
                 <span class="rp-meta-value">$<?= number_format($project['grant_amount'], 0) ?></span>
@@ -249,8 +281,9 @@ if (empty($research) && empty($publications)) {
 
       <!-- Publications Section -->
       <div>
-        <div style="margin-bottom: 36px;">
-          <p style="font-size: 1.1rem; color: #1a6b5a; margin: 0; font-weight: 700; letter-spacing: -0.01em;">Advancing knowledge. Inspiring action. Changing the world.</p>
+        <div class="rp-section-head reveal">
+          <span class="rp-section-label">Publications</span>
+          <p class="rp-section-tagline">Advancing knowledge. Inspiring action. Changing the world.</p>
         </div>
         <div class="rp-matrix">
           <?php foreach ($publications as $pub):
@@ -285,7 +318,7 @@ if (empty($research) && empty($publications)) {
               </div>
               <?php endif; ?>
 
-              <?php if (!empty($pub['grant_amount'])): ?>
+              <?php if ((float)($pub['grant_amount'] ?? 0) > 0): ?>
               <div class="rp-meta-row">
                 <span class="rp-meta-label">Amount</span>
                 <span class="rp-meta-value">$<?= number_format($pub['grant_amount'], 0) ?></span>
