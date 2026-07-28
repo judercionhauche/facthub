@@ -1226,7 +1226,7 @@ function apply_research_publications_schema(mysqli $conn): void {
             if (!$rpRow || (int)$rpRow['cnt'] === 0) {
                 $fpExists = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='funded_projects' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
                 if ($fpExists && $fpExists->num_rows > 0) {
-                    $old = @$conn->query("SELECT funder, program, title, description, amount, start_year, end_year, fact_members FROM funded_projects WHERE deleted_at IS NULL");
+                    $old = @$conn->query("SELECT funder, program, title, description, amount, start_year, end_year, fact_members FROM funded_projects");
                     if ($old && $old->num_rows > 0) {
                         $migratedCount = 0;
                         while ($row = $old->fetch_assoc()) {
