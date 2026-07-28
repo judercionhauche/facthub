@@ -253,7 +253,9 @@ class OrcidService {
             if (!empty($pub['title'])) {
                 // Extract key terms from title
                 $terms = preg_split('/[\s\-,;:]+/', strtolower($pub['title']));
-                $keywords = array_merge($keywords, array_filter($terms, fn($t) => strlen($t) > 3));
+                $filtered = array_filter($terms, fn($t) => strlen($t) > 3);
+                $keywords = array_merge($keywords, $filtered);
+                error_log("[OrcidService::extractKeywords] Title: " . $pub['title'] . " -> " . count($filtered) . " terms");
             }
         }
 
@@ -295,8 +297,13 @@ class OrcidService {
      * Stores publications, affiliations, education, fundings, peer reviews, activity score
      */
     public function enrichResearcher(int $researcherId, string $orcidId): void {
+        error_log("[OrcidService::enrichResearcher] Called for researcher $researcherId, ORCID: $orcidId");
         $profile = $this->fetchProfile($orcidId);
-        if (!$profile) return;
+        if (!$profile) {
+            error_log("[OrcidService::enrichResearcher] fetchProfile returned null for $orcidId");
+            return;
+        }
+        error_log("[OrcidService::enrichResearcher] Got profile with " . count($profile['publications'] ?? []) . " publications");
 
         $stmt = $this->conn->prepare('
             INSERT INTO researcher_orcid_cache (
@@ -355,6 +362,11 @@ class OrcidService {
             $isActive
         );
         $stmt->execute();
+        error_log("[OrcidService::enrichResearcher] Stored keywords: " . count($profile['keywords'] ?? []) . " total");
+        $waterKeywords = array_filter($profile['keywords'] ?? [], fn($k) => stripos($k, 'water') !== false);
+        if (!empty($waterKeywords)) {
+            error_log("[OrcidService::enrichResearcher] Found water keywords: " . implode(", ", $waterKeywords));
+        }
     }
 
     /**
