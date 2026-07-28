@@ -240,7 +240,7 @@ if (empty($research) && empty($publications)) {
         <div class="rp-card reveal">
           <span class="rp-card-badge">Publication</span>
           <h3 class="rp-card-title"><?= h($pub['title']) ?></h3>
-          <p class="rp-card-subtitle">Peer-reviewed research from the FACT Alliance</p>
+          <p class="rp-card-subtitle">Publications from the FACT Alliance</p>
 
           <?php if (!empty($teamDisplay)): ?>
           <div class="rp-card-team"><?= h($teamDisplay) ?></div>
