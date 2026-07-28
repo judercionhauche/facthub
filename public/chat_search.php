@@ -721,18 +721,19 @@ foreach ($topN as $item) {
         $orcidData = $orcid->getEnrichedResearcher((int)$r['id'], $r['orcid_id']);
         if ($orcidData && !empty($orcidData['publications'])) {
             $orcidPubCount = count($orcidData['publications']);
-            $orcidPubsForSummary = array_slice($orcidData['publications'], 0, 3);
+            // Show up to 8 publications so Claude sees the full scope of their work
+            $orcidPubsForSummary = array_slice($orcidData['publications'], 0, 8);
         }
     }
 
-    // If we have ORCID publications, mention all of them
+    // If we have ORCID publications, list them all or most of them
     if ($orcidPubCount > 0) {
         $resultsSummary .= "  Has " . $orcidPubCount . " publications on ORCID:\n";
         foreach ($orcidPubsForSummary as $pub) {
             $resultsSummary .= "    • " . (is_string($pub['title']) ? $pub['title'] : ($pub['title'] ?? 'Untitled')) . "\n";
         }
-        if ($orcidPubCount > 3) {
-            $resultsSummary .= "    ... and " . ($orcidPubCount - 3) . " more on ORCID\n";
+        if ($orcidPubCount > 8) {
+            $resultsSummary .= "    ... and " . ($orcidPubCount - 8) . " more on ORCID\n";
         }
     } else {
         // Fallback: local publications
