@@ -230,7 +230,7 @@ function fetchCandidatesFromOrcidKeywords(mysqli $conn, array $allTerms): array 
 
     try {
         // Search researcher_orcid_cache.keywords JSON field for matching keywords
-        $sql = "SELECT DISTINCT r.* FROM researchers r
+        $sql = "SELECT DISTINCT r.*, c.keywords FROM researchers r
                 JOIN researcher_orcid_cache c ON r.id = c.researcher_id
                 WHERE r.deleted_at IS NULL AND r.status = 'active' AND c.keywords IS NOT NULL
                 LIMIT 100";
@@ -250,10 +250,9 @@ function fetchCandidatesFromOrcidKeywords(mysqli $conn, array $allTerms): array 
                 }
 
                 // Check if any search term matches any keyword
-                $keywordsLower = array_map('strtolower', $keywords);
                 foreach ($allTerms as $term) {
                     $termLower = strtolower($term);
-                    foreach ($keywordsLower as $kw) {
+                    foreach ($keywords as $kw) {
                         if (stripos($kw, $termLower) !== false) {
                             $row['orcid_keyword_match'] = true;
                             $results[] = $row;
