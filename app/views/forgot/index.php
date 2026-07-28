@@ -83,7 +83,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     error_log('[Forgot Page Error] ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
 }
 ?>
-<div class="auth-card panel narrow">
+<div class="auth-wheat-bg">
+<div class="auth-card panel narrow" style="margin:0 auto">
     <?php if (!$submitted): ?>
         <h1>Forgot password?</h1>
         <p class="muted">Enter your email and we will send you a reset link.</p>
@@ -123,4 +124,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </a>
         </div>
     <?php endif; ?>
+</div>
 </div>

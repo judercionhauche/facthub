@@ -162,6 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 .verify-link a{color:#1a6b5a;font-weight:600}
 </style>
 
+<div class="auth-wheat-bg">
 <div class="verify-card panel">
 <?php if ($state === 'pending'): ?>
 
@@ -277,4 +278,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <p class="verify-link"><a href="index.php?page=login">← Back to sign in</a></p>
 
 <?php endif; ?>
+</div>
 </div>

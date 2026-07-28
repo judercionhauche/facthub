@@ -63,7 +63,12 @@ label{display:block;margin-bottom:6px;font-weight:600}
 .form-grid.one{grid-template-columns:1fr}
 .span-2{grid-column:1 / -1}
 .actions-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.list-card{padding:16px;margin-bottom:14px}
+.list-card{padding:22px 26px;margin-bottom:14px}
+/* Wheat hero wrapper for standalone auth screens (forgot, verify) */
+.auth-wheat-bg{position:relative;display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 240px);padding:48px 20px;background-image:url('../wheat.avif');background-size:cover;background-position:center;background-attachment:fixed;border-radius:16px;overflow:hidden}
+.auth-wheat-bg::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.86) 0%,rgba(238,243,239,.83) 50%,rgba(255,255,255,.87) 100%)}
+.auth-wheat-bg::after{content:'';position:absolute;inset:0;background-image:radial-gradient(circle at 20% 50%,rgba(26,107,90,.04) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(200,168,90,.03) 0%,transparent 50%);pointer-events:none}
+.auth-wheat-bg>*{position:relative;z-index:1;width:100%}
 .card-row{display:flex;gap:16px;justify-content:space-between;align-items:flex-start}
 .card-main{flex:1;min-width:0}
 .card-actions{display:flex;gap:6px;align-items:center;flex-wrap:nowrap}
@@ -215,7 +220,7 @@ label{display:block;margin-bottom:6px;font-weight:600}
   h1{font-size:20px}
   h2{font-size:17px}
   .panel{border-radius:14px}
-  .list-card{padding:12px}
+  .list-card{padding:16px}
   .page-head{padding:14px}
   /* Tap-friendly buttons — 44px minimum */
   .primary-btn,.ghost-btn,.danger-btn,button{min-height:44px;padding:10px 14px}
