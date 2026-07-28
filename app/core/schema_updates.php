@@ -1254,8 +1254,7 @@ function apply_research_publications_schema(mysqli $conn): void {
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     KEY idx_project (research_project_id),
                     KEY idx_researcher (researcher_id),
-                    FOREIGN KEY (research_project_id) REFERENCES research_projects(id) ON DELETE CASCADE,
-                    FOREIGN KEY (researcher_id) REFERENCES researchers(id) ON DELETE CASCADE
+                    CONSTRAINT fk_research_project FOREIGN KEY (research_project_id) REFERENCES research_projects(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
             error_log('[Research Schema] Created research_project_team table');
@@ -1296,8 +1295,7 @@ function apply_research_publications_schema(mysqli $conn): void {
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     KEY idx_publication (publication_id),
                     KEY idx_researcher (researcher_id),
-                    FOREIGN KEY (publication_id) REFERENCES publications_showcase(id) ON DELETE CASCADE,
-                    FOREIGN KEY (researcher_id) REFERENCES researchers(id) ON DELETE CASCADE
+                    CONSTRAINT fk_publication FOREIGN KEY (publication_id) REFERENCES publications_showcase(id) ON DELETE CASCADE
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
             error_log('[Publications Schema] Created publication_team table');
