@@ -1,7 +1,7 @@
 <?php
 /**
  * Research & Publications Showcase Component
- * Premium 2x2 matrix layout with research projects and publications
+ * Premium 2x2 matrix with subtitles and team member dot separators
  */
 
 require_once __DIR__ . '/../../services/ResearchPublicationsService.php';
@@ -66,7 +66,7 @@ if (empty($research) && empty($publications)) {
   background: rgba(26, 107, 90, 0.08);
   padding: 6px 12px;
   border-radius: 6px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   width: fit-content;
 }
 
@@ -75,8 +75,24 @@ if (empty($research) && empty($publications)) {
   font-weight: 800;
   line-height: 1.25;
   color: #1c2a24;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   letter-spacing: -0.015em;
+}
+
+.rp-card-subtitle {
+  font-size: 0.95rem;
+  color: #60706a;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+.rp-card-team {
+  font-size: 0.85rem;
+  color: #1c2a24;
+  font-weight: 500;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(26, 107, 90, 0.08);
 }
 
 .rp-card-description {
@@ -115,23 +131,6 @@ if (empty($research) && empty($publications)) {
   font-weight: 500;
 }
 
-.rp-card-team {
-  font-size: 0.85rem;
-  color: #60706a;
-  margin-bottom: 16px;
-  padding: 12px;
-  background: rgba(26, 107, 90, 0.04);
-  border-radius: 8px;
-  border-left: 3px solid #1a6b5a;
-}
-
-.rp-card-team strong {
-  color: #1a6b5a;
-  font-weight: 600;
-  display: block;
-  margin-bottom: 4px;
-}
-
 .rp-card-link {
   display: inline-flex;
   align-items: center;
@@ -143,6 +142,7 @@ if (empty($research) && empty($publications)) {
   padding-top: 20px;
   border-top: 1px solid rgba(26, 107, 90, 0.08);
   transition: color 0.2s ease;
+  font-size: 0.95rem;
 }
 
 .rp-card-link:hover {
@@ -177,21 +177,21 @@ if (empty($research) && empty($publications)) {
     <div class="rp-showcase">
       <div class="rp-matrix">
         <!-- Research Projects -->
-        <?php foreach ($research as $project): ?>
+        <?php foreach ($research as $project):
+          $teamDisplay = !empty($project['team_members']) ? str_replace(', ', ' · ', $project['team_members']) : '';
+        ?>
         <div class="rp-card reveal">
           <span class="rp-card-badge">Research Project</span>
           <h3 class="rp-card-title"><?= h($project['title']) ?></h3>
+          <p class="rp-card-subtitle">Convergence research for innovative food systems solutions</p>
 
-          <?php if (!empty($project['team_members'])): ?>
-          <div class="rp-card-team">
-            <strong>Team:</strong>
-            <?= h($project['team_members']) ?>
-          </div>
+          <?php if (!empty($teamDisplay)): ?>
+          <div class="rp-card-team"><?= h($teamDisplay) ?></div>
           <?php endif; ?>
 
           <?php if (!empty($project['description'])): ?>
           <div class="rp-card-description">
-            <?= h(mb_substr($project['description'], 0, 180)) ?><?= strlen($project['description']) > 180 ? '…' : '' ?>
+            <?= h(mb_substr($project['description'], 0, 160)) ?><?= strlen($project['description']) > 160 ? '…' : '' ?>
           </div>
           <?php endif; ?>
 
@@ -223,33 +223,32 @@ if (empty($research) && empty($publications)) {
               <span class="rp-meta-value">$<?= number_format($project['grant_amount'], 0) ?></span>
             </div>
             <?php endif; ?>
-
-            <?php if (!empty($project['grant_id'])): ?>
-            <div class="rp-meta-row">
-              <span class="rp-meta-label">Grant ID</span>
-              <span class="rp-meta-value"><?= h($project['grant_id']) ?></span>
-            </div>
-            <?php endif; ?>
           </div>
+
+          <?php if (!empty($project['url'])): ?>
+          <a href="<?= h($project['url']) ?>" target="_blank" rel="noopener noreferrer" class="rp-card-link">
+            Learn more
+          </a>
+          <?php endif; ?>
         </div>
         <?php endforeach; ?>
 
         <!-- Publications -->
-        <?php foreach ($publications as $pub): ?>
+        <?php foreach ($publications as $pub):
+          $teamDisplay = !empty($pub['team_members']) ? str_replace(', ', ' · ', $pub['team_members']) : '';
+        ?>
         <div class="rp-card reveal">
           <span class="rp-card-badge">Publication</span>
           <h3 class="rp-card-title"><?= h($pub['title']) ?></h3>
+          <p class="rp-card-subtitle">Peer-reviewed research from the FACT Alliance</p>
 
-          <?php if (!empty($pub['team_members'])): ?>
-          <div class="rp-card-team">
-            <strong>Authors:</strong>
-            <?= h($pub['team_members']) ?>
-          </div>
+          <?php if (!empty($teamDisplay)): ?>
+          <div class="rp-card-team"><?= h($teamDisplay) ?></div>
           <?php endif; ?>
 
           <?php if (!empty($pub['description'])): ?>
           <div class="rp-card-description">
-            <?= h(mb_substr($pub['description'], 0, 180)) ?><?= strlen($pub['description']) > 180 ? '…' : '' ?>
+            <?= h(mb_substr($pub['description'], 0, 160)) ?><?= strlen($pub['description']) > 160 ? '…' : '' ?>
           </div>
           <?php endif; ?>
 
@@ -272,13 +271,6 @@ if (empty($research) && empty($publications)) {
             <div class="rp-meta-row">
               <span class="rp-meta-label">Amount</span>
               <span class="rp-meta-value">$<?= number_format($pub['grant_amount'], 0) ?></span>
-            </div>
-            <?php endif; ?>
-
-            <?php if (!empty($pub['grant_id'])): ?>
-            <div class="rp-meta-row">
-              <span class="rp-meta-label">Grant ID</span>
-              <span class="rp-meta-value"><?= h($pub['grant_id']) ?></span>
             </div>
             <?php endif; ?>
           </div>
