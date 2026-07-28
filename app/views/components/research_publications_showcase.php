@@ -63,7 +63,7 @@ if (empty($research) && empty($publications)) {
   background: #ffffff;
   border: 1px solid rgba(26, 107, 90, 0.12);
   border-radius: 16px;
-  padding: 40px;
+  padding: 26px 30px;
   display: flex;
   flex-direction: column;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -102,11 +102,11 @@ if (empty($research) && empty($publications)) {
 }
 
 .rp-card-title {
-  font-size: 1.45rem;
+  font-size: 1.3rem;
   font-weight: 800;
   line-height: 1.25;
   color: #1c2a24;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   letter-spacing: -0.015em;
 }
 
@@ -121,10 +121,10 @@ if (empty($research) && empty($publications)) {
   display: inline-flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
   border-bottom: 1px solid rgba(26, 107, 90, 0.08);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: #1a6b5a;
   font-weight: 600;
   letter-spacing: 0.05em;
@@ -132,18 +132,18 @@ if (empty($research) && empty($publications)) {
 }
 
 .rp-card-description {
-  font-size: 0.95rem;
-  line-height: 1.6;
+  font-size: 0.92rem;
+  line-height: 1.55;
   color: #60706a;
-  margin-bottom: 24px;
+  margin-bottom: 14px;
   flex-grow: 1;
 }
 
 .rp-card-meta {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px 16px;
-  padding-top: 24px;
+  gap: 10px 16px;
+  padding-top: 14px;
   border-top: 1px solid rgba(26, 107, 90, 0.08);
 }
 
@@ -174,11 +174,11 @@ if (empty($research) && empty($publications)) {
   color: #1a6b5a;
   font-weight: 600;
   text-decoration: none;
-  margin-top: 20px;
-  padding-top: 20px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px solid rgba(26, 107, 90, 0.08);
   transition: color 0.2s ease;
-  font-size: 0.95rem;
+  font-size: 0.92rem;
 }
 
 .rp-card-link:hover {
