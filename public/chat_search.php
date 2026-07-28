@@ -70,6 +70,9 @@ if (!is_csrf_valid()) {
 
 $user = current_user();
 
+// Initialize ORCID service for researcher enrichment
+$orcid = new OrcidService($conn);
+
 // ── Parse & validate request ──
 $body = json_decode(file_get_contents('php://input'), true);
 if (!is_array($body)) {
