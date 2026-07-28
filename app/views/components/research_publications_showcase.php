@@ -187,7 +187,7 @@ if (empty($research) && empty($publications)) {
         </div>
         <div class="rp-matrix">
           <?php foreach ($research as $project):
-            $teamDisplay = !empty($project['team_members']) ? $project['team_members'] : '';
+            $teamDisplay = !empty($project['team_members']) ? str_replace(', ', ' · ', $project['team_members']) : '';
             // Clean description: remove "Team: " prefix if present
             $desc = $project['description'] ?? '';
             $desc = preg_replace('/\s*Team:\s*.+$/is', '', $desc);
