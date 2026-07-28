@@ -215,7 +215,7 @@ if (empty($research) && empty($publications)) {
       <div style="margin-bottom: 72px;">
         <div class="rp-section-head reveal">
           <span class="rp-section-label">Research Projects</span>
-          <p class="rp-section-tagline">Building resilience. Transforming food systems. Saving lives.</p>
+          <p class="rp-section-tagline">Convergence research for innovative food systems solutions</p>
         </div>
         <div class="rp-matrix">
           <?php foreach ($research as $project):
@@ -283,7 +283,7 @@ if (empty($research) && empty($publications)) {
       <div>
         <div class="rp-section-head reveal">
           <span class="rp-section-label">Publications</span>
-          <p class="rp-section-tagline">Advancing knowledge. Inspiring action. Changing the world.</p>
+          <p class="rp-section-tagline">Publications from the FACT Alliance</p>
         </div>
         <div class="rp-matrix">
           <?php foreach ($publications as $pub):
