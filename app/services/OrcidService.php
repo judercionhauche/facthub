@@ -361,11 +361,18 @@ class OrcidService {
             $keywordData,
             $isActive
         );
-        $stmt->execute();
+        if (!$stmt->execute()) {
+            error_log("[OrcidService::enrichResearcher] Database INSERT failed: " . $stmt->error);
+            return;
+        }
+        error_log("[OrcidService::enrichResearcher] Database INSERT successful");
         error_log("[OrcidService::enrichResearcher] Stored keywords: " . count($profile['keywords'] ?? []) . " total");
         $waterKeywords = array_filter($profile['keywords'] ?? [], fn($k) => stripos($k, 'water') !== false);
         if (!empty($waterKeywords)) {
             error_log("[OrcidService::enrichResearcher] Found water keywords: " . implode(", ", $waterKeywords));
+        } else {
+            error_log("[OrcidService::enrichResearcher] NO water keywords found!");
+            error_log("[OrcidService::enrichResearcher] All keywords: " . implode(", ", array_slice($profile['keywords'] ?? [], 0, 10)));
         }
     }
 

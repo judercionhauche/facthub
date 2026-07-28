@@ -231,6 +231,7 @@ function fetchCandidatesFromOrcidKeywords(mysqli $conn, array $allTerms, $orcidS
     try {
         // First, enrich researchers with ORCID data if they don't have cache yet
         if ($orcidService) {
+            error_log("[fetchCandidatesFromOrcidKeywords] Looking for researchers needing ORCID enrichment...");
             $researchersNeedingEnrichment = $conn->query("
                 SELECT id, orcid_id FROM researchers r
                 WHERE deleted_at IS NULL AND status = 'active' AND orcid_id IS NOT NULL
@@ -239,10 +240,18 @@ function fetchCandidatesFromOrcidKeywords(mysqli $conn, array $allTerms, $orcidS
             ");
 
             if ($researchersNeedingEnrichment) {
+                $enrichCount = $researchersNeedingEnrichment->num_rows;
+                error_log("[fetchCandidatesFromOrcidKeywords] Found $enrichCount researchers needing enrichment");
+
                 while ($r = $researchersNeedingEnrichment->fetch_assoc()) {
+                    error_log("[fetchCandidatesFromOrcidKeywords] Enriching researcher " . $r['id'] . " with ORCID " . $r['orcid_id']);
                     $orcidService->enrichResearcher((int)$r['id'], $r['orcid_id']);
                 }
+            } else {
+                error_log("[fetchCandidatesFromOrcidKeywords] Query failed: " . $conn->error);
             }
+        } else {
+            error_log("[fetchCandidatesFromOrcidKeywords] WARNING: orcidService is null, cannot enrich!");
         }
 
         // Now search all researchers with ORCID cache
