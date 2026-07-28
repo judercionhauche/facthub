@@ -290,14 +290,18 @@ function fetchCandidatesFromOrcidKeywords(mysqli $conn, array $allTerms, $orcidS
                 error_log("[fetchCandidatesFromOrcidKeywords] Checking $researcherName: " . count($keywords) . " keywords");
 
                 // Check if any search term matches any keyword
+                // Split multi-word terms into individual words to match against keywords
                 foreach ($allTerms as $term) {
-                    $termLower = strtolower($term);
-                    foreach ($keywords as $kw) {
-                        if (stripos($kw, $termLower) !== false) {
-                            error_log("[fetchCandidatesFromOrcidKeywords] ✅ MATCH: $researcherName - term '$term' found in keyword '$kw'");
-                            $row['orcid_keyword_match'] = true;
-                            $results[] = $row;
-                            break 2; // Break both loops
+                    $words = preg_split('/[\s\-,;:]+/', strtolower($term));
+                    foreach ($words as $word) {
+                        if (strlen($word) < 2) continue; // Skip very short words
+                        foreach ($keywords as $kw) {
+                            if (stripos($kw, $word) !== false) {
+                                error_log("[fetchCandidatesFromOrcidKeywords] ✅ MATCH: $researcherName - word '$word' (from '$term') found in keyword '$kw'");
+                                $row['orcid_keyword_match'] = true;
+                                $results[] = $row;
+                                break 3; // Break all three loops
+                            }
                         }
                     }
                 }
