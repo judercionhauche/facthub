@@ -1220,30 +1220,36 @@ function apply_research_publications_schema(mysqli $conn): void {
                 @$conn->query("ALTER TABLE research_projects ADD COLUMN url VARCHAR(500) AFTER description");
             }
 
-            // One-time migration: copy funded_projects rows into research_projects
-            $fpExists = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='funded_projects' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
-            if ($fpExists && $fpExists->num_rows > 0) {
-                $old = @$conn->query("SELECT funder, program, title, description, amount, start_year, end_year, fact_members FROM funded_projects");
-                if ($old && $old->num_rows > 0) {
-                    $migratedCount = 0;
-                    while ($row = $old->fetch_assoc()) {
-                        $funderName = trim(($row['funder'] ?? '') . ($row['program'] ? ' · ' . $row['program'] : ''));
-                        $desc = trim($row['description'] ?? '');
-                        if (!empty($row['fact_members'])) {
-                            $desc .= ($desc ? "\n\n" : '') . 'Team: ' . $row['fact_members'];
-                        }
-                        $ins = $conn->prepare("INSERT INTO research_projects (title, description, status, funder_name, grant_amount, start_year, end_year) VALUES (?, ?, 'active', ?, ?, ?, ?)");
-                        if ($ins) {
-                            $amount = (float)($row['amount'] ?? 0);
-                            $sy = $row['start_year'] ?: null;
-                            $ey = $row['end_year'] ?: null;
-                            $ins->bind_param('sssdii', $row['title'], $desc, $funderName, $amount, $sy, $ey);
-                            if ($ins->execute()) {
-                                $migratedCount++;
+            // One-time migration: copy funded_projects rows into research_projects (only if empty)
+            $rpCount = @$conn->query("SELECT COUNT(*) as cnt FROM research_projects");
+            $rpRow = $rpCount ? $rpCount->fetch_assoc() : null;
+            if (!$rpRow || (int)$rpRow['cnt'] === 0) {
+                $fpExists = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='funded_projects' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+                if ($fpExists && $fpExists->num_rows > 0) {
+                    $old = @$conn->query("SELECT funder, program, title, description, amount, start_year, end_year, fact_members FROM funded_projects WHERE deleted_at IS NULL");
+                    if ($old && $old->num_rows > 0) {
+                        $migratedCount = 0;
+                        while ($row = $old->fetch_assoc()) {
+                            $funderName = trim(($row['funder'] ?? '') . ($row['program'] ? ' · ' . $row['program'] : ''));
+                            $desc = trim($row['description'] ?? '');
+                            if (!empty($row['fact_members'])) {
+                                $desc .= ($desc ? "\n\n" : '') . 'Team: ' . $row['fact_members'];
+                            }
+                            $ins = $conn->prepare("INSERT INTO research_projects (title, description, status, funder_name, grant_amount, start_year, end_year) VALUES (?, ?, 'active', ?, ?, ?, ?)");
+                            if ($ins) {
+                                $amount = (float)($row['amount'] ?? 0);
+                                $sy = $row['start_year'] ?: null;
+                                $ey = $row['end_year'] ?: null;
+                                $ins->bind_param('sssdii', $row['title'], $desc, $funderName, $amount, $sy, $ey);
+                                if ($ins->execute()) {
+                                    $migratedCount++;
+                                }
                             }
                         }
+                        if ($migratedCount > 0) {
+                            error_log('[Research Schema] Migrated ' . $migratedCount . ' rows from funded_projects');
+                        }
                     }
-                    error_log('[Research Schema] Migrated ' . $migratedCount . ' rows from funded_projects');
                 }
             }
         }
