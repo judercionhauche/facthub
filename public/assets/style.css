@@ -104,6 +104,16 @@ label{display:block;margin-bottom:6px;font-weight:600}
 .member-row{display:flex;gap:12px;align-items:flex-start;padding:10px 6px;border-bottom:1px solid #edf2ee}
 .member-row:last-child{border-bottom:none}
 .avatar{width:34px;height:34px;border-radius:50%;background:#e7f1ec;color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0}
+/* Identity avatars: gradient initials tiles, color deterministic per person */
+.r-ava{width:52px;height:52px;border-radius:14px;flex:none;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:18px;letter-spacing:.02em;box-shadow:inset 0 -10px 18px rgba(0,0,0,.12);user-select:none}
+.r-ava-sm{width:38px;height:38px;border-radius:11px;font-size:14px}
+.r-ava-lg{width:64px;height:64px;border-radius:16px;font-size:22px}
+.r-ava-0{background:linear-gradient(135deg,#1a6b5a,#3fa88a)}
+.r-ava-1{background:linear-gradient(135deg,#11473b,#2e8f74)}
+.r-ava-2{background:linear-gradient(135deg,#a9863c,#c8a85a)}
+.r-ava-3{background:linear-gradient(135deg,#24735f,#57b294)}
+.r-ava-4{background:linear-gradient(135deg,#1c2a24,#1a6b5a)}
+.mini-label.r-micro{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--primary);opacity:.75;margin-top:12px;margin-bottom:4px}
 .member-main{flex:1}
 .message-body{padding-top:12px;border-top:1px solid var(--line);white-space:pre-wrap;line-height:1.6}
 .unread-card{background:#f8fbff;border-color:#d8e4f6}

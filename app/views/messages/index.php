@@ -973,6 +973,9 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
         <div class="msg-empty">
             <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             <?= $tab === 'sent' ? 'No sent messages yet.' : 'Your inbox is empty.' ?>
+            <?php if ($tab !== 'sent'): ?>
+            <a href="index.php?page=researchers" style="display:block;margin-top:10px;font-size:13px;font-weight:600;color:var(--primary)">Browse researchers to start a conversation &rarr;</a>
+            <?php endif; ?>
         </div>
     <?php else: ?>
         <?php foreach ($activeList as $i => $m):

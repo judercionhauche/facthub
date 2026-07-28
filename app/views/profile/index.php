@@ -224,11 +224,26 @@ button.save-btn:hover { background: #155043; transform: translateY(-2px); box-sh
 }
 </style>
 
+<?php
+// Initials: first letter of first + last name (e.g. "Judercio Nhauche" -> "JN"),
+// with a deterministic on-brand gradient so the same person always gets the same tile
+$pParts = preg_split('/\s+/', trim($user['name'] ?? ''));
+$pInit  = strtoupper(mb_substr($pParts[0] ?? '', 0, 1) . (count($pParts) > 1 ? mb_substr(end($pParts), 0, 1) : ''));
+if ($pInit === '') $pInit = '?';
+$pGrads = [
+    'linear-gradient(135deg,#1a6b5a,#3fa88a)',
+    'linear-gradient(135deg,#11473b,#2e8f74)',
+    'linear-gradient(135deg,#a9863c,#c8a85a)',
+    'linear-gradient(135deg,#24735f,#57b294)',
+    'linear-gradient(135deg,#1c2a24,#1a6b5a)',
+];
+$pGrad = $pGrads[abs(crc32(trim($user['name'] ?? ''))) % 5];
+?>
 <div style="background-image:linear-gradient(135deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.55) 100%), url('wheat.avif');background-size:cover;background-position:center;background-attachment:fixed;">
 <div class="profile-container" style="margin-top: 20px">
     <aside class="profile-sidebar">
         <div style="text-align: center; margin-bottom: 20px; padding: 20px; background: linear-gradient(135deg, var(--primary-2) 0%, rgba(220, 236, 231, 0.5) 100%); border-radius: 10px;">
-            <div class="profile-avatar" style="margin: 0 auto 12px;"><?= strtoupper(substr($user['name'], 0, 2)) ?></div>
+            <div class="profile-avatar" style="margin: 0 auto 12px; background: <?= $pGrad ?>"><?= h($pInit) ?></div>
             <p style="margin: 0 0 4px; font-weight: 700; color: var(--text); font-size: 14px"><?= h($user['name']) ?></p>
             <p style="margin: 0; color: var(--muted); font-size: 12px"><?= h($user['email']) ?></p>
         </div>
@@ -254,7 +269,7 @@ button.save-btn:hover { background: #155043; transform: translateY(-2px); box-sh
         <div class="profile-section">
             <h2>Profile Overview</h2>
             <div class="profile-header">
-                <div class="profile-avatar" style="width: 80px; height: 80px; font-size: 32px"><?= strtoupper(substr($user['name'], 0, 2)) ?></div>
+                <div class="profile-avatar" style="width: 80px; height: 80px; font-size: 32px; background: <?= $pGrad ?>"><?= h($pInit) ?></div>
                 <div class="profile-info">
                     <h1><?= h($user['name']) ?></h1>
                     <p><?= h($user['email']) ?></p>
