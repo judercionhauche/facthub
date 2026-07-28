@@ -64,17 +64,20 @@ class OrcidService {
             if (!isset($data['group'])) return [];
 
             $publications = [];
-            foreach (array_slice($data['group'], 0, 20) as $group) {
-                if (isset($group['work-summary'][0])) {
-                    $work = $group['work-summary'][0];
-                    if (!empty($work['title']['title']['value'])) {
-                        $publications[] = [
-                            'title' => $work['title']['title']['value'],
-                            'year' => $work['publication-date']['year']['value'] ?? null,
-                            'type' => $work['type'] ?? 'unknown',
-                            'doi' => $work['external-ids']['external-id'][0]['external-id-value'] ?? null,
-                            'journal' => $work['journal-title']['value'] ?? null
-                        ];
+            // Fetch ALL works from ALL groups (not just first 20, and not just first work per group)
+            foreach ($data['group'] as $group) {
+                if (isset($group['work-summary']) && is_array($group['work-summary'])) {
+                    // Extract ALL works from this group, not just [0]
+                    foreach ($group['work-summary'] as $work) {
+                        if (!empty($work['title']['title']['value'])) {
+                            $publications[] = [
+                                'title' => $work['title']['title']['value'],
+                                'year' => $work['publication-date']['year']['value'] ?? null,
+                                'type' => $work['type'] ?? 'unknown',
+                                'doi' => $work['external-ids']['external-id'][0]['external-id-value'] ?? null,
+                                'journal' => $work['journal-title']['value'] ?? null
+                            ];
+                        }
                     }
                 }
             }
