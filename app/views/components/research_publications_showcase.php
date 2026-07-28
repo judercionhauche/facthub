@@ -1,154 +1,169 @@
 <?php
 /**
  * Research & Publications Showcase Component
- * Displays research projects and publications with multi-member teams
- * Optional fields: funding, timeline
+ * Premium 2x2 matrix layout with research projects and publications
  */
 
 require_once __DIR__ . '/../../services/ResearchPublicationsService.php';
 
 $service = new ResearchPublicationsService($conn);
-$research = $service->listResearchProjects();
-$publications = $service->listPublications();
+$research = array_slice($service->listResearchProjects(), 0, 2);
+$publications = array_slice($service->listPublications(), 0, 2);
 
 if (empty($research) && empty($publications)) {
-    return; // Don't display if no content
+    return;
 }
 ?>
 
 <style>
-  .research-pub-showcase {
-    margin-bottom: 60px;
-  }
+.rp-showcase {
+  padding: 0;
+  margin: 0;
+}
 
-  .rp-section {
-    margin-bottom: 80px;
-  }
+.rp-matrix {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 28px;
+  margin-top: 48px;
+}
 
-  .rp-section-head h3 {
-    font-weight: 800;
-    font-size: 1.8rem;
-    line-height: 1.1;
-    margin-bottom: 8px;
-  }
+.rp-card {
+  background: #ffffff;
+  border: 1px solid rgba(26, 107, 90, 0.12);
+  border-radius: 16px;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
 
-  .rp-section-head p {
-    color: #60706a;
-    font-size: 1.05rem;
-    max-width: 560px;
-  }
+.rp-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, #1a6b5a, #3fa88a);
+}
 
-  .rp-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+.rp-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 24px 48px rgba(26, 107, 90, 0.15);
+  border-color: rgba(26, 107, 90, 0.25);
+}
+
+.rp-card-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #1a6b5a;
+  background: rgba(26, 107, 90, 0.08);
+  padding: 6px 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  width: fit-content;
+}
+
+.rp-card-title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1.25;
+  color: #1c2a24;
+  margin-bottom: 16px;
+  letter-spacing: -0.015em;
+}
+
+.rp-card-description {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #60706a;
+  margin-bottom: 24px;
+  flex-grow: 1;
+}
+
+.rp-card-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 16px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(26, 107, 90, 0.08);
+}
+
+.rp-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rp-meta-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #1a6b5a;
+}
+
+.rp-meta-value {
+  font-size: 0.9rem;
+  color: #1c2a24;
+  font-weight: 500;
+}
+
+.rp-card-team {
+  font-size: 0.85rem;
+  color: #60706a;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: rgba(26, 107, 90, 0.04);
+  border-radius: 8px;
+  border-left: 3px solid #1a6b5a;
+}
+
+.rp-card-team strong {
+  color: #1a6b5a;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.rp-card-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #1a6b5a;
+  font-weight: 600;
+  text-decoration: none;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(26, 107, 90, 0.08);
+  transition: color 0.2s ease;
+}
+
+.rp-card-link:hover {
+  color: #11473b;
+}
+
+.rp-card-link::after {
+  content: "↗";
+  transition: transform 0.2s ease;
+}
+
+.rp-card-link:hover::after {
+  transform: translateX(2px) translateY(-2px);
+}
+
+@media (max-width: 1024px) {
+  .rp-matrix {
+    grid-template-columns: 1fr;
     gap: 24px;
-    margin-top: 40px;
   }
-
-  .rp-card {
-    background: #ffffff;
-    border: 1px solid rgba(26, 107, 90, 0.16);
-    border-radius: 12px;
-    padding: 32px;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-  }
-
-  .rp-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 18px 40px -22px rgba(26, 107, 90, 0.4);
-  }
-
-  .rp-card-header {
-    margin-bottom: 24px;
-  }
-
-  .rp-card-type {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: #1a6b5a;
-    margin-bottom: 12px;
-  }
-
-  .rp-card-title {
-    font-size: 1.3rem;
-    font-weight: 700;
-    line-height: 1.3;
-    color: #1c2a24;
-    margin-bottom: 12px;
-  }
-
-  .rp-card-team {
-    font-size: 0.95rem;
-    color: #60706a;
-    margin-bottom: 16px;
-  }
-
-  .rp-card-team strong {
-    color: #1c2a24;
-    font-weight: 600;
-  }
-
-  .rp-card-description {
-    font-size: 0.95rem;
-    color: #1c2a24;
-    line-height: 1.6;
-    margin-bottom: 20px;
-  }
-
-  .rp-card-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    font-size: 0.9rem;
-    color: #60706a;
-    border-top: 1px solid rgba(26, 107, 90, 0.1);
-    padding-top: 16px;
-  }
-
-  .rp-meta-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .rp-meta-label {
-    font-weight: 600;
-    color: #1a6b5a;
-    min-width: 80px;
-  }
-
-  .rp-card-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: #1a6b5a;
-    font-weight: 600;
-    text-decoration: none;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(26, 107, 90, 0.1);
-  }
-
-  .rp-card-link:hover {
-    color: #11473b;
-  }
-
-  .rp-card-link::after {
-    content: "→";
-    transition: transform 0.3s ease;
-  }
-
-  .rp-card-link:hover::after {
-    transform: translateX(4px);
-  }
-
-  @media (max-width: 768px) {
-    .rp-grid {
-      grid-template-columns: 1fr;
-    }
-  }
+}
 </style>
 
 <section class="l-section">
@@ -156,156 +171,126 @@ if (empty($research) && empty($publications)) {
     <div class="section-head reveal">
       <span class="eyebrow">Funded research</span>
       <h2>Projects in the field</h2>
-      <p>Research initiatives and publications advancing food system sustainability and innovation across the alliance.</p>
+      <p>Excellence in convergence research and scholarly publications advancing food system solutions globally.</p>
     </div>
 
-    <div class="research-pub-showcase">
-      <?php if (!empty($research)): ?>
-      <div class="rp-section">
-        <div class="rp-section-head reveal">
-          <span class="eyebrow">Research Portfolio</span>
-          <h3>Convergence research for innovative food systems solutions</h3>
-          <p>Active and completed research initiatives advancing food system sustainability across the alliance.</p>
-        </div>
+    <div class="rp-showcase">
+      <div class="rp-matrix">
+        <!-- Research Projects -->
+        <?php foreach ($research as $project): ?>
+        <div class="rp-card reveal">
+          <span class="rp-card-badge">Research Project</span>
+          <h3 class="rp-card-title"><?= h($project['title']) ?></h3>
 
-    <div class="rp-grid">
-      <?php foreach ($research as $project): ?>
-      <div class="rp-card reveal">
-        <div class="rp-card-header">
-          <div class="rp-card-type">Research Project</div>
-          <h4 class="rp-card-title"><?= h($project['title']) ?></h4>
-        </div>
-
-        <?php if (!empty($project['team_members'])): ?>
-        <div class="rp-card-team">
-          <strong>Research Team:</strong><br>
-          <?= h($project['team_members']) ?>
-        </div>
-        <?php endif; ?>
-
-        <?php if (!empty($project['description'])): ?>
-        <div class="rp-card-description">
-          <?= h(mb_substr($project['description'], 0, 200)) ?>
-          <?= strlen($project['description']) > 200 ? '...' : '' ?>
-        </div>
-        <?php endif; ?>
-
-        <div class="rp-card-meta">
-          <?php if (!empty($project['status'])): ?>
-          <div class="rp-meta-item">
-            <span class="rp-meta-label">Status:</span>
-            <span><?= h(ucfirst($project['status'])) ?></span>
+          <?php if (!empty($project['team_members'])): ?>
+          <div class="rp-card-team">
+            <strong>Team:</strong>
+            <?= h($project['team_members']) ?>
           </div>
           <?php endif; ?>
 
-          <?php if (!empty($project['start_year']) || !empty($project['end_year'])): ?>
-          <div class="rp-meta-item">
-            <span class="rp-meta-label">Timeline:</span>
-            <span>
-              <?= h($project['start_year'] ?? '') ?>
-              <?= (!empty($project['start_year']) && !empty($project['end_year'])) ? '–' : '' ?>
-              <?= h($project['end_year'] ?? '') ?>
-            </span>
+          <?php if (!empty($project['description'])): ?>
+          <div class="rp-card-description">
+            <?= h(mb_substr($project['description'], 0, 180)) ?><?= strlen($project['description']) > 180 ? '…' : '' ?>
           </div>
           <?php endif; ?>
 
-          <?php if (!empty($project['funder_name'])): ?>
-          <div class="rp-meta-item">
-            <span class="rp-meta-label">Funder:</span>
-            <span><?= h($project['funder_name']) ?></span>
+          <div class="rp-card-meta">
+            <?php if (!empty($project['status'])): ?>
+            <div class="rp-meta-row">
+              <span class="rp-meta-label">Status</span>
+              <span class="rp-meta-value"><?= h(ucfirst($project['status'])) ?></span>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($project['start_year']) || !empty($project['end_year'])): ?>
+            <div class="rp-meta-row">
+              <span class="rp-meta-label">Timeline</span>
+              <span class="rp-meta-value"><?= h($project['start_year'] ?? '') ?><?= (!empty($project['start_year']) && !empty($project['end_year'])) ? '–' : '' ?><?= h($project['end_year'] ?? '') ?></span>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($project['funder_name'])): ?>
+            <div class="rp-meta-row">
+              <span class="rp-meta-label">Funder</span>
+              <span class="rp-meta-value"><?= h($project['funder_name']) ?></span>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($project['grant_amount'])): ?>
+            <div class="rp-meta-row">
+              <span class="rp-meta-label">Amount</span>
+              <span class="rp-meta-value">$<?= number_format($project['grant_amount'], 0) ?></span>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($project['grant_id'])): ?>
+            <div class="rp-meta-row">
+              <span class="rp-meta-label">Grant ID</span>
+              <span class="rp-meta-value"><?= h($project['grant_id']) ?></span>
+            </div>
+            <?php endif; ?>
+          </div>
+        </div>
+        <?php endforeach; ?>
+
+        <!-- Publications -->
+        <?php foreach ($publications as $pub): ?>
+        <div class="rp-card reveal">
+          <span class="rp-card-badge">Publication</span>
+          <h3 class="rp-card-title"><?= h($pub['title']) ?></h3>
+
+          <?php if (!empty($pub['team_members'])): ?>
+          <div class="rp-card-team">
+            <strong>Authors:</strong>
+            <?= h($pub['team_members']) ?>
           </div>
           <?php endif; ?>
 
-          <?php if (!empty($project['grant_amount'])): ?>
-          <div class="rp-meta-item">
-            <span class="rp-meta-label">Amount:</span>
-            <span>$<?= number_format($project['grant_amount'], 0) ?></span>
+          <?php if (!empty($pub['description'])): ?>
+          <div class="rp-card-description">
+            <?= h(mb_substr($pub['description'], 0, 180)) ?><?= strlen($pub['description']) > 180 ? '…' : '' ?>
           </div>
           <?php endif; ?>
 
-          <?php if (!empty($project['grant_id'])): ?>
-          <div class="rp-meta-item">
-            <span class="rp-meta-label">Grant ID:</span>
-            <span><?= h($project['grant_id']) ?></span>
+          <div class="rp-card-meta">
+            <?php if (!empty($pub['publication_year'])): ?>
+            <div class="rp-meta-row">
+              <span class="rp-meta-label">Year</span>
+              <span class="rp-meta-value"><?= h($pub['publication_year']) ?></span>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($pub['funder_name'])): ?>
+            <div class="rp-meta-row">
+              <span class="rp-meta-label">Funder</span>
+              <span class="rp-meta-value"><?= h($pub['funder_name']) ?></span>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($pub['grant_amount'])): ?>
+            <div class="rp-meta-row">
+              <span class="rp-meta-label">Amount</span>
+              <span class="rp-meta-value">$<?= number_format($pub['grant_amount'], 0) ?></span>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!empty($pub['grant_id'])): ?>
+            <div class="rp-meta-row">
+              <span class="rp-meta-label">Grant ID</span>
+              <span class="rp-meta-value"><?= h($pub['grant_id']) ?></span>
+            </div>
+            <?php endif; ?>
           </div>
+
+          <?php if (!empty($pub['url'])): ?>
+          <a href="<?= h($pub['url']) ?>" target="_blank" rel="noopener noreferrer" class="rp-card-link">
+            Read publication
+          </a>
           <?php endif; ?>
         </div>
+        <?php endforeach; ?>
       </div>
-      <?php endforeach; ?>
-    </div>
-  </div>
-  <?php endif; ?>
-
-  <?php if (!empty($publications)): ?>
-  <div class="rp-section">
-    <div class="rp-section-head reveal">
-      <span class="eyebrow">Knowledge Generation</span>
-      <h3>Publications from the FACT Alliance</h3>
-      <p>Research outputs and publications from alliance research teams and collaborators.</p>
-    </div>
-
-    <div class="rp-grid">
-      <?php foreach ($publications as $pub): ?>
-      <div class="rp-card reveal">
-        <div class="rp-card-header">
-          <div class="rp-card-type">Publication</div>
-          <h4 class="rp-card-title"><?= h($pub['title']) ?></h4>
-        </div>
-
-        <?php if (!empty($pub['team_members'])): ?>
-        <div class="rp-card-team">
-          <strong>Authors:</strong><br>
-          <?= h($pub['team_members']) ?>
-        </div>
-        <?php endif; ?>
-
-        <?php if (!empty($pub['description'])): ?>
-        <div class="rp-card-description">
-          <?= h(mb_substr($pub['description'], 0, 200)) ?>
-          <?= strlen($pub['description']) > 200 ? '...' : '' ?>
-        </div>
-        <?php endif; ?>
-
-        <div class="rp-card-meta">
-          <?php if (!empty($pub['publication_year'])): ?>
-          <div class="rp-meta-item">
-            <span class="rp-meta-label">Year:</span>
-            <span><?= h($pub['publication_year']) ?></span>
-          </div>
-          <?php endif; ?>
-
-          <?php if (!empty($pub['funder_name'])): ?>
-          <div class="rp-meta-item">
-            <span class="rp-meta-label">Funder:</span>
-            <span><?= h($pub['funder_name']) ?></span>
-          </div>
-          <?php endif; ?>
-
-          <?php if (!empty($pub['grant_amount'])): ?>
-          <div class="rp-meta-item">
-            <span class="rp-meta-label">Amount:</span>
-            <span>$<?= number_format($pub['grant_amount'], 0) ?></span>
-          </div>
-          <?php endif; ?>
-
-          <?php if (!empty($pub['grant_id'])): ?>
-          <div class="rp-meta-item">
-            <span class="rp-meta-label">Grant ID:</span>
-            <span><?= h($pub['grant_id']) ?></span>
-          </div>
-          <?php endif; ?>
-        </div>
-
-        <?php if (!empty($pub['url'])): ?>
-        <a href="<?= h($pub['url']) ?>" target="_blank" rel="noopener noreferrer" class="rp-card-link">
-          Read Publication
-        </a>
-        <?php endif; ?>
-      </div>
-      <?php endforeach; ?>
-    </div>
-  </div>
-  <?php endif; ?>
     </div>
   </div>
 </section>
