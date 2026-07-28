@@ -397,7 +397,11 @@ function getPlatformStats(mysqli $conn): array {
 }
 
 function isMetaQuery(string $query): bool {
-    $metaKeywords = ['how many', 'total', 'count', 'researchers in', 'all researchers', 'all funding', 'platform', 'statistics', 'data', 'coverage'];
+    $metaKeywords = [
+        'how many', 'total', 'count', 'researchers in', 'all researchers', 'all funding',
+        'platform', 'statistics', 'data', 'coverage', 'funding calls', 'open calls',
+        'available grants', 'opportunities', 'what about', 'any funding', 'how many calls'
+    ];
     $queryLower = strtolower($query);
     foreach ($metaKeywords as $kw) {
         if (stripos($queryLower, $kw) !== false) return true;
