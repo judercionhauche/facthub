@@ -2814,7 +2814,7 @@ $rpService = new ResearchPublicationsService($conn);
 $researchProjects = $rpService->listResearchProjects();
 $publications = $rpService->listPublications();
 $researcherOptions = $rpService->getResearcherOptions();
-$researcherJson = json_encode(array_map(fn($r) => ['value' => $r['id'], 'label' => $r['name']], $researcherOptions));
+$researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id'], 'label' => $r['name']]; }, $researcherOptions));
 ?>
 
 <style>
