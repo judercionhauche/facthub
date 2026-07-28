@@ -377,12 +377,12 @@ function scoreFunder(array $f, array $topicFilters, array $geoFilters, array $ke
 function getPlatformStats(mysqli $conn): array {
     $stats = [];
 
-    // Total researchers
+    // Total researchers (active only)
     $res = $conn->query("SELECT COUNT(*) as cnt FROM researchers WHERE deleted_at IS NULL AND status = 'active'");
     $stats['active_researchers'] = $res->fetch_assoc()['cnt'] ?? 0;
 
-    // Total funding calls
-    $res = $conn->query("SELECT COUNT(*) as cnt FROM funding_calls WHERE deleted_at IS NULL AND status = 'open'");
+    // Total funding calls (all non-deleted, any status)
+    $res = $conn->query("SELECT COUNT(*) as cnt FROM funding_calls WHERE deleted_at IS NULL");
     $stats['open_funding_calls'] = $res->fetch_assoc()['cnt'] ?? 0;
 
     // Total institutions
