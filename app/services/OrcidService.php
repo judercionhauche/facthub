@@ -64,19 +64,27 @@ class OrcidService {
             if (!isset($data['group'])) return [];
 
             $publications = [];
+            $seen = [];
             // Fetch ALL works from ALL groups (not just first 20, and not just first work per group)
             foreach ($data['group'] as $group) {
                 if (isset($group['work-summary']) && is_array($group['work-summary'])) {
                     // Extract ALL works from this group, not just [0]
                     foreach ($group['work-summary'] as $work) {
                         if (!empty($work['title']['title']['value'])) {
-                            $publications[] = [
-                                'title' => $work['title']['title']['value'],
-                                'year' => $work['publication-date']['year']['value'] ?? null,
-                                'type' => $work['type'] ?? 'unknown',
-                                'doi' => $work['external-ids']['external-id'][0]['external-id-value'] ?? null,
-                                'journal' => $work['journal-title']['value'] ?? null
-                            ];
+                            $title = $work['title']['title']['value'];
+                            $year = $work['publication-date']['year']['value'] ?? null;
+                            // Deduplicate by title + year
+                            $key = $title . '|' . $year;
+                            if (!isset($seen[$key])) {
+                                $seen[$key] = true;
+                                $publications[] = [
+                                    'title' => $title,
+                                    'year' => $year,
+                                    'type' => $work['type'] ?? 'unknown',
+                                    'doi' => $work['external-ids']['external-id'][0]['external-id-value'] ?? null,
+                                    'journal' => $work['journal-title']['value'] ?? null
+                                ];
+                            }
                         }
                     }
                 }
