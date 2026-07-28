@@ -7,7 +7,7 @@
 
 require_once __DIR__ . '/../../services/ResearchPublicationsService.php';
 
-$service = new ResearchPublicationsService($GLOBALS['conn']);
+$service = new ResearchPublicationsService($conn);
 $research = $service->listResearchProjects();
 $publications = $service->listPublications();
 
@@ -151,33 +151,41 @@ if (empty($research) && empty($publications)) {
   }
 </style>
 
-<div class="research-pub-showcase">
-  <?php if (!empty($research)): ?>
-  <div class="rp-section">
-    <div class="rp-section-head reveal">
-      <span class="eyebrow">Research Portfolio</span>
-      <h3>Convergence research for innovative food systems solutions</h3>
-      <p>Active and completed research initiatives advancing food system sustainability across the alliance.</p>
+<section class="l-section">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Funded research</span>
+      <h2>Projects in the field</h2>
+      <p>Research initiatives and publications advancing food system sustainability and innovation across the alliance.</p>
     </div>
+
+    <div class="research-pub-showcase">
+      <?php if (!empty($research)): ?>
+      <div class="rp-section">
+        <div class="rp-section-head reveal">
+          <span class="eyebrow">Research Portfolio</span>
+          <h3>Convergence research for innovative food systems solutions</h3>
+          <p>Active and completed research initiatives advancing food system sustainability across the alliance.</p>
+        </div>
 
     <div class="rp-grid">
       <?php foreach ($research as $project): ?>
       <div class="rp-card reveal">
         <div class="rp-card-header">
           <div class="rp-card-type">Research Project</div>
-          <h4 class="rp-card-title"><?= htmlspecialchars($project['title']) ?></h4>
+          <h4 class="rp-card-title"><?= h($project['title']) ?></h4>
         </div>
 
         <?php if (!empty($project['team_members'])): ?>
         <div class="rp-card-team">
           <strong>Research Team:</strong><br>
-          <?= htmlspecialchars($project['team_members']) ?>
+          <?= h($project['team_members']) ?>
         </div>
         <?php endif; ?>
 
         <?php if (!empty($project['description'])): ?>
         <div class="rp-card-description">
-          <?= htmlspecialchars(mb_substr($project['description'], 0, 200)) ?>
+          <?= h(mb_substr($project['description'], 0, 200)) ?>
           <?= strlen($project['description']) > 200 ? '...' : '' ?>
         </div>
         <?php endif; ?>
@@ -186,7 +194,7 @@ if (empty($research) && empty($publications)) {
           <?php if (!empty($project['status'])): ?>
           <div class="rp-meta-item">
             <span class="rp-meta-label">Status:</span>
-            <span><?= htmlspecialchars(ucfirst($project['status'])) ?></span>
+            <span><?= h(ucfirst($project['status'])) ?></span>
           </div>
           <?php endif; ?>
 
@@ -194,9 +202,9 @@ if (empty($research) && empty($publications)) {
           <div class="rp-meta-item">
             <span class="rp-meta-label">Timeline:</span>
             <span>
-              <?= $project['start_year'] ?? '' ?>
+              <?= h($project['start_year'] ?? '') ?>
               <?= (!empty($project['start_year']) && !empty($project['end_year'])) ? '–' : '' ?>
-              <?= $project['end_year'] ?? '' ?>
+              <?= h($project['end_year'] ?? '') ?>
             </span>
           </div>
           <?php endif; ?>
@@ -204,7 +212,7 @@ if (empty($research) && empty($publications)) {
           <?php if (!empty($project['funder_name'])): ?>
           <div class="rp-meta-item">
             <span class="rp-meta-label">Funder:</span>
-            <span><?= htmlspecialchars($project['funder_name']) ?></span>
+            <span><?= h($project['funder_name']) ?></span>
           </div>
           <?php endif; ?>
 
@@ -218,7 +226,7 @@ if (empty($research) && empty($publications)) {
           <?php if (!empty($project['grant_id'])): ?>
           <div class="rp-meta-item">
             <span class="rp-meta-label">Grant ID:</span>
-            <span><?= htmlspecialchars($project['grant_id']) ?></span>
+            <span><?= h($project['grant_id']) ?></span>
           </div>
           <?php endif; ?>
         </div>
@@ -241,19 +249,19 @@ if (empty($research) && empty($publications)) {
       <div class="rp-card reveal">
         <div class="rp-card-header">
           <div class="rp-card-type">Publication</div>
-          <h4 class="rp-card-title"><?= htmlspecialchars($pub['title']) ?></h4>
+          <h4 class="rp-card-title"><?= h($pub['title']) ?></h4>
         </div>
 
         <?php if (!empty($pub['team_members'])): ?>
         <div class="rp-card-team">
           <strong>Authors:</strong><br>
-          <?= htmlspecialchars($pub['team_members']) ?>
+          <?= h($pub['team_members']) ?>
         </div>
         <?php endif; ?>
 
         <?php if (!empty($pub['description'])): ?>
         <div class="rp-card-description">
-          <?= htmlspecialchars(mb_substr($pub['description'], 0, 200)) ?>
+          <?= h(mb_substr($pub['description'], 0, 200)) ?>
           <?= strlen($pub['description']) > 200 ? '...' : '' ?>
         </div>
         <?php endif; ?>
@@ -262,14 +270,14 @@ if (empty($research) && empty($publications)) {
           <?php if (!empty($pub['publication_year'])): ?>
           <div class="rp-meta-item">
             <span class="rp-meta-label">Year:</span>
-            <span><?= htmlspecialchars($pub['publication_year']) ?></span>
+            <span><?= h($pub['publication_year']) ?></span>
           </div>
           <?php endif; ?>
 
           <?php if (!empty($pub['funder_name'])): ?>
           <div class="rp-meta-item">
             <span class="rp-meta-label">Funder:</span>
-            <span><?= htmlspecialchars($pub['funder_name']) ?></span>
+            <span><?= h($pub['funder_name']) ?></span>
           </div>
           <?php endif; ?>
 
@@ -283,13 +291,13 @@ if (empty($research) && empty($publications)) {
           <?php if (!empty($pub['grant_id'])): ?>
           <div class="rp-meta-item">
             <span class="rp-meta-label">Grant ID:</span>
-            <span><?= htmlspecialchars($pub['grant_id']) ?></span>
+            <span><?= h($pub['grant_id']) ?></span>
           </div>
           <?php endif; ?>
         </div>
 
         <?php if (!empty($pub['url'])): ?>
-        <a href="<?= htmlspecialchars($pub['url']) ?>" target="_blank" rel="noopener noreferrer" class="rp-card-link">
+        <a href="<?= h($pub['url']) ?>" target="_blank" rel="noopener noreferrer" class="rp-card-link">
           Read Publication
         </a>
         <?php endif; ?>
@@ -298,4 +306,6 @@ if (empty($research) && empty($publications)) {
     </div>
   </div>
   <?php endif; ?>
-</div>
+    </div>
+  </div>
+</section>

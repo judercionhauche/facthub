@@ -8,7 +8,7 @@ if (!is_array($mailCfg)) {
 $appUrl  = rtrim($mailCfg['app_url'] ?? 'http://localhost/facthub/public', '/');
 
 $adminUser   = current_user();
-$adminSection = in_array($_GET['section'] ?? '', ['dashboard','users','researchers','funders','audit','api_usage','jobs','settings','embeddings','newsletter','metrics'])
+$adminSection = in_array($_GET['section'] ?? '', ['dashboard','users','researchers','funders','audit','api_usage','jobs','settings','embeddings','newsletter','metrics','research'])
                ? $_GET['section'] : 'dashboard';
 
 /* ── POST ACTIONS ── */
@@ -657,6 +657,118 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect_to('admin', ['section' => 'metrics']);
     }
 
+    /* ── Research & Publications ── */
+    require_once __DIR__ . '/../../app/services/ResearchPublicationsService.php';
+    $rpService = new ResearchPublicationsService($conn);
+
+    if ($action === 'save_research_project') {
+        $pid = (int)($_POST['project_id'] ?? 0);
+        $title = trim($_POST['title'] ?? '');
+        $desc = trim($_POST['description'] ?? '');
+        $status = in_array($_POST['status'] ?? '', ['active', 'completed', 'paused'], true) ? $_POST['status'] : 'active';
+        $funder = trim($_POST['funder_name'] ?? '');
+        $amount = max(0, (int)($_POST['grant_amount'] ?? 0)) ?: null;
+        $grantId = trim($_POST['grant_id'] ?? '') ?: null;
+        $startYear = (int)($_POST['start_year'] ?? 0) ?: null;
+        $endYear = (int)($_POST['end_year'] ?? 0) ?: null;
+
+        if ($title !== '') {
+            $data = [
+                'title' => $title,
+                'description' => $desc,
+                'status' => $status,
+                'funder_name' => $funder ?: null,
+                'grant_amount' => $amount,
+                'grant_id' => $grantId,
+                'start_year' => $startYear,
+                'end_year' => $endYear,
+            ];
+
+            if ($pid) {
+                $rpService->updateResearchProject($pid, $data);
+                audit($conn, 'update_research_project', ['type' => 'research_project', 'id' => $pid, 'detail' => $title]);
+                set_flash('success', 'Research project updated.');
+            } else {
+                $pid = $rpService->createResearchProject($data);
+                audit($conn, 'add_research_project', ['type' => 'research_project', 'id' => $pid, 'detail' => $title]);
+                set_flash('success', 'Research project added.');
+            }
+
+            $teamIds = array_filter(array_map('intval', $_POST['team_members[]'] ?? []), fn($id) => $id > 0);
+            $validIds = array_column($rpService->getResearcherOptions(), 'id');
+            $sanitized = array_intersect($teamIds, $validIds);
+            if ($pid && !empty($sanitized)) {
+                $rpService->setResearchTeam($pid, $sanitized);
+            }
+        } else {
+            set_flash('error', 'Project title is required.');
+        }
+        redirect_to('admin', ['section' => 'research']);
+    }
+
+    if ($action === 'delete_research_project') {
+        $pid = (int)($_POST['project_id'] ?? 0);
+        if ($pid) {
+            $rpService->deleteResearchProject($pid);
+            audit($conn, 'delete_research_project', ['type' => 'research_project', 'id' => $pid]);
+            set_flash('success', 'Research project deleted.');
+        }
+        redirect_to('admin', ['section' => 'research']);
+    }
+
+    if ($action === 'save_publication') {
+        $pid = (int)($_POST['publication_id'] ?? 0);
+        $title = trim($_POST['title'] ?? '');
+        $url = trim($_POST['url'] ?? '');
+        $desc = trim($_POST['description'] ?? '');
+        $year = (int)($_POST['publication_year'] ?? 0) ?: null;
+        $funder = trim($_POST['funder_name'] ?? '');
+        $amount = max(0, (int)($_POST['grant_amount'] ?? 0)) ?: null;
+        $grantId = trim($_POST['grant_id'] ?? '') ?: null;
+
+        if ($title !== '' && $url !== '') {
+            $data = [
+                'title' => $title,
+                'url' => $url,
+                'description' => $desc,
+                'publication_year' => $year,
+                'funder_name' => $funder ?: null,
+                'grant_amount' => $amount,
+                'grant_id' => $grantId,
+            ];
+
+            if ($pid) {
+                $rpService->updatePublication($pid, $data);
+                audit($conn, 'update_publication', ['type' => 'publication', 'id' => $pid, 'detail' => $title]);
+                set_flash('success', 'Publication updated.');
+            } else {
+                $pid = $rpService->createPublication($data);
+                audit($conn, 'add_publication', ['type' => 'publication', 'id' => $pid, 'detail' => $title]);
+                set_flash('success', 'Publication added.');
+            }
+
+            $teamIds = array_filter(array_map('intval', $_POST['team_members[]'] ?? []), fn($id) => $id > 0);
+            $validIds = array_column($rpService->getResearcherOptions(), 'id');
+            $sanitized = array_intersect($teamIds, $validIds);
+            if ($pid && !empty($sanitized)) {
+                $rpService->setPublicationTeam($pid, $sanitized);
+            }
+        } else {
+            set_flash('error', 'Publication title and URL are required.');
+        }
+        redirect_to('admin', ['section' => 'research']);
+    }
+
+    if ($action === 'delete_publication') {
+        $pid = (int)($_POST['publication_id'] ?? 0);
+        if ($pid) {
+            $rpService->deletePublication($pid);
+            audit($conn, 'delete_publication', ['type' => 'publication', 'id' => $pid]);
+            set_flash('success', 'Publication deleted.');
+        }
+        redirect_to('admin', ['section' => 'research']);
+    }
+
     /* ── Impact Data: submitted proposals ── */
     if ($action === 'save_proposal') {
         $pid     = (int)($_POST['proposal_id'] ?? 0);
@@ -964,7 +1076,7 @@ $aiCoverage     = $kpiMatches > 0 ? round(($kpiAiMatches / $kpiMatches) * 100) :
 
     <!-- Tools Dropdown -->
     <div class="admin-dropdown-wrapper">
-        <button class="admin-stab admin-dropdown-toggle <?= in_array($adminSection, ['jobs', 'api_usage', 'audit', 'embeddings', 'metrics']) ? 'active' : '' ?>" onclick="toggleAdminDropdown(event)">
+        <button class="admin-stab admin-dropdown-toggle <?= in_array($adminSection, ['jobs', 'api_usage', 'audit', 'embeddings', 'metrics', 'research']) ? 'active' : '' ?>" onclick="toggleAdminDropdown(event)">
             Tools <span class="dropdown-arrow">▼</span>
         </button>
         <div class="admin-dropdown-menu" id="adminDropdown">
@@ -972,6 +1084,7 @@ $aiCoverage     = $kpiMatches > 0 ? round(($kpiAiMatches / $kpiMatches) * 100) :
             <a class="admin-dropdown-item <?= $adminSection==='api_usage' ? 'active' : '' ?>" href="index.php?page=admin&section=api_usage">API Usage</a>
             <a class="admin-dropdown-item <?= $adminSection==='audit' ? 'active' : '' ?>" href="index.php?page=admin&section=audit">Audit Log</a>
             <a class="admin-dropdown-item <?= $adminSection==='embeddings' ? 'active' : '' ?>" href="index.php?page=admin&section=embeddings">Semantic Search</a>
+            <a class="admin-dropdown-item <?= $adminSection==='research' ? 'active' : '' ?>" href="index.php?page=admin&section=research">Research & Publications</a>
             <a class="admin-dropdown-item <?= $adminSection==='metrics' ? 'active' : '' ?>" href="index.php?page=admin&section=metrics">Impact Data</a>
         </div>
     </div>
@@ -2485,11 +2598,8 @@ if (function_exists('apply_impact_data_schema')) {
     apply_impact_data_schema($conn);
 }
 
-$impProjects = $impProposals = $impStudents = $impHeadline = [];
+$impProposals = $impStudents = $impHeadline = [];
 try {
-    $r = $conn->query("SELECT * FROM funded_projects ORDER BY amount DESC");
-    if ($r) while ($row = $r->fetch_assoc()) $impProjects[] = $row;
-
     $r = $conn->query("SELECT * FROM submitted_proposals ORDER BY display_order, id");
     if ($r) while ($row = $r->fetch_assoc()) $impProposals[] = $row;
 
@@ -2502,8 +2612,6 @@ try {
     error_log('[Admin Impact Data] Load error: ' . $e->getMessage());
     echo '<div class="panel" style="padding:18px;color:var(--danger)">Impact data tables could not be loaded — refresh the page to retry. (' . h($e->getMessage()) . ')</div>';
 }
-
-$impSecured  = array_sum(array_map(static fn($p) => (int)$p['amount'], $impProjects));
 $impInReview = array_sum(array_map(static fn($p) => $p['status'] === 'in_review' ? (int)$p['amount'] : 0, $impProposals));
 $impMoney = static function (int $v): string {
     if ($v >= 1000000) return '$' . rtrim(rtrim(number_format($v / 1000000, 1), '0'), '.') . 'M';
@@ -2530,8 +2638,6 @@ $impMoney = static function (int $v): string {
 </style>
 
 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
-    <span class="imp-stat"><?= h($impMoney($impSecured)) ?> <span style="font-weight:500">funding secured</span></span>
-    <span class="imp-stat"><?= count($impProjects) ?> <span style="font-weight:500">funded projects</span></span>
     <span class="imp-stat"><?= h($impMoney($impInReview)) ?> <span style="font-weight:500">in review</span></span>
     <span class="imp-stat"><?= count($impStudents) ?> <span style="font-weight:500">students</span></span>
     <a href="index.php?page=landing" target="_blank" class="ghost-btn" style="margin-left:auto">View landing page ↗</a>
@@ -2557,67 +2663,6 @@ $impMoney = static function (int $v): string {
             </form>
         <?php endforeach; ?>
         </div>
-    </div>
-
-    <!-- ── Funded projects ── -->
-    <div class="panel" style="padding:24px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap">
-            <h3 style="margin:0">Funded research</h3>
-            <span style="font-size:12px;color:var(--muted)">Shown as funder bars, growth chart and project cards</span>
-        </div>
-        <?php foreach ($impProjects as $p): ?>
-        <div class="imp-row">
-            <div class="imp-row-main">
-                <div class="imp-row-title"><?= h($p['title']) ?></div>
-                <div class="imp-row-sub"><?= h($p['funder']) ?><?= $p['program'] ? ' · ' . h($p['program']) : '' ?> · <?= (int)$p['start_year'] ?>–<?= (int)$p['end_year'] ?> · <?= h($p['fact_members']) ?></div>
-            </div>
-            <span class="imp-amt"><?= h($impMoney((int)$p['amount'])) ?></span>
-            <details style="width:100%">
-                <summary class="imp-summary">Edit</summary>
-                <form method="post" class="imp-form">
-                    <input type="hidden" name="action" value="save_project">
-                    <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
-                    <input type="hidden" name="project_id" value="<?= (int)$p['id'] ?>">
-                    <div><label>Funder *</label><input name="funder" value="<?= h($p['funder']) ?>" required></div>
-                    <div><label>Program</label><input name="program" value="<?= h($p['program']) ?>"></div>
-                    <div><label>Amount (USD)</label><input type="number" name="amount" value="<?= (int)$p['amount'] ?>" min="0"></div>
-                    <div class="imp-span"><label>Project title *</label><input name="title" value="<?= h($p['title']) ?>" required></div>
-                    <div class="imp-span"><label>Description</label><textarea name="description" rows="2"><?= h($p['description']) ?></textarea></div>
-                    <div><label>Start year</label><input type="number" name="start_year" value="<?= (int)$p['start_year'] ?>" min="2000" max="2100"></div>
-                    <div><label>End year</label><input type="number" name="end_year" value="<?= (int)$p['end_year'] ?>" min="2000" max="2100"></div>
-                    <div><label>FACT members</label><input name="fact_members" value="<?= h($p['fact_members']) ?>"></div>
-                    <div class="imp-actions">
-                        <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Save</button>
-                    </div>
-                </form>
-                <form method="post" style="display:flex;justify-content:flex-end;padding:0 14px 12px" onsubmit="return confirm('Remove this funded project from the landing page?')">
-                    <input type="hidden" name="action" value="delete_project">
-                    <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
-                    <input type="hidden" name="project_id" value="<?= (int)$p['id'] ?>">
-                    <button type="submit" class="imp-del-btn">Delete project</button>
-                </form>
-            </details>
-        </div>
-        <?php endforeach; ?>
-        <details style="margin-top:14px">
-            <summary class="imp-summary">+ Add funded project</summary>
-            <form method="post" class="imp-form" style="border:1px solid var(--line);border-radius:10px;margin-top:10px">
-                <input type="hidden" name="action" value="save_project">
-                <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
-                <input type="hidden" name="project_id" value="0">
-                <div><label>Funder *</label><input name="funder" required></div>
-                <div><label>Program</label><input name="program"></div>
-                <div><label>Amount (USD)</label><input type="number" name="amount" min="0" value="0"></div>
-                <div class="imp-span"><label>Project title *</label><input name="title" required></div>
-                <div class="imp-span"><label>Description</label><textarea name="description" rows="2"></textarea></div>
-                <div><label>Start year</label><input type="number" name="start_year" min="2000" max="2100"></div>
-                <div><label>End year</label><input type="number" name="end_year" min="2000" max="2100"></div>
-                <div><label>FACT members</label><input name="fact_members" placeholder="e.g. K. Strzepek, G. Sixt"></div>
-                <div class="imp-actions">
-                    <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Add project</button>
-                </div>
-            </form>
-        </details>
     </div>
 
     <!-- ── Submitted proposals ── -->
@@ -2751,9 +2796,251 @@ $impMoney = static function (int $v): string {
 
 </div>
 
-<div style="margin-top:28px;padding:16px;background:#f0f7f4;border:1px solid #cfe8d9;border-radius:10px;color:#145c40;font-size:13px;line-height:1.5">
-    <strong>How it works:</strong> The landing page computes its headline totals from this data — funding secured is the sum of funded projects, the pipeline bar sums proposals in review, and the student donut counts PhD vs Masters. Only “Member institutions” and “Countries” are set by hand above. Changes appear on the landing page immediately and are logged in the audit trail.
+<div style=”margin-top:28px;padding:16px;background:#f0f7f4;border:1px solid #cfe8d9;border-radius:10px;color:#145c40;font-size:13px;line-height:1.5”>
+    <strong>How it works:</strong> The landing page displays proposal funding, students, and headline metrics from this section. Research projects and publications are managed separately in the Research & Publications section. Only “Member institutions” and “Countries” are set by hand above. Changes appear on the landing page immediately and are logged in the audit trail.
 </div>
+
+
+<?php elseif ($adminSection === 'research'): ?>
+<!-- Research & Publications Management -->
+<div class="admin-section-head">
+    <h2>Research & Publications</h2>
+    <p>Manage research projects and publications showcased on the public impact page. Each item supports multiple team members, optional funding details, and optional timelines. Changes are logged in the audit trail.</p>
+</div>
+
+<?php
+require_once __DIR__ . '/../../app/services/ResearchPublicationsService.php';
+$rpService = new ResearchPublicationsService($conn);
+$researchProjects = $rpService->listResearchProjects();
+$publications = $rpService->listPublications();
+$researcherOptions = $rpService->getResearcherOptions();
+$researcherJson = json_encode(array_map(fn($r) => ['value' => $r['id'], 'label' => $r['name']], $researcherOptions));
+?>
+
+<style>
+.rp-row{display:flex;align-items:center;gap:14px;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--bg);margin-bottom:10px;flex-wrap:wrap}
+.rp-row-main{flex:1;min-width:240px}
+.rp-row-title{font-weight:700;font-size:13.5px}
+.rp-row-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.rp-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;padding:14px;border-top:1px dashed var(--line);margin-top:10px;width:100%}
+.rp-form label{font-size:10.5px;font-weight:700;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:3px}
+.rp-form input,.rp-form select,.rp-form textarea{width:100%;padding:7px 9px;font-size:13px;border:1px solid var(--line);border-radius:7px;font-family:inherit;box-sizing:border-box}
+.rp-form .rp-span{grid-column:1/-1}
+.rp-actions{grid-column:1/-1;display:flex;gap:8px;justify-content:flex-end}
+.rp-summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--primary);user-select:none}
+.rp-del-btn{background:none;border:1px solid #e3c4c4;color:var(--danger);border-radius:7px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer}
+.rp-del-btn:hover{background:#fbf0f0}
+.msel{position:relative;display:inline-block;width:100%}
+.msel-btn{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;font-size:13px;border:1px solid var(--line);border-radius:7px;background:var(--bg);min-height:36px}
+.msel-btn-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.msel-btn-lbl.msel-has-val{color:#1c2a24}
+.msel-btn-arr{font-size:10px;transition:transform .2s}
+.msel-open .msel-btn-arr{transform:rotate(180deg)}
+.msel-drop{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:7px;margin-top:2px;max-height:0;overflow:hidden;transition:max-height .2s ease;z-index:1000}
+.msel-drop-open{max-height:300px;box-shadow:0 8px 16px rgba(0,0,0,.1)}
+.msel-srch{width:100%;padding:7px 9px;font-size:13px;border:none;border-bottom:1px solid var(--line);box-sizing:border-box}
+.msel-body{max-height:260px;overflow-y:auto}
+.msel-group-label{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);padding:6px 9px;background:#f9f9f9;border-bottom:1px solid var(--line);margin-top:4px}
+.msel-item{padding:8px 9px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.msel-item:hover{background:var(--paper)}
+.msel-item input{cursor:pointer}
+.msel-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.msel-chip{display:inline-flex;align-items:center;gap:6px;background:var(--primary-2);color:var(--primary);padding:4px 8px;border-radius:14px;font-size:12px;font-weight:600}
+.msel-chip-remove{cursor:pointer;font-weight:800}
+.msel-hid{display:none}
+</style>
+
+<div style="display:grid;gap:24px">
+
+    <!-- ── Research Projects ── -->
+    <div class="panel" style="padding:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap">
+            <h3 style="margin:0">Research Projects</h3>
+            <span style="font-size:12px;color:var(--muted)"><?= count($researchProjects) ?> project<?= count($researchProjects) === 1 ? '' : 's' ?></span>
+        </div>
+
+        <?php foreach ($researchProjects as $p):
+            $teamIds = array_filter(explode(',', $p['team_ids'] ?? ''));
+        ?>
+        <div class="rp-row">
+            <div class="rp-row-main">
+                <div class="rp-row-title"><?= h($p['title']) ?></div>
+                <div class="rp-row-sub"><?= h($p['funder_name'] ?? '—') ?> · <?= ucfirst($p['status']) ?><?= (!empty($p['start_year']) || !empty($p['end_year'])) ? ' · ' . ($p['start_year'] ?? '') . ((!empty($p['start_year']) && !empty($p['end_year'])) ? '–' : '') . ($p['end_year'] ?? '') : '' ?></div>
+            </div>
+            <details style="width:100%">
+                <summary class="rp-summary">Edit</summary>
+                <form method="post" class="rp-form">
+                    <input type="hidden" name="action" value="save_research_project">
+                    <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                    <input type="hidden" name="project_id" value="<?= (int)$p['id'] ?>">
+                    <div class="rp-span"><label>Title *</label><input name="title" value="<?= h($p['title']) ?>" required></div>
+                    <div class="rp-span"><label>Description</label><textarea name="description" rows="2"><?= h($p['description']) ?></textarea></div>
+                    <div><label>Status</label><select name="status"><option value="active" <?= $p['status']==='active'?'selected':''?>>Active</option><option value="completed" <?= $p['status']==='completed'?'selected':''?>>Completed</option><option value="paused" <?= $p['status']==='paused'?'selected':''?>>Paused</option></select></div>
+                    <div><label>Funder</label><input name="funder_name" value="<?= h($p['funder_name'] ?? '') ?>"></div>
+                    <div><label>Grant Amount</label><input type="number" name="grant_amount" value="<?= (int)($p['grant_amount'] ?? 0) ?>" min="0"></div>
+                    <div><label>Grant ID</label><input name="grant_id" value="<?= h($p['grant_id'] ?? '') ?>"></div>
+                    <div><label>Start Year</label><input type="number" name="start_year" value="<?= (int)($p['start_year'] ?? 0) ?>" min="2000" max="2100"></div>
+                    <div><label>End Year</label><input type="number" name="end_year" value="<?= (int)($p['end_year'] ?? 0) ?>" min="2000" max="2100"></div>
+                    <div class="rp-span"><label>Research Team</label><div id="rp-team-msel-<?= (int)$p['id'] ?>"></div></div>
+                    <div class="rp-actions">
+                        <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Save</button>
+                    </div>
+                </form>
+                <form method="post" style="display:flex;justify-content:flex-end;padding:0 14px 12px" onsubmit="return confirm('Delete this research project?')">
+                    <input type="hidden" name="action" value="delete_research_project">
+                    <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                    <input type="hidden" name="project_id" value="<?= (int)$p['id'] ?>">
+                    <button type="submit" class="rp-del-btn">Delete project</button>
+                </form>
+            </details>
+        </div>
+        <?php endforeach; ?>
+
+        <details style="margin-top:14px">
+            <summary class="rp-summary">+ Add research project</summary>
+            <form method="post" class="rp-form" style="border:1px solid var(--line);border-radius:10px;margin-top:10px">
+                <input type="hidden" name="action" value="save_research_project">
+                <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                <input type="hidden" name="project_id" value="0">
+                <div class="rp-span"><label>Title *</label><input name="title" placeholder="Project title" required></div>
+                <div class="rp-span"><label>Description</label><textarea name="description" rows="2" placeholder="Optional overview"></textarea></div>
+                <div><label>Status</label><select name="status"><option value="active" selected>Active</option><option value="completed">Completed</option><option value="paused">Paused</option></select></div>
+                <div><label>Funder</label><input name="funder_name" placeholder="Optional"></div>
+                <div><label>Grant Amount</label><input type="number" name="grant_amount" value="0" min="0"></div>
+                <div><label>Grant ID</label><input name="grant_id" placeholder="Optional"></div>
+                <div><label>Start Year</label><input type="number" name="start_year" min="2000" max="2100"></div>
+                <div><label>End Year</label><input type="number" name="end_year" min="2000" max="2100"></div>
+                <div class="rp-span"><label>Research Team</label><div id="rp-team-msel-0"></div></div>
+                <div class="rp-actions">
+                    <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Add project</button>
+                </div>
+            </form>
+        </details>
+    </div>
+
+    <!-- ── Publications ── -->
+    <div class="panel" style="padding:24px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap">
+            <h3 style="margin:0">Publications</h3>
+            <span style="font-size:12px;color:var(--muted)"><?= count($publications) ?> publication<?= count($publications) === 1 ? '' : 's' ?></span>
+        </div>
+
+        <?php foreach ($publications as $p):
+            $teamIds = array_filter(explode(',', $p['team_ids'] ?? ''));
+        ?>
+        <div class="rp-row">
+            <div class="rp-row-main">
+                <div class="rp-row-title"><?= h($p['title']) ?></div>
+                <div class="rp-row-sub"><?= h($p['funder_name'] ?? '—') ?><?= !empty($p['publication_year']) ? ' · ' . (int)$p['publication_year'] : '' ?></div>
+            </div>
+            <details style="width:100%">
+                <summary class="rp-summary">Edit</summary>
+                <form method="post" class="rp-form">
+                    <input type="hidden" name="action" value="save_publication">
+                    <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                    <input type="hidden" name="publication_id" value="<?= (int)$p['id'] ?>">
+                    <div class="rp-span"><label>Title *</label><input name="title" value="<?= h($p['title']) ?>" required></div>
+                    <div class="rp-span"><label>URL *</label><input name="url" value="<?= h($p['url']) ?>" type="url" required></div>
+                    <div class="rp-span"><label>Description</label><textarea name="description" rows="2"><?= h($p['description']) ?></textarea></div>
+                    <div><label>Publication Year</label><input type="number" name="publication_year" value="<?= (int)($p['publication_year'] ?? 0) ?>" min="2000" max="2100"></div>
+                    <div><label>Funder</label><input name="funder_name" value="<?= h($p['funder_name'] ?? '') ?>"></div>
+                    <div><label>Grant Amount</label><input type="number" name="grant_amount" value="<?= (int)($p['grant_amount'] ?? 0) ?>" min="0"></div>
+                    <div><label>Grant ID</label><input name="grant_id" value="<?= h($p['grant_id'] ?? '') ?>"></div>
+                    <div class="rp-span"><label>Authors</label><div id="rp-team-msel-pub-<?= (int)$p['id'] ?>"></div></div>
+                    <div class="rp-actions">
+                        <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Save</button>
+                    </div>
+                </form>
+                <form method="post" style="display:flex;justify-content:flex-end;padding:0 14px 12px" onsubmit="return confirm('Delete this publication?')">
+                    <input type="hidden" name="action" value="delete_publication">
+                    <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                    <input type="hidden" name="publication_id" value="<?= (int)$p['id'] ?>">
+                    <button type="submit" class="rp-del-btn">Delete publication</button>
+                </form>
+            </details>
+        </div>
+        <?php endforeach; ?>
+
+        <details style="margin-top:14px">
+            <summary class="rp-summary">+ Add publication</summary>
+            <form method="post" class="rp-form" style="border:1px solid var(--line);border-radius:10px;margin-top:10px">
+                <input type="hidden" name="action" value="save_publication">
+                <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                <input type="hidden" name="publication_id" value="0">
+                <div class="rp-span"><label>Title *</label><input name="title" placeholder="Publication title" required></div>
+                <div class="rp-span"><label>URL *</label><input name="url" type="url" placeholder="https://..." required></div>
+                <div class="rp-span"><label>Description</label><textarea name="description" rows="2" placeholder="Optional abstract or summary"></textarea></div>
+                <div><label>Publication Year</label><input type="number" name="publication_year" min="2000" max="2100"></div>
+                <div><label>Funder</label><input name="funder_name" placeholder="Optional"></div>
+                <div><label>Grant Amount</label><input type="number" name="grant_amount" value="0" min="0"></div>
+                <div><label>Grant ID</label><input name="grant_id" placeholder="Optional"></div>
+                <div class="rp-span"><label>Authors</label><div id="rp-team-msel-pub-0"></div></div>
+                <div class="rp-actions">
+                    <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Add publication</button>
+                </div>
+            </form>
+        </details>
+    </div>
+
+</div>
+
+<script>
+(function(){
+    const items = <?= $researcherJson ?>;
+
+    // Render MultiSelect widgets for research projects
+    <?php foreach ($researchProjects as $p):
+        $teamIds = array_filter(explode(',', $p['team_ids'] ?? ''));
+    ?>
+    const el_<?= (int)$p['id'] ?> = document.getElementById('rp-team-msel-<?= (int)$p['id'] ?>');
+    if(el_<?= (int)$p['id'] ?>) {
+        new MultiSelect(el_<?= (int)$p['id'] ?>, {
+            name: 'team_members',
+            items: items,
+            selected: [<?= implode(',', $teamIds) ?>],
+            placeholder: 'Select team members...'
+        });
+    }
+    <?php endforeach; ?>
+
+    // Render MultiSelect widget for new research project
+    const el_0 = document.getElementById('rp-team-msel-0');
+    if(el_0) {
+        new MultiSelect(el_0, {
+            name: 'team_members',
+            items: items,
+            selected: [],
+            placeholder: 'Select team members...'
+        });
+    }
+
+    // Render MultiSelect widgets for publications
+    <?php foreach ($publications as $p):
+        $teamIds = array_filter(explode(',', $p['team_ids'] ?? ''));
+    ?>
+    const el_pub_<?= (int)$p['id'] ?> = document.getElementById('rp-team-msel-pub-<?= (int)$p['id'] ?>');
+    if(el_pub_<?= (int)$p['id'] ?>) {
+        new MultiSelect(el_pub_<?= (int)$p['id'] ?>, {
+            name: 'team_members',
+            items: items,
+            selected: [<?= implode(',', $teamIds) ?>],
+            placeholder: 'Select authors...'
+        });
+    }
+    <?php endforeach; ?>
+
+    // Render MultiSelect widget for new publication
+    const el_pub_0 = document.getElementById('rp-team-msel-pub-0');
+    if(el_pub_0) {
+        new MultiSelect(el_pub_0, {
+            name: 'team_members',
+            items: items,
+            selected: [],
+            placeholder: 'Select authors...'
+        });
+    }
+})();
+</script>
 
 <?php endif; /* end section switch */ ?>
 

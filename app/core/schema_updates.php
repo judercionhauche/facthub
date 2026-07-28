@@ -1213,6 +1213,33 @@ function apply_research_publications_schema(mysqli $conn): void {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
             error_log('[Research Schema] Created research_projects table');
+
+            // One-time migration: copy funded_projects rows into research_projects
+            $fpExists = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='funded_projects' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if ($fpExists && $fpExists->num_rows > 0) {
+                $old = @$conn->query("SELECT funder, program, title, description, amount, start_year, end_year, fact_members FROM funded_projects");
+                if ($old && $old->num_rows > 0) {
+                    $migratedCount = 0;
+                    while ($row = $old->fetch_assoc()) {
+                        $funderName = trim(($row['funder'] ?? '') . ($row['program'] ? ' · ' . $row['program'] : ''));
+                        $desc = trim($row['description'] ?? '');
+                        if (!empty($row['fact_members'])) {
+                            $desc .= ($desc ? "\n\n" : '') . 'Team: ' . $row['fact_members'];
+                        }
+                        $ins = $conn->prepare("INSERT INTO research_projects (title, description, status, funder_name, grant_amount, start_year, end_year) VALUES (?, ?, 'active', ?, ?, ?, ?)");
+                        if ($ins) {
+                            $amount = (float)($row['amount'] ?? 0);
+                            $sy = $row['start_year'] ?: null;
+                            $ey = $row['end_year'] ?: null;
+                            $ins->bind_param('sssdii', $row['title'], $desc, $funderName, $amount, $sy, $ey);
+                            if ($ins->execute()) {
+                                $migratedCount++;
+                            }
+                        }
+                    }
+                    error_log('[Research Schema] Migrated ' . $migratedCount . ' rows from funded_projects');
+                }
+            }
         }
 
         // Check if research_project_team table exists

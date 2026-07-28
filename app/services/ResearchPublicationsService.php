@@ -226,6 +226,26 @@ class ResearchPublicationsService {
         return $stmt->execute();
     }
 
+    public function setResearchTeam(int $projectId, array $researcherIds): void {
+        $stmt = $this->conn->prepare("DELETE FROM research_project_team WHERE research_project_id = ?");
+        $stmt->bind_param('i', $projectId);
+        $stmt->execute();
+        $order = 0;
+        foreach ($researcherIds as $rid) {
+            $this->addResearchTeamMember($projectId, (int)$rid, $order++);
+        }
+    }
+
+    public function setPublicationTeam(int $publicationId, array $researcherIds): void {
+        $stmt = $this->conn->prepare("DELETE FROM publication_team WHERE publication_id = ?");
+        $stmt->bind_param('i', $publicationId);
+        $stmt->execute();
+        $order = 0;
+        foreach ($researcherIds as $rid) {
+            $this->addPublicationTeamMember($publicationId, (int)$rid, $order++);
+        }
+    }
+
     public function getResearcherOptions(): array {
         $result = $this->conn->query("
             SELECT id, CONCAT(first_name, ' ', last_name) as name

@@ -1,7 +1,7 @@
 <?php
 // Public landing page — impact dashboard for non-logged-in visitors.
-// Data lives in funded_projects / submitted_proposals / fact_students,
-// plus two headline values from impact_metrics. All editable in Admin → Impact Data.
+// Data lives in research_projects / submitted_proposals / fact_students,
+// plus two headline values from impact_metrics. All editable in Admin → Research & Publications.
 
 if (is_logged_in()) {
     $redirectPage = ($_SESSION['user_role'] ?? '') === 'funder' ? 'funding' : 'impact';
@@ -18,9 +18,9 @@ $landInstitutions = 0; $landCountries = 0;
 
 // Each query is isolated so one failure can't blank the whole page
 try {
-    $r = $conn->query("SELECT funder, program, title, description, amount, start_year, end_year, fact_members FROM funded_projects ORDER BY amount DESC");
+    $r = $conn->query("SELECT title, description, funder_name, grant_amount, start_year, end_year FROM research_projects WHERE deleted_at IS NULL ORDER BY grant_amount DESC");
     if ($r) while ($row = $r->fetch_assoc()) $landProjects[] = $row;
-} catch (Throwable $e) { error_log('[Landing] funded_projects fetch error: ' . $e->getMessage()); }
+} catch (Throwable $e) { error_log('[Landing] research_projects fetch error: ' . $e->getMessage()); }
 
 try {
     $r = $conn->query("SELECT funder, program, amount FROM submitted_proposals WHERE status = 'in_review'");
@@ -42,7 +42,7 @@ try {
     }
 } catch (Throwable $e) { error_log('[Landing] impact_metrics fetch error: ' . $e->getMessage()); }
 
-$fundingSecured = 0; foreach ($landProjects as $p)  $fundingSecured += (int)$p['amount'];
+$fundingSecured = 0; foreach ($landProjects as $p)  $fundingSecured += (int)($p['grant_amount'] ?? 0);
 $pipelineAmt    = 0; foreach ($landProposals as $p) $pipelineAmt    += (int)$p['amount'];
 $phdCount = 0; $mscCount = 0;
 foreach ($landStudents as $s) { if ($s['level'] === 'PhD') $phdCount++; else $mscCount++; }
@@ -382,7 +382,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
     <div class="kpi-grid">
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Member institutions</div><div class="sub">Universities and labs across <?= $landCountries ?> countries.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $landCollaborations ?>"><?= $landCollaborations ?></div><div class="lbl">Collaborations</div><div class="sub">Active partnerships across the alliance network.</div></div>
-      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $projectCount ?>"><?= $projectCount ?></div><div class="lbl">Funded projects</div><div class="sub">From smallholder systems to global food-trade modelling.</div></div>
+      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $projectCount ?>"><?= $projectCount ?></div><div class="lbl">Research projects</div><div class="sub">From smallholder systems to global food-trade modelling.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $studentCount ?>"><?= $studentCount ?></div><div class="lbl">Students co-advised</div><div class="sub">Doctoral and Masters researchers mentored through collaborative projects.</div></div>
     </div>
 
@@ -457,18 +457,8 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
 <?php endif; ?>
 
 <!-- ===================== FUNDED PROJECTS ===================== -->
-<?php if ($landProjects && is_logged_in()): ?>
-<section class="l-section" style="padding-top:0">
-  <div class="wrap">
-    <div class="section-head reveal">
-      <span class="eyebrow">Funded research</span>
-      <h2>Projects in the field right now</h2>
-      <p>A selection of the research the alliance has helped fund, from post-harvest loss to global food-trade vulnerability.</p>
-    </div>
-    <div class="proj-grid" id="projCards"></div>
-  </div>
-</section>
-<?php endif; ?>
+<?php // Research & Publications component handles its own section, heading, and grid ?>
+<?php require __DIR__ . '/../components/research_publications_showcase.php'; ?>
 
 <!-- ===================== INSIDE THE HUB ===================== -->
 <section class="l-section reach landing-wheat">
@@ -522,16 +512,14 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
 <script>
 (function(){
 const DATA = {
-  fundedProjects: <?= json_encode(array_map(static function ($p) {
+  researchProjects: <?= json_encode(array_map(static function ($p) {
       return [
-          'funder'  => $p['funder'],
-          'program' => $p['program'],
+          'funder'  => $p['funder_name'],
           'title'   => $p['title'],
           'desc'    => $p['description'],
-          'amount'  => (int)$p['amount'],
-          'start'   => (int)$p['start_year'],
-          'end'     => (int)$p['end_year'],
-          'members' => $p['fact_members'],
+          'amount'  => (int)($p['grant_amount'] ?? 0),
+          'start'   => (int)($p['start_year'] ?? 0),
+          'end'     => (int)($p['end_year'] ?? 0),
       ];
   }, $landProjects), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
   students: <?= json_encode(array_map(static function ($s) {
@@ -550,8 +538,8 @@ const fmtMoney = v => v>=1e6 ? "$"+(v/1e6).toFixed(1).replace(/\.0$/,"")+"M" : "
 /* ---------- FUNDER BARS ---------- */
 (function(){
   const el = document.getElementById('funderBars');
-  if(!el || !DATA.fundedProjects.length) return;
-  const rows = [...DATA.fundedProjects].sort((a,b)=>b.amount-a.amount);
+  if(!el || !DATA.researchProjects.length) return;
+  const rows = [...DATA.researchProjects].sort((a,b)=>b.amount-a.amount);
   const max = rows[0].amount || 1;
   el.innerHTML = rows.map(r=>`
     <div class="bar-row">
@@ -578,27 +566,12 @@ const fmtMoney = v => v>=1e6 ? "$"+(v/1e6).toFixed(1).replace(/\.0$/,"")+"M" : "
   }).join('');
 })();
 
-/* ---------- PROJECT CARDS ---------- */
-(function(){
-  const el = document.getElementById('projCards');
-  if(!el || !DATA.fundedProjects.length) return;
-  const rows = [...DATA.fundedProjects].sort((a,b)=>b.amount-a.amount).slice(0,6);
-  el.innerHTML = rows.map((r,i)=>`
-    <div class="pcard ${i===0?'feature':''} reveal">
-      <div class="p-funder">${esc(r.funder)}${r.program?' · '+esc(r.program):''}</div>
-      <div class="p-amt">${fmtMoney(r.amount)}</div>
-      <div class="p-title">${esc(r.title)}</div>
-      <div class="p-desc">${esc(r.desc)}</div>
-      <div class="p-meta">${r.start||''}–${r.end||''} &nbsp;·&nbsp; ${esc(r.members)}</div>
-    </div>`).join('');
-})();
-
 /* ---------- GROWTH LINE (cumulative funding by year) ---------- */
 (function(){
   const svg = document.getElementById('growthChart');
-  if(!svg || !DATA.fundedProjects.length) return;
+  if(!svg || !DATA.researchProjects.length) return;
   const byYear = {};
-  DATA.fundedProjects.forEach(p=>{ if(p.start) byYear[p.start]=(byYear[p.start]||0)+p.amount; });
+  DATA.researchProjects.forEach(p=>{ if(p.start) byYear[p.start]=(byYear[p.start]||0)+p.amount; });
   const years = Object.keys(byYear).map(Number).sort((a,b)=>a-b);
   if(!years.length){ svg.parentNode.style.display='none'; return; }
   let cum=0; const pts = years.map(y=>{ cum+=byYear[y]; return {y, v:cum/1e6}; });
