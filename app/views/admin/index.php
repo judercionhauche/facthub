@@ -665,10 +665,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pid = (int)($_POST['project_id'] ?? 0);
         $title = trim($_POST['title'] ?? '');
         $desc = trim($_POST['description'] ?? '');
+        $url = trim($_POST['url'] ?? '') ?: null;
         $status = in_array($_POST['status'] ?? '', ['active', 'completed', 'paused'], true) ? $_POST['status'] : 'active';
         $funder = trim($_POST['funder_name'] ?? '');
         $amount = max(0, (int)($_POST['grant_amount'] ?? 0)) ?: null;
-        $grantId = trim($_POST['grant_id'] ?? '') ?: null;
         $startYear = (int)($_POST['start_year'] ?? 0) ?: null;
         $endYear = (int)($_POST['end_year'] ?? 0) ?: null;
 
@@ -676,10 +676,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $data = [
                 'title' => $title,
                 'description' => $desc,
+                'url' => $url,
                 'status' => $status,
                 'funder_name' => $funder ?: null,
                 'grant_amount' => $amount,
-                'grant_id' => $grantId,
                 'start_year' => $startYear,
                 'end_year' => $endYear,
             ];
@@ -2875,10 +2875,10 @@ $researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id
                     <input type="hidden" name="project_id" value="<?= (int)$p['id'] ?>">
                     <div class="rp-span"><label>Title *</label><input name="title" value="<?= h($p['title']) ?>" required></div>
                     <div class="rp-span"><label>Description</label><textarea name="description" rows="2"><?= h($p['description']) ?></textarea></div>
+                    <div class="rp-span"><label>Project URL</label><input name="url" type="url" value="<?= h($p['url'] ?? '') ?>" placeholder="https://..."></div>
                     <div><label>Status</label><select name="status"><option value="active" <?= $p['status']==='active'?'selected':''?>>Active</option><option value="completed" <?= $p['status']==='completed'?'selected':''?>>Completed</option><option value="paused" <?= $p['status']==='paused'?'selected':''?>>Paused</option></select></div>
                     <div><label>Funder</label><input name="funder_name" value="<?= h($p['funder_name'] ?? '') ?>"></div>
                     <div><label>Grant Amount</label><input type="number" name="grant_amount" value="<?= (int)($p['grant_amount'] ?? 0) ?>" min="0"></div>
-                    <div><label>Grant ID</label><input name="grant_id" value="<?= h($p['grant_id'] ?? '') ?>"></div>
                     <div><label>Start Year</label><input type="number" name="start_year" value="<?= (int)($p['start_year'] ?? 0) ?>" min="2000" max="2100"></div>
                     <div><label>End Year</label><input type="number" name="end_year" value="<?= (int)($p['end_year'] ?? 0) ?>" min="2000" max="2100"></div>
                     <div class="rp-span"><label>Research Team</label><div id="rp-team-msel-<?= (int)$p['id'] ?>"></div></div>
@@ -2904,10 +2904,10 @@ $researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id
                 <input type="hidden" name="project_id" value="0">
                 <div class="rp-span"><label>Title *</label><input name="title" placeholder="Project title" required></div>
                 <div class="rp-span"><label>Description</label><textarea name="description" rows="2" placeholder="Optional overview"></textarea></div>
+                <div class="rp-span"><label>Project URL</label><input name="url" type="url" placeholder="https://..." /></div>
                 <div><label>Status</label><select name="status"><option value="active" selected>Active</option><option value="completed">Completed</option><option value="paused">Paused</option></select></div>
                 <div><label>Funder</label><input name="funder_name" placeholder="Optional"></div>
                 <div><label>Grant Amount</label><input type="number" name="grant_amount" value="0" min="0"></div>
-                <div><label>Grant ID</label><input name="grant_id" placeholder="Optional"></div>
                 <div><label>Start Year</label><input type="number" name="start_year" min="2000" max="2100"></div>
                 <div><label>End Year</label><input type="number" name="end_year" min="2000" max="2100"></div>
                 <div class="rp-span"><label>Research Team</label><div id="rp-team-msel-0"></div></div>
@@ -2945,7 +2945,6 @@ $researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id
                     <div><label>Publication Year</label><input type="number" name="publication_year" value="<?= (int)($p['publication_year'] ?? 0) ?>" min="2000" max="2100"></div>
                     <div><label>Funder</label><input name="funder_name" value="<?= h($p['funder_name'] ?? '') ?>"></div>
                     <div><label>Grant Amount</label><input type="number" name="grant_amount" value="<?= (int)($p['grant_amount'] ?? 0) ?>" min="0"></div>
-                    <div><label>Grant ID</label><input name="grant_id" value="<?= h($p['grant_id'] ?? '') ?>"></div>
                     <div class="rp-span"><label>Authors</label><div id="rp-team-msel-pub-<?= (int)$p['id'] ?>"></div></div>
                     <div class="rp-actions">
                         <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Save</button>
