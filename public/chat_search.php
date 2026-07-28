@@ -224,6 +224,52 @@ function fetchCandidates(mysqli $conn, string $table, array $allTerms, string $s
     return $results;
 }
 
+function fetchCandidatesFromOrcidKeywords(mysqli $conn, array $allTerms): array {
+    if (empty($allTerms)) return [];
+    $results = [];
+
+    try {
+        // Search researcher_orcid_cache.keywords JSON field for matching keywords
+        $sql = "SELECT DISTINCT r.* FROM researchers r
+                JOIN researcher_orcid_cache c ON r.id = c.researcher_id
+                WHERE r.deleted_at IS NULL AND r.status = 'active' AND c.keywords IS NOT NULL
+                LIMIT 100";
+
+        $stmt = $conn->prepare($sql);
+        if ($stmt) {
+            $stmt->execute();
+            $allRows = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+
+            // Filter: check if keywords match any search term
+            foreach ($allRows as $row) {
+                $keywordJson = $row['keywords'] ?? '[]';
+                if (is_string($keywordJson)) {
+                    $keywords = json_decode($keywordJson, true) ?? [];
+                } else {
+                    $keywords = is_array($keywordJson) ? $keywordJson : [];
+                }
+
+                // Check if any search term matches any keyword
+                $keywordsLower = array_map('strtolower', $keywords);
+                foreach ($allTerms as $term) {
+                    $termLower = strtolower($term);
+                    foreach ($keywordsLower as $kw) {
+                        if (stripos($kw, $termLower) !== false) {
+                            $row['orcid_keyword_match'] = true;
+                            $results[] = $row;
+                            break 2; // Break both loops
+                        }
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        error_log("[fetchCandidatesFromOrcidKeywords] Error: " . $e->getMessage());
+    }
+
+    return $results;
+}
+
 function scoreFC(array $fc, array $topicFilters, array $geoFilters, array $keywords, array $expandedTopics, array $expandedGeos, array $synonyms): float {
     $score = (float)($fc['ft_relevance'] ?? 0) * 5;
     $title = strtolower($fc['title'] ?? '');
@@ -346,6 +392,20 @@ $allSearchTerms = array_unique(array_merge($expandedTopics, $expandedGeos, $keyw
 // Funding calls are access-controlled: pending users cannot fetch them at all
 $fcCandidates = (is_approved() && $filterType !== 'researcher' && $filterType !== 'institution' && !empty($allSearchTerms)) ? fetchCandidates($conn, 'funding_calls', $allSearchTerms, $filterStatus, 'title,description,topics,geography') : [];
 $rCandidates = ($filterType !== 'funding' && $filterType !== 'institution' && !empty($allSearchTerms)) ? fetchCandidates($conn, 'researchers', $allSearchTerms, '', 'first_name,last_name,institution,bio,topics,geography') : [];
+
+// Also search ORCID keywords for researchers (finds researchers by their publication topics)
+if ($filterType !== 'funding' && $filterType !== 'institution' && !empty($allSearchTerms)) {
+    $orcidKeywordMatches = fetchCandidatesFromOrcidKeywords($conn, $allSearchTerms);
+    // Merge ORCID results, avoiding duplicate researcher IDs
+    $existingIds = array_column($rCandidates, 'id');
+    foreach ($orcidKeywordMatches as $match) {
+        if (!in_array($match['id'], $existingIds)) {
+            $match['orcid_keyword_match'] = true;
+            $rCandidates[] = $match;
+            $existingIds[] = $match['id'];
+        }
+    }
+}
 
 // Step 4b: Semantic search for researchers (enhanced matching)
 $semanticResults = [];
