@@ -1286,13 +1286,41 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 <?php endif; ?>
 
+<style>
+.r-ava{
+    width:52px;height:52px;border-radius:14px;flex:none;
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:800;font-size:18px;letter-spacing:.02em;
+    box-shadow:inset 0 -10px 18px rgba(0,0,0,.12);
+    user-select:none;
+}
+.r-ava-lg{width:64px;height:64px;border-radius:16px;font-size:22px}
+.r-ava-0{background:linear-gradient(135deg,#1a6b5a,#3fa88a)}
+.r-ava-1{background:linear-gradient(135deg,#11473b,#2e8f74)}
+.r-ava-2{background:linear-gradient(135deg,#a9863c,#c8a85a)}
+.r-ava-3{background:linear-gradient(135deg,#24735f,#57b294)}
+.r-ava-4{background:linear-gradient(135deg,#1c2a24,#1a6b5a)}
+.lk-results .list-card{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease}
+.lk-results .list-card:hover{transform:translateY(-2px);box-shadow:0 14px 30px -20px rgba(26,107,90,.5);border-color:rgba(26,107,90,.3)}
+.mini-label.r-micro{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#1a6b5a;opacity:.75;margin-top:12px;margin-bottom:4px}
+@media(max-width:700px){.lk-results .r-ava{display:none}}
+</style>
+
 <!-- ── View panel ─────────────────────────────────────────────────── -->
 <?php if (!$isRegistering && $viewing): ?>
+<?php
+    $vName = trim(($viewing['first_name'] ?? '') . ' ' . ($viewing['last_name'] ?? ''));
+    $vInit = strtoupper(mb_substr($viewing['first_name'] ?? '', 0, 1) . mb_substr($viewing['last_name'] ?? '', 0, 1));
+    $vIdx  = abs(crc32($vName)) % 5;
+?>
 <div class="panel modalish">
     <div class="head-row">
-        <div>
-            <h2 style="margin-bottom:2px"><?= h(trim(($viewing['first_name'] ?? '') . ' ' . ($viewing['last_name'] ?? ''))) ?></h2>
-            <?php if ($viewing['title']): ?><div class="muted" style="font-size:14px"><?= h($viewing['title']) ?><?= $viewing['institution'] ? ' · ' . h($viewing['institution']) : '' ?></div><?php endif; ?>
+        <div style="display:flex;align-items:center;gap:16px">
+            <div class="r-ava r-ava-lg r-ava-<?= $vIdx ?>"><?= h($vInit) ?></div>
+            <div>
+                <h2 style="margin-bottom:2px"><?= h($vName) ?></h2>
+                <?php if ($viewing['title']): ?><div class="muted" style="font-size:14px"><?= h($viewing['title']) ?><?= $viewing['institution'] ? ' · ' . h($viewing['institution']) : '' ?></div><?php endif; ?>
+            </div>
         </div>
         <a class="ghost-btn" href="<?= $fromSearch ? 'index.php?page=search' . ($searchSessionKey ? '&s=' . h($searchSessionKey) : '') : 'index.php?page=researchers' ?>">
             <?= $fromSearch ? '← Back to Search' : 'Close' ?>
@@ -1495,26 +1523,36 @@ document.addEventListener('DOMContentLoaded', function() {
                 'coadvising' => !empty($r['co_advising']),
             ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?: '{}';
         ?>
+        <?php
+            $avaName = trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
+            $avaInit = strtoupper(mb_substr($r['first_name'] ?? '', 0, 1) . mb_substr($r['last_name'] ?? '', 0, 1));
+            $avaIdx  = abs(crc32($avaName)) % 5;
+        ?>
         <div class="panel list-card" data-filter="<?= h($filterData) ?>">
             <div class="card-row">
+                <div class="r-ava r-ava-<?= $avaIdx ?>"><?= h($avaInit) ?></div>
                 <div class="card-main">
                     <div class="title-line">
-                        <h3><?= h(trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''))) ?></h3>
+                        <h3><?= h($avaName) ?></h3>
                         <?php if (!empty($r['co_advising'])): ?><span class="badge badge-outline">Co-advising</span><?php endif; ?>
                     </div>
                     <div class="muted"><?= h(implode(' · ', array_filter([$r['title'] ?? '', $r['institution'] ?? '']))) ?></div>
                     <?php if ($rCats): ?>
-                    <div class="mini-label">Category:</div>
+                    <div class="mini-label r-micro">Focus areas</div>
                     <div class="tag-row">
                         <?php foreach ($rCats as $cat): ?>
                         <span class="tag" style="background:#eef3ff;color:#3b5bdb;border-color:#c5d0f5"><?= h($cat) ?></span>
                         <?php endforeach; ?>
                     </div>
                     <?php endif; ?>
-                    <div class="mini-label">Topics:</div>
+                    <?php if ($rTopics): ?>
+                    <div class="mini-label r-micro">Topics</div>
                     <div class="tag-row"><?php foreach (array_slice($rTopics, 0, 4) as $tag): ?><span class="tag topic-tag"><?= h($tag) ?></span><?php endforeach; ?></div>
-                    <div class="mini-label">Geography:</div>
+                    <?php endif; ?>
+                    <?php if ($rGeos): ?>
+                    <div class="mini-label r-micro">Geography</div>
                     <div class="tag-row"><?php foreach (array_slice($rGeos, 0, 4) as $tag): ?><span class="tag geo-tag"><?= h($tag) ?></span><?php endforeach; ?></div>
+                    <?php endif; ?>
                 </div>
                 <div class="card-actions">
                     <a class="ghost-btn" href="index.php?page=researchers&view=<?= (int)$r['id'] ?>">View</a>
