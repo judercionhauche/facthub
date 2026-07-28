@@ -1213,12 +1213,12 @@ function apply_research_publications_schema(mysqli $conn): void {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
             ");
             error_log('[Research Schema] Created research_projects table');
-
-            // Add url column if it doesn't exist (for upgrades)
-            @$conn->query("ALTER TABLE research_projects ADD COLUMN url VARCHAR(500) AFTER description");
         } else {
             // Table exists, ensure url column exists (for existing installations)
-            @$conn->query("ALTER TABLE research_projects ADD COLUMN url VARCHAR(500) AFTER description");
+            $colCheck = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='research_projects' AND COLUMN_NAME='url' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$colCheck || $colCheck->num_rows === 0) {
+                @$conn->query("ALTER TABLE research_projects ADD COLUMN url VARCHAR(500) AFTER description");
+            }
 
             // One-time migration: copy funded_projects rows into research_projects
             $fpExists = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='funded_projects' AND TABLE_SCHEMA=DATABASE() LIMIT 1");

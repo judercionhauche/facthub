@@ -2807,7 +2807,7 @@ $impMoney = static function (int $v): string {
 </div>
 
 <?php
-require_once __DIR__ . '/../../app/services/ResearchPublicationsService.php';
+require_once __DIR__ . '/../../services/ResearchPublicationsService.php';
 $rpService = new ResearchPublicationsService($conn);
 $researchProjects = $rpService->listResearchProjects();
 $publications = $rpService->listPublications();
