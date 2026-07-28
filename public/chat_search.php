@@ -609,16 +609,38 @@ foreach ($topN as $item) {
     $r = $item['r'];
     $resultsSummary .= "- " . trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? 'Unknown')) . " (" . ($r['institution'] ?? 'Unknown') . ")\n";
 
-    // Include recent publications if available
-    $pubStmt = $conn->prepare(
-        'SELECT title FROM researcher_publications WHERE researcher_id = ? ORDER BY publication_year DESC LIMIT 2'
-    );
-    $pubStmt->bind_param('i', $r['id']);
-    $pubStmt->execute();
-    $pubs = $pubStmt->get_result()->fetch_all(MYSQLI_ASSOC);
-    if (!empty($pubs)) {
-        foreach ($pubs as $pub) {
-            $resultsSummary .= "  • " . ($pub['title'] ?? '') . "\n";
+    // Check ORCID for publications first
+    $orcidPubCount = 0;
+    $orcidPubsForSummary = [];
+    if (!empty($r['orcid_id']) && $orcid) {
+        $orcidData = $orcid->getEnrichedResearcher((int)$r['id'], $r['orcid_id']);
+        if ($orcidData && !empty($orcidData['publications'])) {
+            $orcidPubCount = count($orcidData['publications']);
+            $orcidPubsForSummary = array_slice($orcidData['publications'], 0, 3);
+        }
+    }
+
+    // If we have ORCID publications, mention all of them
+    if ($orcidPubCount > 0) {
+        $resultsSummary .= "  Has " . $orcidPubCount . " publications on ORCID:\n";
+        foreach ($orcidPubsForSummary as $pub) {
+            $resultsSummary .= "    • " . (is_string($pub['title']) ? $pub['title'] : ($pub['title'] ?? 'Untitled')) . "\n";
+        }
+        if ($orcidPubCount > 3) {
+            $resultsSummary .= "    ... and " . ($orcidPubCount - 3) . " more on ORCID\n";
+        }
+    } else {
+        // Fallback: local publications
+        $pubStmt = $conn->prepare(
+            'SELECT title FROM researcher_publications WHERE researcher_id = ? ORDER BY publication_year DESC LIMIT 2'
+        );
+        $pubStmt->bind_param('i', $r['id']);
+        $pubStmt->execute();
+        $pubs = $pubStmt->get_result()->fetch_all(MYSQLI_ASSOC);
+        if (!empty($pubs)) {
+            foreach ($pubs as $pub) {
+                $resultsSummary .= "  • " . ($pub['title'] ?? '') . "\n";
+            }
         }
     }
 }
