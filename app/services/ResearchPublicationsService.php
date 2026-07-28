@@ -22,16 +22,18 @@ class ResearchPublicationsService {
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
 
+        $title = $data['title'];
+        $desc = $data['description'] ?? null;
+        $status = $data['status'] ?? 'active';
+        $funder = $data['funder_name'] ?? null;
+        $amount = $data['grant_amount'] ?? null;
+        $grantId = $data['grant_id'] ?? null;
+        $startYear = $data['start_year'] ?? null;
+        $endYear = $data['end_year'] ?? null;
+
         $stmt->bind_param(
             'ssssdsii',
-            $data['title'],
-            $data['description'] ?? null,
-            $data['status'] ?? 'active',
-            $data['funder_name'] ?? null,
-            $data['grant_amount'] ?? null,
-            $data['grant_id'] ?? null,
-            $data['start_year'] ?? null,
-            $data['end_year'] ?? null
+            $title, $desc, $status, $funder, $amount, $grantId, $startYear, $endYear
         );
 
         if ($stmt->execute()) {
@@ -49,17 +51,18 @@ class ResearchPublicationsService {
             WHERE id = ?
         ");
 
+        $title = $data['title'];
+        $desc = $data['description'] ?? null;
+        $status = $data['status'] ?? 'active';
+        $funder = $data['funder_name'] ?? null;
+        $amount = $data['grant_amount'] ?? null;
+        $grantId = $data['grant_id'] ?? null;
+        $startYear = $data['start_year'] ?? null;
+        $endYear = $data['end_year'] ?? null;
+
         $stmt->bind_param(
             'ssssdsiii',
-            $data['title'],
-            $data['description'] ?? null,
-            $data['status'] ?? 'active',
-            $data['funder_name'] ?? null,
-            $data['grant_amount'] ?? null,
-            $data['grant_id'] ?? null,
-            $data['start_year'] ?? null,
-            $data['end_year'] ?? null,
-            $id
+            $title, $desc, $status, $funder, $amount, $grantId, $startYear, $endYear, $id
         );
 
         return $stmt->execute();
@@ -128,15 +131,17 @@ class ResearchPublicationsService {
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
 
+        $title = $data['title'];
+        $desc = $data['description'] ?? null;
+        $url = $data['url'];
+        $year = $data['publication_year'] ?? null;
+        $funder = $data['funder_name'] ?? null;
+        $amount = $data['grant_amount'] ?? null;
+        $grantId = $data['grant_id'] ?? null;
+
         $stmt->bind_param(
             'sssisds',
-            $data['title'],
-            $data['description'] ?? null,
-            $data['url'],
-            $data['publication_year'] ?? null,
-            $data['funder_name'] ?? null,
-            $data['grant_amount'] ?? null,
-            $data['grant_id'] ?? null
+            $title, $desc, $url, $year, $funder, $amount, $grantId
         );
 
         if ($stmt->execute()) {
@@ -153,16 +158,17 @@ class ResearchPublicationsService {
             WHERE id = ?
         ");
 
+        $title = $data['title'];
+        $desc = $data['description'] ?? null;
+        $url = $data['url'];
+        $year = $data['publication_year'] ?? null;
+        $funder = $data['funder_name'] ?? null;
+        $amount = $data['grant_amount'] ?? null;
+        $grantId = $data['grant_id'] ?? null;
+
         $stmt->bind_param(
             'sssisdsii',
-            $data['title'],
-            $data['description'] ?? null,
-            $data['url'],
-            $data['publication_year'] ?? null,
-            $data['funder_name'] ?? null,
-            $data['grant_amount'] ?? null,
-            $data['grant_id'] ?? null,
-            $id
+            $title, $desc, $url, $year, $funder, $amount, $grantId, $id
         );
 
         return $stmt->execute();
