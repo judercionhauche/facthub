@@ -418,7 +418,7 @@ FilterPanel.prototype._run = function() {
     if (ok) vis++;
   });
 
-  if (this.cnt) this.cnt.textContent = vis + (vis === 1 ? ' result' : ' results');
+  if (this.cnt) this.cnt.innerHTML = '<b>' + vis + '</b> ' + (vis === 1 ? 'researcher' : 'researchers');
   this._save();
 };
 
