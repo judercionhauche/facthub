@@ -7,8 +7,8 @@
 require_once __DIR__ . '/../../services/ResearchPublicationsService.php';
 
 $service = new ResearchPublicationsService($conn);
-$research = array_slice($service->listResearchProjects(), 0, 2);
-$publications = array_slice($service->listPublications(), 0, 2);
+$research = $service->listResearchProjects();
+$publications = $service->listPublications();
 
 if (empty($research) && empty($publications)) {
     return;
@@ -249,7 +249,7 @@ if (empty($research) && empty($publications)) {
 
               <?php if (!empty($project['start_year']) || !empty($project['end_year'])): ?>
               <div class="rp-meta-row">
-                <span class="rp-meta-label">Timeline</span>
+                <span class="rp-meta-label">Year</span>
                 <span class="rp-meta-value"><?= h($project['start_year'] ?? '') ?><?= (!empty($project['start_year']) && !empty($project['end_year'])) ? '–' : '' ?><?= h($project['end_year'] ?? '') ?></span>
               </div>
               <?php endif; ?>
