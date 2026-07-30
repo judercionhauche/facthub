@@ -666,6 +666,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $title = trim($_POST['title'] ?? '');
         $desc = trim($_POST['description'] ?? '');
         $url = trim($_POST['url'] ?? '') ?: null;
+        $team = trim($_POST['team_members'] ?? '') ?: null;
         $status = in_array($_POST['status'] ?? '', ['active', 'completed', 'paused'], true) ? $_POST['status'] : 'active';
         $funder = trim($_POST['funder_name'] ?? '');
         $amount = max(0, (int)($_POST['grant_amount'] ?? 0)) ?: null;
@@ -677,6 +678,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'title' => $title,
                 'description' => $desc,
                 'url' => $url,
+                'team_members' => $team,
                 'status' => $status,
                 'funder_name' => $funder ?: null,
                 'grant_amount' => $amount,
@@ -692,13 +694,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pid = $rpService->createResearchProject($data);
                 audit($conn, 'add_research_project', ['type' => 'research_project', 'id' => $pid, 'detail' => $title]);
                 set_flash('success', 'Research project added.');
-            }
-
-            $teamIds = array_filter(array_map('intval', $_POST['team_members[]'] ?? []), function($id) { return $id > 0; });
-            $validIds = array_column($rpService->getResearcherOptions(), 'id');
-            $sanitized = array_intersect($teamIds, $validIds);
-            if ($pid && !empty($sanitized)) {
-                $rpService->setResearchTeam($pid, $sanitized);
             }
         } else {
             set_flash('error', 'Project title is required.');
@@ -721,6 +716,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $title = trim($_POST['title'] ?? '');
         $url = trim($_POST['url'] ?? '');
         $desc = trim($_POST['description'] ?? '');
+        $team = trim($_POST['team_members'] ?? '') ?: null;
         $year = (int)($_POST['publication_year'] ?? 0) ?: null;
         $funder = trim($_POST['funder_name'] ?? '');
         $amount = max(0, (int)($_POST['grant_amount'] ?? 0)) ?: null;
@@ -730,6 +726,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'title' => $title,
                 'url' => $url,
                 'description' => $desc,
+                'team_members' => $team,
                 'publication_year' => $year,
                 'funder_name' => $funder ?: null,
                 'grant_amount' => $amount,
@@ -743,13 +740,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pid = $rpService->createPublication($data);
                 audit($conn, 'add_publication', ['type' => 'publication', 'id' => $pid, 'detail' => $title]);
                 set_flash('success', 'Publication added.');
-            }
-
-            $teamIds = array_filter(array_map('intval', $_POST['team_members[]'] ?? []), function($id) { return $id > 0; });
-            $validIds = array_column($rpService->getResearcherOptions(), 'id');
-            $sanitized = array_intersect($teamIds, $validIds);
-            if ($pid && !empty($sanitized)) {
-                $rpService->setPublicationTeam($pid, $sanitized);
             }
         } else {
             set_flash('error', 'Publication title and URL are required.');
@@ -2811,8 +2801,6 @@ require_once __DIR__ . '/../../services/ResearchPublicationsService.php';
 $rpService = new ResearchPublicationsService($conn);
 $researchProjects = $rpService->listResearchProjects();
 $publications = $rpService->listPublications();
-$researcherOptions = $rpService->getResearcherOptions();
-$researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id'], 'label' => $r['name']]; }, $researcherOptions));
 ?>
 
 <style>
@@ -2828,24 +2816,6 @@ $researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id
 .rp-summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--primary);user-select:none}
 .rp-del-btn{background:none;border:1px solid #e3c4c4;color:var(--danger);border-radius:7px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer}
 .rp-del-btn:hover{background:#fbf0f0}
-.msel{position:relative;display:inline-block;width:100%}
-.msel-btn{cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 9px;font-size:13px;border:1px solid var(--line);border-radius:7px;background:var(--bg);min-height:36px}
-.msel-btn-lbl{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
-.msel-btn-lbl.msel-has-val{color:#1c2a24}
-.msel-btn-arr{font-size:10px;transition:transform .2s}
-.msel-open .msel-btn-arr{transform:rotate(180deg)}
-.msel-drop{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:7px;margin-top:2px;max-height:0;overflow:hidden;transition:max-height .2s ease;z-index:1000}
-.msel-drop-open{max-height:300px;box-shadow:0 8px 16px rgba(0,0,0,.1)}
-.msel-srch{width:100%;padding:7px 9px;font-size:13px;border:none;border-bottom:1px solid var(--line);box-sizing:border-box}
-.msel-body{max-height:260px;overflow-y:auto}
-.msel-group-label{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);padding:6px 9px;background:#f9f9f9;border-bottom:1px solid var(--line);margin-top:4px}
-.msel-item{padding:8px 9px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px}
-.msel-item:hover{background:var(--paper)}
-.msel-item input{cursor:pointer}
-.msel-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
-.msel-chip{display:inline-flex;align-items:center;gap:6px;background:var(--primary-2);color:var(--primary);padding:4px 8px;border-radius:14px;font-size:12px;font-weight:600}
-.msel-chip-remove{cursor:pointer;font-weight:800}
-.msel-hid{display:none}
 </style>
 
 <div style="display:grid;gap:24px">
@@ -2857,9 +2827,7 @@ $researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id
             <span style="font-size:12px;color:var(--muted)"><?= count($researchProjects) ?> project<?= count($researchProjects) === 1 ? '' : 's' ?></span>
         </div>
 
-        <?php foreach ($researchProjects as $p):
-            $teamIds = array_filter(explode(',', $p['team_ids'] ?? ''));
-        ?>
+        <?php foreach ($researchProjects as $p): ?>
         <div class="rp-row">
             <div class="rp-row-main">
                 <div class="rp-row-title"><?= h($p['title']) ?></div>
@@ -2879,7 +2847,7 @@ $researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id
                     <div><label>Grant Amount</label><input type="number" name="grant_amount" value="<?= (int)($p['grant_amount'] ?? 0) ?>" min="0"></div>
                     <div><label>Start Year</label><input type="number" name="start_year" value="<?= (int)($p['start_year'] ?? 0) ?>" min="2000" max="2100"></div>
                     <div><label>End Year</label><input type="number" name="end_year" value="<?= (int)($p['end_year'] ?? 0) ?>" min="2000" max="2100"></div>
-                    <div class="rp-span"><label>Research Team</label><div id="rp-team-msel-<?= (int)$p['id'] ?>"></div></div>
+                    <div class="rp-span"><label>Research Team (comma-separated names)</label><input name="team_members" value="<?= h($p['team_members'] ?? '') ?>" placeholder="e.g. G. Sixt, K. Strzepek"></div>
                     <div class="rp-actions">
                         <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Save</button>
                     </div>
@@ -2908,7 +2876,7 @@ $researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id
                 <div><label>Grant Amount</label><input type="number" name="grant_amount" value="0" min="0"></div>
                 <div><label>Start Year</label><input type="number" name="start_year" min="2000" max="2100"></div>
                 <div><label>End Year</label><input type="number" name="end_year" min="2000" max="2100"></div>
-                <div class="rp-span"><label>Research Team</label><div id="rp-team-msel-0"></div></div>
+                <div class="rp-span"><label>Research Team (comma-separated names)</label><input name="team_members" placeholder="e.g. G. Sixt, K. Strzepek"></div>
                 <div class="rp-actions">
                     <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Add project</button>
                 </div>
@@ -2923,9 +2891,7 @@ $researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id
             <span style="font-size:12px;color:var(--muted)"><?= count($publications) ?> publication<?= count($publications) === 1 ? '' : 's' ?></span>
         </div>
 
-        <?php foreach ($publications as $p):
-            $teamIds = array_filter(explode(',', $p['team_ids'] ?? ''));
-        ?>
+        <?php foreach ($publications as $p): ?>
         <div class="rp-row">
             <div class="rp-row-main">
                 <div class="rp-row-title"><?= h($p['title']) ?></div>
@@ -2943,7 +2909,7 @@ $researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id
                     <div><label>Publication Year</label><input type="number" name="publication_year" value="<?= (int)($p['publication_year'] ?? 0) ?>" min="2000" max="2100"></div>
                     <div><label>Funder</label><input name="funder_name" value="<?= h($p['funder_name'] ?? '') ?>"></div>
                     <div><label>Amount</label><input type="number" name="grant_amount" value="<?= (int)($p['grant_amount'] ?? 0) ?>" min="0"></div>
-                    <div class="rp-span"><label>Authors</label><div id="rp-team-msel-pub-<?= (int)$p['id'] ?>"></div></div>
+                    <div class="rp-span"><label>Authors (comma-separated names)</label><input name="team_members" value="<?= h($p['team_members'] ?? '') ?>" placeholder="e.g. L. Ziska, G. Sixt"></div>
                     <div class="rp-actions">
                         <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Save</button>
                     </div>
@@ -2970,7 +2936,7 @@ $researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id
                 <div><label>Publication Year</label><input type="number" name="publication_year" min="2000" max="2100"></div>
                 <div><label>Funder</label><input name="funder_name" placeholder="Optional"></div>
                 <div><label>Amount</label><input type="number" name="grant_amount" value="0" min="0"></div>
-                <div class="rp-span"><label>Authors</label><div id="rp-team-msel-pub-0"></div></div>
+                <div class="rp-span"><label>Authors (comma-separated names)</label><input name="team_members" placeholder="e.g. L. Ziska, G. Sixt"></div>
                 <div class="rp-actions">
                     <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Add publication</button>
                 </div>
@@ -2979,64 +2945,6 @@ $researcherJson = json_encode(array_map(function($r) { return ['value' => $r['id
     </div>
 
 </div>
-
-<script>
-(function(){
-    const items = <?= $researcherJson ?>;
-
-    // Render MultiSelect widgets for research projects
-    <?php foreach ($researchProjects as $p):
-        $teamIds = array_filter(explode(',', $p['team_ids'] ?? ''));
-    ?>
-    const el_<?= (int)$p['id'] ?> = document.getElementById('rp-team-msel-<?= (int)$p['id'] ?>');
-    if(el_<?= (int)$p['id'] ?>) {
-        new MultiSelect(el_<?= (int)$p['id'] ?>, {
-            name: 'team_members',
-            items: items,
-            selected: [<?= implode(',', $teamIds) ?>],
-            placeholder: 'Select team members...'
-        });
-    }
-    <?php endforeach; ?>
-
-    // Render MultiSelect widget for new research project
-    const el_0 = document.getElementById('rp-team-msel-0');
-    if(el_0) {
-        new MultiSelect(el_0, {
-            name: 'team_members',
-            items: items,
-            selected: [],
-            placeholder: 'Select team members...'
-        });
-    }
-
-    // Render MultiSelect widgets for publications
-    <?php foreach ($publications as $p):
-        $teamIds = array_filter(explode(',', $p['team_ids'] ?? ''));
-    ?>
-    const el_pub_<?= (int)$p['id'] ?> = document.getElementById('rp-team-msel-pub-<?= (int)$p['id'] ?>');
-    if(el_pub_<?= (int)$p['id'] ?>) {
-        new MultiSelect(el_pub_<?= (int)$p['id'] ?>, {
-            name: 'team_members',
-            items: items,
-            selected: [<?= implode(',', $teamIds) ?>],
-            placeholder: 'Select authors...'
-        });
-    }
-    <?php endforeach; ?>
-
-    // Render MultiSelect widget for new publication
-    const el_pub_0 = document.getElementById('rp-team-msel-pub-0');
-    if(el_pub_0) {
-        new MultiSelect(el_pub_0, {
-            name: 'team_members',
-            items: items,
-            selected: [],
-            placeholder: 'Select authors...'
-        });
-    }
-})();
-</script>
 
 <?php endif; /* end section switch */ ?>
 

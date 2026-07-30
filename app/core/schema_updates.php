@@ -1200,6 +1200,7 @@ function apply_research_publications_schema(mysqli $conn): void {
                     title VARCHAR(255) NOT NULL,
                     description LONGTEXT,
                     url VARCHAR(500),
+                    team_members TEXT,
                     status ENUM('active', 'completed', 'paused') DEFAULT 'active',
                     funder_name VARCHAR(255),
                     grant_amount DECIMAL(15, 2),
@@ -1223,6 +1224,20 @@ function apply_research_publications_schema(mysqli $conn): void {
             if (!$delCheck || $delCheck->num_rows === 0) {
                 @$conn->query("ALTER TABLE research_projects ADD COLUMN deleted_at TIMESTAMP NULL AFTER updated_at");
                 @$conn->query("ALTER TABLE research_projects ADD KEY idx_deleted (deleted_at)");
+            }
+            // Free-text team members column; backfill once from the old junction table
+            $tmCheck = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='research_projects' AND COLUMN_NAME='team_members' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$tmCheck || $tmCheck->num_rows === 0) {
+                @$conn->query("ALTER TABLE research_projects ADD COLUMN team_members TEXT AFTER url");
+                @$conn->query("
+                    UPDATE research_projects rp SET rp.team_members = (
+                        SELECT GROUP_CONCAT(CONCAT(r.first_name, ' ', r.last_name) ORDER BY t.display_order SEPARATOR ', ')
+                        FROM research_project_team t
+                        JOIN researchers r ON r.id = t.researcher_id
+                        WHERE t.research_project_id = rp.id
+                    ) WHERE rp.team_members IS NULL
+                ");
+                error_log('[Research Schema] Added team_members column, backfilled from junction table');
             }
 
             // One-time migration: copy funded_projects rows into research_projects (only if empty)
@@ -1286,6 +1301,7 @@ function apply_research_publications_schema(mysqli $conn): void {
                     title VARCHAR(500) NOT NULL,
                     description LONGTEXT,
                     url VARCHAR(500) NOT NULL,
+                    team_members TEXT,
                     publication_year INT,
                     funder_name VARCHAR(255),
                     grant_amount DECIMAL(15, 2),
@@ -1304,6 +1320,20 @@ function apply_research_publications_schema(mysqli $conn): void {
             if (!$delCheck || $delCheck->num_rows === 0) {
                 @$conn->query("ALTER TABLE publications_showcase ADD COLUMN deleted_at TIMESTAMP NULL AFTER updated_at");
                 @$conn->query("ALTER TABLE publications_showcase ADD KEY idx_deleted (deleted_at)");
+            }
+            // Free-text authors column; backfill once from the old junction table
+            $tmCheck = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='publications_showcase' AND COLUMN_NAME='team_members' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$tmCheck || $tmCheck->num_rows === 0) {
+                @$conn->query("ALTER TABLE publications_showcase ADD COLUMN team_members TEXT AFTER url");
+                @$conn->query("
+                    UPDATE publications_showcase ps SET ps.team_members = (
+                        SELECT GROUP_CONCAT(CONCAT(r.first_name, ' ', r.last_name) ORDER BY t.display_order SEPARATOR ', ')
+                        FROM publication_team t
+                        JOIN researchers r ON r.id = t.researcher_id
+                        WHERE t.publication_id = ps.id
+                    ) WHERE ps.team_members IS NULL
+                ");
+                error_log('[Publications Schema] Added team_members column, backfilled from junction table');
             }
         }
 
