@@ -49,6 +49,12 @@ foreach ($landStudents as $s) { if ($s['level'] === 'PhD') $phdCount++; else $ms
 $studentCount = count($landStudents);
 $projectCount = count($landProjects);
 
+$pubCount = 0;
+try {
+    $r = $conn->query("SELECT COUNT(*) c FROM publications_showcase WHERE deleted_at IS NULL");
+    if ($r) $pubCount = (int)($r->fetch_assoc()['c'] ?? 0);
+} catch (Throwable $e) { error_log('[Landing] publications count error: ' . $e->getMessage()); }
+
 // $5.7M-style short money format
 function land_money(int $v): string {
     if ($v >= 1000000) return '$' . rtrim(rtrim(number_format($v / 1000000, 1), '0'), '.') . 'M';
@@ -165,21 +171,24 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
   .section-head p{color:var(--l-muted);font-size:1.05rem;margin:16px 0 0;max-width:560px}
 
   /* ---------- KPI CARDS ---------- */
-  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+  .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
   .kpi{
     background:var(--card);border:1px solid var(--l-line);border-radius:18px;
-    padding:30px 26px 26px;position:relative;overflow:hidden;
-    transition:transform .3s ease,box-shadow .3s ease;
+    padding:26px 22px 22px;position:relative;overflow:hidden;
+    display:flex;flex-direction:column;
+    transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease;
   }
-  .kpi:hover{transform:translateY(-4px);box-shadow:0 18px 40px -22px rgba(26,107,90,.4)}
+  .kpi:hover{transform:translateY(-4px);box-shadow:0 18px 40px -22px rgba(26,107,90,.4);border-color:var(--l-line-strong)}
   .kpi .tick{position:absolute;top:0;left:0;width:100%;height:4px}
-  .kpi:nth-child(1) .tick{background:var(--gold)}
-  .kpi:nth-child(2) .tick{background:var(--pine)}
-  .kpi:nth-child(3) .tick{background:var(--leaf)}
-  .kpi:nth-child(4) .tick{background:var(--mint)}
-  .kpi .num{font-weight:800;font-size:clamp(2.3rem,4vw,3rem);line-height:1;letter-spacing:-.02em;color:var(--pine-deep)}
-  .kpi .lbl{font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;font-weight:700;color:var(--l-muted);margin-top:14px}
-  .kpi .sub{font-size:13.5px;color:var(--l-muted);margin-top:10px;line-height:1.4}
+  .kpi:nth-child(1) .tick{background:linear-gradient(90deg,var(--gold),#dcc084)}
+  .kpi:nth-child(2) .tick{background:linear-gradient(90deg,var(--pine),var(--leaf))}
+  .kpi:nth-child(3) .tick{background:linear-gradient(90deg,var(--pine-deep),var(--pine))}
+  .kpi:nth-child(4) .tick{background:linear-gradient(90deg,var(--leaf),var(--mint))}
+  .kpi:nth-child(5) .tick{background:linear-gradient(90deg,var(--mint),var(--gold))}
+  .kpi .num{font-weight:800;font-size:clamp(1.9rem,2.6vw,2.6rem);line-height:1;letter-spacing:-.02em;color:var(--pine-deep)}
+  .kpi .lbl{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--pine);margin-top:12px}
+  .kpi .sub{font-size:12.5px;color:var(--l-muted);margin-top:8px;line-height:1.45}
+  @media(max-width:1240px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
 
   /* ---------- CHART ROW ---------- */
   .charts{display:grid;grid-template-columns:1.35fr 1fr;gap:24px;margin-top:8px}
@@ -383,6 +392,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Member institutions</div><div class="sub">Universities and labs across <?= $landCountries ?> countries.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $landCollaborations ?>"><?= $landCollaborations ?></div><div class="lbl">Collaborations</div><div class="sub">Active partnerships across the alliance network.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $projectCount ?>"><?= $projectCount ?></div><div class="lbl">Research projects</div><div class="sub">From smallholder systems to global food-trade modelling.</div></div>
+      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $pubCount ?>"><?= $pubCount ?></div><div class="lbl">Publications</div><div class="sub">Scholarly work published from the FACT Alliance.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $studentCount ?>"><?= $studentCount ?></div><div class="lbl">Students co-advised</div><div class="sub">Doctoral and Masters researchers mentored through collaborative projects.</div></div>
     </div>
 
