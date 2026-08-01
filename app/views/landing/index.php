@@ -42,6 +42,12 @@ try {
     }
 } catch (Throwable $e) { error_log('[Landing] impact_metrics fetch error: ' . $e->getMessage()); }
 
+// Member institutions / countries are counted live from the trusted domains
+// settings list; the manual metric above only serves as a fallback
+$instStats = count_member_institutions($conn);
+if ($instStats['institutions'] > 0) $landInstitutions = $instStats['institutions'];
+if ($instStats['countries'] > 0)    $landCountries    = $instStats['countries'];
+
 $fundingSecured = 0; foreach ($landProjects as $p)  $fundingSecured += (int)($p['grant_amount'] ?? 0);
 $pipelineAmt    = 0; foreach ($landProposals as $p) $pipelineAmt    += (int)$p['amount'];
 $phdCount = 0; $mscCount = 0;

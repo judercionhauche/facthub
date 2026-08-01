@@ -392,6 +392,29 @@ function is_trusted_domain(mysqli $conn, string $email): bool {
     return $result->num_rows > 0;
 }
 
+/**
+ * Member-institution stats derived from the trusted domains settings list.
+ * Returns ['institutions' => int, 'countries' => int] — distinct institution
+ * names and distinct non-empty countries across trusted_domains.
+ */
+function count_member_institutions(mysqli $conn): array {
+    $out = ['institutions' => 0, 'countries' => 0];
+    try {
+        $r = @$conn->query("
+            SELECT COUNT(DISTINCT institution_name) AS i,
+                   COUNT(DISTINCT NULLIF(TRIM(country), '')) AS c
+            FROM trusted_domains
+        ");
+        if ($r && ($row = $r->fetch_assoc())) {
+            $out['institutions'] = (int)$row['i'];
+            $out['countries']    = (int)$row['c'];
+        }
+    } catch (Throwable $e) {
+        error_log('[Metrics] trusted_domains count error: ' . $e->getMessage());
+    }
+    return $out;
+}
+
 function send_weekly_digest(mysqli $conn): void {
     // Find all researchers with weekly frequency who haven't been sent in the last 7 days
     $weekAgo = date('Y-m-d H:i:s', time() - (7 * 86400));

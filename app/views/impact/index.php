@@ -35,6 +35,12 @@ try {
     }
 } catch (Throwable $e) { error_log('[Impact] impact_metrics fetch error: ' . $e->getMessage()); }
 
+// Member institutions / countries are counted live from the trusted domains
+// settings list; the manual metric above only serves as a fallback
+$instStats = count_member_institutions($conn);
+if ($instStats['institutions'] > 0) $landInstitutions = $instStats['institutions'];
+if ($instStats['countries'] > 0)    $landCountries    = $instStats['countries'];
+
 $pubCount = 0;
 try {
     $r = $conn->query("SELECT COUNT(*) c FROM publications_showcase WHERE deleted_at IS NULL");

@@ -2594,8 +2594,9 @@ try {
     $r = $conn->query("SELECT * FROM fact_students ORDER BY display_order, id");
     if ($r) while ($row = $r->fetch_assoc()) $impStudents[] = $row;
 
-    $r = $conn->query("SELECT id, metric_key, metric_value, metric_label FROM impact_metrics WHERE metric_key IN ('partner_institutions','countries_represented')");
+    $r = $conn->query("SELECT id, metric_key, metric_value, metric_label FROM impact_metrics WHERE metric_key = 'countries_represented'");
     if ($r) while ($row = $r->fetch_assoc()) $impHeadline[] = $row;
+    $impInstStats = count_member_institutions($conn);
 } catch (Throwable $e) {
     error_log('[Admin Impact Data] Load error: ' . $e->getMessage());
     echo '<div class="panel" style="padding:18px;color:var(--danger)">Impact data tables could not be loaded — refresh the page to retry. (' . h($e->getMessage()) . ')</div>';
@@ -2636,8 +2637,15 @@ $impMoney = static function (int $v): string {
     <!-- ── Headline metrics ── -->
     <div class="panel" style="padding:24px">
         <h3 style="margin:0 0 6px">Headline numbers</h3>
-        <p style="font-size:12.5px;color:var(--muted);margin:0 0 16px">Edited manually — everything else on the landing page is computed from the data below.</p>
+        <p style="font-size:12.5px;color:var(--muted);margin:0 0 16px">Member institutions is counted automatically from the trusted domains list. Countries is counted from domain country data when available; the manual value below is only a fallback.</p>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">
+            <div style="display:flex;gap:8px;align-items:flex-end;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--primary-2)">
+                <div style="flex:1">
+                    <label style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;display:block;margin-bottom:4px">Member institutions (automatic)</label>
+                    <div style="font-size:22px;font-weight:800;color:var(--primary)"><?= (int)($impInstStats['institutions'] ?? 0) ?><span style="font-size:12px;font-weight:600;color:var(--muted)"> institutions · <?= (int)($impInstStats['countries'] ?? 0) ?> countries from domain data</span></div>
+                </div>
+                <a href="index.php?page=admin&section=settings" class="ghost-btn" style="padding:8px 14px;font-size:12px;white-space:nowrap">Manage domains</a>
+            </div>
         <?php foreach ($impHeadline as $m): ?>
             <form method="post" style="display:flex;gap:8px;align-items:flex-end;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)">
                 <input type="hidden" name="action" value="update_metric">
@@ -2785,7 +2793,7 @@ $impMoney = static function (int $v): string {
 </div>
 
 <div style=”margin-top:28px;padding:16px;background:#f0f7f4;border:1px solid #cfe8d9;border-radius:10px;color:#145c40;font-size:13px;line-height:1.5”>
-    <strong>How it works:</strong> The landing page displays proposal funding, students, and headline metrics from this section. Research projects and publications are managed separately in the Research & Publications section. Only “Member institutions” and “Countries” are set by hand above. Changes appear on the landing page immediately and are logged in the audit trail.
+    <strong>How it works:</strong> The landing page displays proposal funding, students, and headline metrics from this section. Research projects and publications are managed separately in the Research & Publications section. “Member institutions” is counted automatically from the trusted domains list in Settings; “Countries” uses domain country data when available, otherwise the manual value above. Changes appear on the landing page immediately and are logged in the audit trail.
 </div>
 
 
