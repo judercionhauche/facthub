@@ -337,28 +337,14 @@ if (empty($research) && empty($publications)) {
             </div>
             <?php endif; ?>
 
+            <?php if (!empty($pub['publication_year'])): ?>
             <div class="rp-card-meta">
-              <?php if (!empty($pub['publication_year'])): ?>
               <div class="rp-meta-row">
                 <span class="rp-meta-label">Year</span>
                 <span class="rp-meta-value"><?= h($pub['publication_year']) ?></span>
               </div>
-              <?php endif; ?>
-
-              <?php if (!empty($pub['funder_name'])): ?>
-              <div class="rp-meta-row">
-                <span class="rp-meta-label">Funder</span>
-                <span class="rp-meta-value"><?= h($pub['funder_name']) ?></span>
-              </div>
-              <?php endif; ?>
-
-              <?php if ((float)($pub['grant_amount'] ?? 0) > 0): ?>
-              <div class="rp-meta-row">
-                <span class="rp-meta-label">Amount</span>
-                <span class="rp-meta-value">$<?= number_format($pub['grant_amount'], 0) ?></span>
-              </div>
-              <?php endif; ?>
             </div>
+            <?php endif; ?>
 
             <?php if (!empty($pub['url'])): ?>
             <a href="<?= h($pub['url']) ?>" target="_blank" rel="noopener noreferrer" class="rp-card-link">

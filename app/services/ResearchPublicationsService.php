@@ -104,8 +104,8 @@ class ResearchPublicationsService {
     public function createPublication(array $data): ?int {
         $stmt = $this->conn->prepare("
             INSERT INTO publications_showcase
-            (title, description, url, institutions, team_members, publication_year, funder_name, grant_amount)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (title, description, url, institutions, team_members, publication_year)
+            VALUES (?, ?, ?, ?, ?, ?)
         ");
 
         $title = $data['title'];
@@ -114,12 +114,10 @@ class ResearchPublicationsService {
         $institutions = $data['institutions'] ?? null;
         $team = $data['team_members'] ?? null;
         $year = $data['publication_year'] ?? null;
-        $funder = $data['funder_name'] ?? null;
-        $amount = $data['grant_amount'] ?? null;
 
         $stmt->bind_param(
-            'sssssisd',
-            $title, $desc, $url, $institutions, $team, $year, $funder, $amount
+            'sssssi',
+            $title, $desc, $url, $institutions, $team, $year
         );
 
         if ($stmt->execute()) {
@@ -132,7 +130,7 @@ class ResearchPublicationsService {
         $stmt = $this->conn->prepare("
             UPDATE publications_showcase
             SET title = ?, description = ?, url = ?, institutions = ?, team_members = ?,
-                publication_year = ?, funder_name = ?, grant_amount = ?
+                publication_year = ?
             WHERE id = ?
         ");
 
@@ -142,12 +140,10 @@ class ResearchPublicationsService {
         $institutions = $data['institutions'] ?? null;
         $team = $data['team_members'] ?? null;
         $year = $data['publication_year'] ?? null;
-        $funder = $data['funder_name'] ?? null;
-        $amount = $data['grant_amount'] ?? null;
 
         $stmt->bind_param(
-            'sssssisdi',
-            $title, $desc, $url, $institutions, $team, $year, $funder, $amount, $id
+            'sssssii',
+            $title, $desc, $url, $institutions, $team, $year, $id
         );
 
         return $stmt->execute();

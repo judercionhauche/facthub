@@ -1311,9 +1311,6 @@ function apply_research_publications_schema(mysqli $conn): void {
                     institutions TEXT,
                     team_members TEXT,
                     publication_year INT,
-                    funder_name VARCHAR(255),
-                    grant_amount DECIMAL(15, 2),
-                    grant_id VARCHAR(100),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     deleted_at TIMESTAMP NULL,
@@ -1348,6 +1345,14 @@ function apply_research_publications_schema(mysqli $conn): void {
             if (!$instCheck || $instCheck->num_rows === 0) {
                 @$conn->query("ALTER TABLE publications_showcase ADD COLUMN institutions TEXT AFTER url");
                 error_log('[Publications Schema] Added institutions column');
+            }
+            // Publications no longer track funding — drop funder_name / grant_amount if present
+            foreach (['funder_name', 'grant_amount', 'grant_id'] as $dropCol) {
+                $dc = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='publications_showcase' AND COLUMN_NAME='$dropCol' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+                if ($dc && $dc->num_rows > 0) {
+                    @$conn->query("ALTER TABLE publications_showcase DROP COLUMN $dropCol");
+                    error_log("[Publications Schema] Dropped column $dropCol");
+                }
             }
         }
 

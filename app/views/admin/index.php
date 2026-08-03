@@ -721,8 +721,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $institutions = trim($_POST['institutions'] ?? '');
         $team = trim($_POST['team_members'] ?? '') ?: null;
         $year = (int)($_POST['publication_year'] ?? 0) ?: null;
-        $funder = trim($_POST['funder_name'] ?? '');
-        $amount = max(0, (int)($_POST['grant_amount'] ?? 0)) ?: null;
 
         if ($title !== '' && $url !== '' && $institutions !== '') {
             $data = [
@@ -732,8 +730,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'institutions' => $institutions,
                 'team_members' => $team,
                 'publication_year' => $year,
-                'funder_name' => $funder ?: null,
-                'grant_amount' => $amount,
             ];
 
             if ($pid) {
@@ -2921,8 +2917,6 @@ $publications = $rpService->listPublications();
                     <div class="rp-span"><label>URL *</label><input name="url" value="<?= h($p['url']) ?>" type="url" required></div>
                     <div class="rp-span"><label>Description</label><textarea name="description" rows="2"><?= h($p['description']) ?></textarea></div>
                     <div><label>Publication Year</label><input type="number" name="publication_year" value="<?= (int)($p['publication_year'] ?? 0) ?>" min="2000" max="2100"></div>
-                    <div><label>Funder</label><input name="funder_name" value="<?= h($p['funder_name'] ?? '') ?>"></div>
-                    <div><label>Amount</label><input type="number" name="grant_amount" value="<?= (int)($p['grant_amount'] ?? 0) ?>" min="0"></div>
                     <div class="rp-span"><label>Collaborating Institutions * (comma-separated)</label><input name="institutions" value="<?= h($p['institutions'] ?? '') ?>" required placeholder="e.g. MIT, University of Nairobi"></div>
                     <div class="rp-span"><label>Authors (comma-separated names)</label><input name="team_members" value="<?= h($p['team_members'] ?? '') ?>" placeholder="e.g. L. Ziska, G. Sixt"></div>
                     <div class="rp-actions">
@@ -2949,8 +2943,6 @@ $publications = $rpService->listPublications();
                 <div class="rp-span"><label>URL *</label><input name="url" type="url" placeholder="https://..." required></div>
                 <div class="rp-span"><label>Description</label><textarea name="description" rows="2" placeholder="Optional abstract or summary"></textarea></div>
                 <div><label>Publication Year</label><input type="number" name="publication_year" min="2000" max="2100"></div>
-                <div><label>Funder</label><input name="funder_name" placeholder="Optional"></div>
-                <div><label>Amount</label><input type="number" name="grant_amount" value="0" min="0"></div>
                 <div class="rp-span"><label>Collaborating Institutions * (comma-separated)</label><input name="institutions" required placeholder="e.g. MIT, University of Nairobi"></div>
                 <div class="rp-span"><label>Authors (comma-separated names)</label><input name="team_members" placeholder="e.g. L. Ziska, G. Sixt"></div>
                 <div class="rp-actions">
