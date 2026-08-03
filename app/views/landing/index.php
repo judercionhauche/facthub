@@ -177,7 +177,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
   .section-head p{color:var(--l-muted);font-size:1.05rem;margin:16px 0 0;max-width:560px}
 
   /* ---------- KPI CARDS ---------- */
-  .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
   .kpi{
     background:var(--card);border:1px solid var(--l-line);border-radius:18px;
     padding:26px 22px 22px;position:relative;overflow:hidden;
@@ -378,7 +378,6 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
       <a href="#impact" class="l-btn l-btn-ghost l-btn-lg">See the impact</a>
     </div>
     <div class="hero-strip">
-      <div class="cell"><div class="num" data-count="<?= $landCollaborations ?>"><?= $landCollaborations ?></div><div class="lbl">Collaborations</div></div>
       <div class="cell"><div class="num" data-count="<?= $studentCount ?>"><?= $studentCount ?></div><div class="lbl">Students advised</div></div>
       <div class="cell"><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Member institutions</div></div>
       <div class="cell"><div class="num" data-count="<?= $landCountries ?>"><?= $landCountries ?></div><div class="lbl">Countries</div></div>
@@ -396,8 +395,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
     </div>
     <div class="kpi-grid">
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Member institutions</div><div class="sub">Universities and labs across <?= $landCountries ?> countries.</div></div>
-      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $landCollaborations ?>"><?= $landCollaborations ?></div><div class="lbl">Collaborations</div><div class="sub">Active partnerships across the alliance network.</div></div>
-      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $projectCount ?>"><?= $projectCount ?></div><div class="lbl">Research projects</div><div class="sub">From smallholder systems to global food-trade modelling.</div></div>
+      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $projectCount ?>"><?= $projectCount ?></div><div class="lbl">Fact alliance research collaborations</div><div class="sub">From smallholder systems to global food-trade modelling.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $pubCount ?>"><?= $pubCount ?></div><div class="lbl">Publications</div><div class="sub">Scholarly work published from the FACT Alliance.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $studentCount ?>"><?= $studentCount ?></div><div class="lbl">Students co-advised</div><div class="sub">Doctoral and Masters researchers mentored through collaborative projects.</div></div>
     </div>
