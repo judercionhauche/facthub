@@ -1200,6 +1200,7 @@ function apply_research_publications_schema(mysqli $conn): void {
                     title VARCHAR(255) NOT NULL,
                     description LONGTEXT,
                     url VARCHAR(500),
+                    institutions TEXT,
                     team_members TEXT,
                     status ENUM('active', 'completed', 'paused') DEFAULT 'active',
                     funder_name VARCHAR(255),
@@ -1238,6 +1239,12 @@ function apply_research_publications_schema(mysqli $conn): void {
                     ) WHERE rp.team_members IS NULL
                 ");
                 error_log('[Research Schema] Added team_members column, backfilled from junction table');
+            }
+            // Collaborating institutions column
+            $instCheck = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='research_projects' AND COLUMN_NAME='institutions' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$instCheck || $instCheck->num_rows === 0) {
+                @$conn->query("ALTER TABLE research_projects ADD COLUMN institutions TEXT AFTER url");
+                error_log('[Research Schema] Added institutions column');
             }
 
             // One-time migration: copy funded_projects rows into research_projects (only if empty)
@@ -1301,6 +1308,7 @@ function apply_research_publications_schema(mysqli $conn): void {
                     title VARCHAR(500) NOT NULL,
                     description LONGTEXT,
                     url VARCHAR(500) NOT NULL,
+                    institutions TEXT,
                     team_members TEXT,
                     publication_year INT,
                     funder_name VARCHAR(255),
@@ -1334,6 +1342,12 @@ function apply_research_publications_schema(mysqli $conn): void {
                     ) WHERE ps.team_members IS NULL
                 ");
                 error_log('[Publications Schema] Added team_members column, backfilled from junction table');
+            }
+            // Collaborating institutions column
+            $instCheck = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='publications_showcase' AND COLUMN_NAME='institutions' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$instCheck || $instCheck->num_rows === 0) {
+                @$conn->query("ALTER TABLE publications_showcase ADD COLUMN institutions TEXT AFTER url");
+                error_log('[Publications Schema] Added institutions column');
             }
         }
 

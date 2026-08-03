@@ -117,6 +117,24 @@ if (empty($research) && empty($publications)) {
   font-weight: 500;
 }
 
+.rp-card-institutions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.rp-card-inst-chip {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(26, 107, 90, 0.08);
+  color: #11473b;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
 .rp-card-team-badge {
   display: inline-flex;
   flex-wrap: wrap;
@@ -229,6 +247,14 @@ if (empty($research) && empty($publications)) {
             <span class="rp-card-badge">Research Project</span>
             <h3 class="rp-card-title"><?= h($project['title']) ?></h3>
 
+            <?php if (!empty($project['institutions'])): ?>
+            <div class="rp-card-institutions">
+              <?php foreach (array_filter(array_map('trim', explode(',', $project['institutions']))) as $inst): ?>
+              <span class="rp-card-inst-chip"><?= h($inst) ?></span>
+              <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
+
             <?php if (!empty($teamDisplay)): ?>
             <div class="rp-card-team-badge"><?= h($teamDisplay) ?></div>
             <?php endif; ?>
@@ -292,6 +318,14 @@ if (empty($research) && empty($publications)) {
           <div class="rp-card reveal">
             <span class="rp-card-badge">Publication</span>
             <h3 class="rp-card-title"><?= h($pub['title']) ?></h3>
+
+            <?php if (!empty($pub['institutions'])): ?>
+            <div class="rp-card-institutions">
+              <?php foreach (array_filter(array_map('trim', explode(',', $pub['institutions']))) as $inst): ?>
+              <span class="rp-card-inst-chip"><?= h($inst) ?></span>
+              <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
 
             <?php if (!empty($teamDisplay)): ?>
             <div class="rp-card-team-badge"><?= h($teamDisplay) ?></div>

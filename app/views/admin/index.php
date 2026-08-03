@@ -666,6 +666,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $title = trim($_POST['title'] ?? '');
         $desc = trim($_POST['description'] ?? '');
         $url = trim($_POST['url'] ?? '') ?: null;
+        $institutions = trim($_POST['institutions'] ?? '');
         $team = trim($_POST['team_members'] ?? '') ?: null;
         $status = in_array($_POST['status'] ?? '', ['active', 'completed', 'paused'], true) ? $_POST['status'] : 'active';
         $funder = trim($_POST['funder_name'] ?? '');
@@ -673,11 +674,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $startYear = (int)($_POST['start_year'] ?? 0) ?: null;
         $endYear = (int)($_POST['end_year'] ?? 0) ?: null;
 
-        if ($title !== '') {
+        if ($title !== '' && $institutions !== '') {
             $data = [
                 'title' => $title,
                 'description' => $desc,
                 'url' => $url,
+                'institutions' => $institutions,
                 'team_members' => $team,
                 'status' => $status,
                 'funder_name' => $funder ?: null,
@@ -696,7 +698,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_flash('success', 'Research project added.');
             }
         } else {
-            set_flash('error', 'Project title is required.');
+            set_flash('error', 'Project title and collaborating institutions are required.');
         }
         redirect_to('admin', ['section' => 'research']);
     }
@@ -716,16 +718,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $title = trim($_POST['title'] ?? '');
         $url = trim($_POST['url'] ?? '');
         $desc = trim($_POST['description'] ?? '');
+        $institutions = trim($_POST['institutions'] ?? '');
         $team = trim($_POST['team_members'] ?? '') ?: null;
         $year = (int)($_POST['publication_year'] ?? 0) ?: null;
         $funder = trim($_POST['funder_name'] ?? '');
         $amount = max(0, (int)($_POST['grant_amount'] ?? 0)) ?: null;
 
-        if ($title !== '' && $url !== '') {
+        if ($title !== '' && $url !== '' && $institutions !== '') {
             $data = [
                 'title' => $title,
                 'url' => $url,
                 'description' => $desc,
+                'institutions' => $institutions,
                 'team_members' => $team,
                 'publication_year' => $year,
                 'funder_name' => $funder ?: null,
@@ -742,7 +746,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 set_flash('success', 'Publication added.');
             }
         } else {
-            set_flash('error', 'Publication title and URL are required.');
+            set_flash('error', 'Publication title, URL and collaborating institutions are required.');
         }
         redirect_to('admin', ['section' => 'research']);
     }
@@ -2855,6 +2859,7 @@ $publications = $rpService->listPublications();
                     <div><label>Grant Amount</label><input type="number" name="grant_amount" value="<?= (int)($p['grant_amount'] ?? 0) ?>" min="0"></div>
                     <div><label>Start Year</label><input type="number" name="start_year" value="<?= (int)($p['start_year'] ?? 0) ?>" min="2000" max="2100"></div>
                     <div><label>End Year</label><input type="number" name="end_year" value="<?= (int)($p['end_year'] ?? 0) ?>" min="2000" max="2100"></div>
+                    <div class="rp-span"><label>Collaborating Institutions * (comma-separated)</label><input name="institutions" value="<?= h($p['institutions'] ?? '') ?>" required placeholder="e.g. MIT, University of Nairobi"></div>
                     <div class="rp-span"><label>Research Team (comma-separated names)</label><input name="team_members" value="<?= h($p['team_members'] ?? '') ?>" placeholder="e.g. G. Sixt, K. Strzepek"></div>
                     <div class="rp-actions">
                         <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Save</button>
@@ -2884,6 +2889,7 @@ $publications = $rpService->listPublications();
                 <div><label>Grant Amount</label><input type="number" name="grant_amount" value="0" min="0"></div>
                 <div><label>Start Year</label><input type="number" name="start_year" min="2000" max="2100"></div>
                 <div><label>End Year</label><input type="number" name="end_year" min="2000" max="2100"></div>
+                <div class="rp-span"><label>Collaborating Institutions * (comma-separated)</label><input name="institutions" required placeholder="e.g. MIT, University of Nairobi"></div>
                 <div class="rp-span"><label>Research Team (comma-separated names)</label><input name="team_members" placeholder="e.g. G. Sixt, K. Strzepek"></div>
                 <div class="rp-actions">
                     <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Add project</button>
@@ -2917,6 +2923,7 @@ $publications = $rpService->listPublications();
                     <div><label>Publication Year</label><input type="number" name="publication_year" value="<?= (int)($p['publication_year'] ?? 0) ?>" min="2000" max="2100"></div>
                     <div><label>Funder</label><input name="funder_name" value="<?= h($p['funder_name'] ?? '') ?>"></div>
                     <div><label>Amount</label><input type="number" name="grant_amount" value="<?= (int)($p['grant_amount'] ?? 0) ?>" min="0"></div>
+                    <div class="rp-span"><label>Collaborating Institutions * (comma-separated)</label><input name="institutions" value="<?= h($p['institutions'] ?? '') ?>" required placeholder="e.g. MIT, University of Nairobi"></div>
                     <div class="rp-span"><label>Authors (comma-separated names)</label><input name="team_members" value="<?= h($p['team_members'] ?? '') ?>" placeholder="e.g. L. Ziska, G. Sixt"></div>
                     <div class="rp-actions">
                         <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Save</button>
@@ -2944,6 +2951,7 @@ $publications = $rpService->listPublications();
                 <div><label>Publication Year</label><input type="number" name="publication_year" min="2000" max="2100"></div>
                 <div><label>Funder</label><input name="funder_name" placeholder="Optional"></div>
                 <div><label>Amount</label><input type="number" name="grant_amount" value="0" min="0"></div>
+                <div class="rp-span"><label>Collaborating Institutions * (comma-separated)</label><input name="institutions" required placeholder="e.g. MIT, University of Nairobi"></div>
                 <div class="rp-span"><label>Authors (comma-separated names)</label><input name="team_members" placeholder="e.g. L. Ziska, G. Sixt"></div>
                 <div class="rp-actions">
                     <button type="submit" class="primary-btn" style="padding:7px 16px;font-size:12px">Add publication</button>
