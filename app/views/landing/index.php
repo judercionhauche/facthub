@@ -378,9 +378,6 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
       <a href="#impact" class="l-btn l-btn-ghost l-btn-lg">See the impact</a>
     </div>
     <div class="hero-strip">
-      <div class="cell"><div class="num" data-count="<?= $studentCount ?>"><?= $studentCount ?></div><div class="lbl">Students advised</div></div>
-      <div class="cell"><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Member institutions</div></div>
-      <div class="cell"><div class="num" data-count="<?= $landCountries ?>"><?= $landCountries ?></div><div class="lbl">Countries</div></div>
     </div>
   </div>
 </header>
