@@ -1298,7 +1298,7 @@ $recentAudit = $conn->query(
     <div class="edit-section">
         <div class="edit-section-title">Display Name</div>
         <form method="post" style="display:flex;gap:10px;align-items:flex-end">
-            <input type="hidden" name="action" value="update_name">
+            <input type="hidden" name="action" value="update_name"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
             <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
             <div style="flex:1"><label style="font-size:12px;margin-bottom:4px">Full Name</label><input name="name" value="<?= h($editUser['name']) ?>" required></div>
             <button class="ghost-btn" type="submit">Save Name</button>
@@ -1309,7 +1309,7 @@ $recentAudit = $conn->query(
     <div class="edit-section">
         <div class="edit-section-title">Role</div>
         <form method="post" style="display:flex;gap:10px;align-items:flex-end">
-            <input type="hidden" name="action" value="update_role">
+            <input type="hidden" name="action" value="update_role"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
             <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
             <div style="flex:1">
                 <label style="font-size:12px;margin-bottom:4px">Assign Role</label>
@@ -1328,7 +1328,7 @@ $recentAudit = $conn->query(
     <div class="edit-section">
         <div class="edit-section-title">Reset Password</div>
         <form method="post">
-            <input type="hidden" name="action" value="set_password">
+            <input type="hidden" name="action" value="set_password"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
             <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
             <div class="pw-grid">
                 <div><label style="font-size:12px;margin-bottom:4px">New Password</label><input type="password" name="new_password" placeholder="Min 6 characters…" minlength="6" id="ap-pw"></div>
@@ -1392,14 +1392,14 @@ $recentAudit = $conn->query(
             <?php if (!$isVerified): ?>
             <form method="post" style="display:inline">
                 <?= csrf_input() ?>
-                <input type="hidden" name="action" value="verify_user">
+                <input type="hidden" name="action" value="verify_user"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                 <button class="primary-btn" type="submit" style="font-size:13px;padding:8px 14px">✓ Manually Verify</button>
             </form>
             <?php else: ?>
             <form method="post" style="display:inline" onsubmit="return confirm('Mark this account as unverified? The user will not be able to sign in until they verify again.')">
                 <?= csrf_input() ?>
-                <input type="hidden" name="action" value="unverify_user">
+                <input type="hidden" name="action" value="unverify_user"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                 <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                 <button class="ghost-btn" type="submit" style="font-size:13px">Mark Unverified</button>
             </form>
@@ -1413,7 +1413,7 @@ $recentAudit = $conn->query(
         <p class="muted small" style="margin-bottom:10px">Generate and email a secure reset link to this user (expires in 1 hour).</p>
         <form method="post">
             <?= csrf_input() ?>
-            <input type="hidden" name="action" value="send_reset">
+            <input type="hidden" name="action" value="send_reset"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
             <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
             <button class="ghost-btn" type="submit">Send Reset Email</button>
         </form>
@@ -1447,26 +1447,26 @@ $recentAudit = $conn->query(
             <?php if ($editUser['status'] === 'active'): ?>
                 <form method="post" style="display:inline">
                     <?= csrf_input() ?>
-                    <input type="hidden" name="action" value="deactivate_user">
+                    <input type="hidden" name="action" value="deactivate_user"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="ghost-btn" type="submit" style="font-size:13px;padding:8px 14px">Deactivate</button>
                 </form>
                 <form method="post" style="display:inline" onsubmit="return prompt('Reason for deletion (optional):', '') !== null || false;">
                     <?= csrf_input() ?>
-                    <input type="hidden" name="action" value="delete_user">
+                    <input type="hidden" name="action" value="delete_user"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="danger-btn" type="submit" style="font-size:13px;padding:8px 14px">Move to Trash</button>
                 </form>
             <?php elseif ($editUser['status'] === 'pending_approval'): ?>
                 <form method="post" style="display:inline">
                     <?= csrf_input() ?>
-                    <input type="hidden" name="action" value="approve_user">
+                    <input type="hidden" name="action" value="approve_user"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="primary-btn" type="submit" style="font-size:13px;padding:8px 14px">✓ Approve</button>
                 </form>
                 <form method="post" style="display:inline">
                     <?= csrf_input() ?>
-                    <input type="hidden" name="action" value="reject_user">
+                    <input type="hidden" name="action" value="reject_user"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <input type="text" name="rejection_reason" placeholder="Reason (optional)" maxlength="500" style="padding:8px 10px;font-size:13px;border:1px solid var(--line);border-radius:4px;width:200px">
                     <button class="danger-btn" type="submit" style="font-size:13px;padding:8px 14px">✗ Reject</button>
@@ -1474,20 +1474,20 @@ $recentAudit = $conn->query(
             <?php elseif ($editUser['status'] === 'inactive'): ?>
                 <form method="post" style="display:inline">
                     <?= csrf_input() ?>
-                    <input type="hidden" name="action" value="activate_user">
+                    <input type="hidden" name="action" value="activate_user"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="primary-btn" type="submit" style="font-size:13px;padding:8px 14px">Activate</button>
                 </form>
                 <form method="post" style="display:inline" onsubmit="return prompt('Reason for deletion (optional):', '') !== null || false;">
                     <?= csrf_input() ?>
-                    <input type="hidden" name="action" value="delete_user">
+                    <input type="hidden" name="action" value="delete_user"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="danger-btn" type="submit" style="font-size:13px;padding:8px 14px">Move to Trash</button>
                 </form>
             <?php elseif ($editUser['status'] === 'deleted'): ?>
                 <form method="post" style="display:inline">
                     <?= csrf_input() ?>
-                    <input type="hidden" name="action" value="restore_user">
+                    <input type="hidden" name="action" value="restore_user"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="primary-btn" type="submit" style="font-size:13px;padding:8px 14px">Restore</button>
                 </form>
@@ -1538,20 +1538,20 @@ $recentAudit = $conn->query(
                     <?php if ($u['status'] === 'active'): ?>
                         <form method="post" style="display:inline">
                             <?= csrf_input() ?>
-                            <input type="hidden" name="action" value="deactivate_user">
+                            <input type="hidden" name="action" value="deactivate_user"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                             <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                             <button class="ghost-btn" type="submit">Deactivate</button>
                         </form>
                     <?php elseif ($u['status'] === 'pending_approval'): ?>
                         <form method="post" style="display:inline">
                             <?= csrf_input() ?>
-                            <input type="hidden" name="action" value="approve_user">
+                            <input type="hidden" name="action" value="approve_user"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                             <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                             <button class="primary-btn" type="submit">✓ Approve</button>
                         </form>
                         <form method="post" style="display:inline">
                             <?= csrf_input() ?>
-                            <input type="hidden" name="action" value="reject_user">
+                            <input type="hidden" name="action" value="reject_user"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                             <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                             <input type="text" name="rejection_reason" placeholder="Reason (optional)" maxlength="500" style="padding:6px 10px;font-size:12px;border:1px solid var(--line);border-radius:4px;width:180px;min-width:180px">
                             <button class="danger-btn" type="submit">✗ Reject</button>
@@ -1559,14 +1559,14 @@ $recentAudit = $conn->query(
                     <?php elseif ($u['status'] === 'inactive'): ?>
                         <form method="post" style="display:inline">
                             <?= csrf_input() ?>
-                            <input type="hidden" name="action" value="activate_user">
+                            <input type="hidden" name="action" value="activate_user"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                             <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                             <button class="primary-btn" type="submit">Activate</button>
                         </form>
                     <?php elseif ($u['status'] === 'deleted'): ?>
                         <form method="post" style="display:inline">
                             <?= csrf_input() ?>
-                            <input type="hidden" name="action" value="restore_user">
+                            <input type="hidden" name="action" value="restore_user"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                             <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                             <button class="primary-btn" type="submit">Restore</button>
                         </form>
@@ -1663,7 +1663,7 @@ $rTotal = $rTab === 'trash' ? $rTrash : $rActive;
                     <?php if ($rTab === 'trash'): ?>
                         <form method="post" onsubmit="return confirm('Restore this researcher profile?')">
                             <?= csrf_input() ?>
-                            <input type="hidden" name="action" value="restore_researcher">
+                            <input type="hidden" name="action" value="restore_researcher"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                             <input type="hidden" name="researcher_id" value="<?= (int)$r['id'] ?>">
                             <button class="primary-btn" type="submit" style="padding:6px 10px;font-size:12px">Restore</button>
                         </form>
@@ -1672,7 +1672,7 @@ $rTotal = $rTab === 'trash' ? $rTrash : $rActive;
                         <a class="ghost-btn" href="index.php?page=researchers&edit=<?= (int)$r['id'] ?>" style="padding:6px 10px;font-size:12px">Edit</a>
                         <form method="post" onsubmit="return confirm('Delete this researcher profile?')">
                             <?= csrf_input() ?>
-                            <input type="hidden" name="action" value="delete_researcher">
+                            <input type="hidden" name="action" value="delete_researcher"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                             <input type="hidden" name="researcher_id" value="<?= (int)$r['id'] ?>">
                             <button class="danger-btn" type="submit" style="padding:6px 10px;font-size:12px">Delete</button>
                         </form>
@@ -1759,14 +1759,14 @@ $fTotal = $fTab === 'trash' ? $fTrash : $fActive;
                 <?php if ($fTab === 'trash'): ?>
                     <form method="post" onsubmit="return confirm('Restore this funder profile?')">
                         <?= csrf_input() ?>
-                        <input type="hidden" name="action" value="restore_funder">
+                        <input type="hidden" name="action" value="restore_funder"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                         <input type="hidden" name="funder_id" value="<?= (int)$f['id'] ?>">
                         <button class="primary-btn" type="submit" style="padding:6px 10px;font-size:12px">Restore</button>
                     </form>
                 <?php else: ?>
                     <form method="post" onsubmit="return confirm('Delete this funder profile?')">
                         <?= csrf_input() ?>
-                        <input type="hidden" name="action" value="delete_funder">
+                        <input type="hidden" name="action" value="delete_funder"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                         <input type="hidden" name="funder_id" value="<?= (int)$f['id'] ?>">
                         <button class="danger-btn" type="submit" style="padding:6px 10px;font-size:12px">Delete</button>
                     </form>
@@ -2095,7 +2095,7 @@ $recentJobRows = $recentJobStmt->get_result()->fetch_all(MYSQLI_ASSOC);
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:16px;flex-wrap:wrap;padding:14px;background:#f9fbfa;border:1px solid var(--line);border-radius:8px">
         <p class="muted" style="margin:0">Queue AI matching jobs for all currently open, upcoming, and rolling funding calls.</p>
         <form method="post">
-            <input type="hidden" name="action" value="compute_all_matches">
+            <input type="hidden" name="action" value="compute_all_matches"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
             <?= csrf_input() ?>
             <button class="primary-btn" type="submit" onclick="return confirm('Queue AI matching for all active funding calls? This may take several minutes.')">⚡ Compute All Matches</button>
         </form>
@@ -2104,7 +2104,7 @@ $recentJobRows = $recentJobStmt->get_result()->fetch_all(MYSQLI_ASSOC);
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:16px;flex-wrap:wrap;padding:14px;background:#f9fbfa;border:1px solid var(--line);border-radius:8px">
         <p class="muted" style="margin:0">Generate AI summaries for all researchers and funding calls.</p>
         <form method="post">
-            <input type="hidden" name="action" value="generate_all_summaries">
+            <input type="hidden" name="action" value="generate_all_summaries"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
             <?= csrf_input() ?>
             <button class="ghost-btn" type="submit" onclick="return confirm('Generate AI summaries for all researchers and funding calls?')">✦ Generate All Summaries</button>
         </form>
@@ -2113,7 +2113,7 @@ $recentJobRows = $recentJobStmt->get_result()->fetch_all(MYSQLI_ASSOC);
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:16px;flex-wrap:wrap;padding:14px;background:#f9fbfa;border:1px solid var(--line);border-radius:8px">
         <p class="muted" style="margin:0">Send email notifications for all unnotified high-score matches.</p>
         <form method="post">
-            <input type="hidden" name="action" value="send_pending_digest">
+            <input type="hidden" name="action" value="send_pending_digest"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
             <?= csrf_input() ?>
             <button class="ghost-btn" type="submit" onclick="return confirm('Send digest emails for all unnotified high-score matches?')">✉ Send Pending Digest</button>
         </form>
@@ -2122,7 +2122,7 @@ $recentJobRows = $recentJobStmt->get_result()->fetch_all(MYSQLI_ASSOC);
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:16px;flex-wrap:wrap;padding:14px;background:#f9fbfa;border:1px solid var(--line);border-radius:8px">
         <p class="muted" style="margin:0">Check API balance status for all providers and send alerts if low.</p>
         <form method="post">
-            <input type="hidden" name="action" value="check_balances">
+            <input type="hidden" name="action" value="check_balances"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
             <?= csrf_input() ?>
             <button class="ghost-btn" type="submit">⚠ Check API Balances</button>
         </form>
