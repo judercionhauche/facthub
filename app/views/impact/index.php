@@ -100,6 +100,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
   }
   .section-head p{color:var(--l-muted);font-size:1.05rem;margin:16px 0 0;max-width:560px}
   .kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:16px}
+  .kpi-grid.kpi-grid-4{grid-template-columns:repeat(4,1fr)}
   .kpi{
     background:var(--card);border:1px solid var(--l-line);border-radius:18px;
     padding:26px 22px 22px;position:relative;overflow:hidden;
@@ -116,7 +117,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
   .kpi .num{font-weight:800;font-size:clamp(1.9rem,2.6vw,2.6rem);line-height:1;letter-spacing:-.02em;color:var(--pine-deep)}
   .kpi .lbl{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:800;color:var(--pine);margin-top:12px}
   .kpi .sub{font-size:12.5px;color:var(--l-muted);margin-top:8px;line-height:1.45}
-  @media(max-width:1240px){.kpi-grid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:1240px){.kpi-grid{grid-template-columns:repeat(3,1fr)}.kpi-grid.kpi-grid-4{grid-template-columns:repeat(2,1fr)}}
   .charts{display:grid;grid-template-columns:1.35fr 1fr;gap:24px;margin-top:8px}
   .l-panel{background:var(--card);border:1px solid var(--l-line);border-radius:20px;padding:32px}
   .l-panel h3{font-weight:800;font-size:1.3rem;letter-spacing:-.015em;margin:0}
@@ -205,8 +206,8 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
       <h2>What the alliance has built together</h2>
       <p>A live view of the funding won, the researchers supported, and the institutions working side by side across the network.</p>
     </div>
-    <div class="kpi-grid">
-      <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= h($fundingSecuredNum) ?>" data-prefix="$" data-suffix="M"><?= h(land_money($fundingSecured)) ?></div><div class="lbl">Research funding secured</div><div class="sub">Across <?= $projectCount ?> funded project<?= $projectCount === 1 ? '' : 's' ?> with FACT members leading.</div></div>
+    <div class="kpi-grid kpi-grid-4">
+      <?php /* Research funding secured card hidden for now (data still computed above) */ ?>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $projectCount ?>"><?= $projectCount ?></div><div class="lbl">Research projects</div><div class="sub">From smallholder systems to global food-trade modelling.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $pubCount ?>"><?= $pubCount ?></div><div class="lbl">Publications</div><div class="sub">Scholarly work published from the FACT Alliance.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $studentCount ?>"><?= $studentCount ?></div><div class="lbl">Students advised</div><div class="sub">PhD and Masters researchers mentored by FACT advisors.</div></div>

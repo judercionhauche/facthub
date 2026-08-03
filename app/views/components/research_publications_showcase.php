@@ -223,8 +223,7 @@ if (empty($research) && empty($publications)) {
 <section class="l-section">
   <div class="wrap">
     <div class="section-head reveal">
-      <span class="eyebrow">Funded research</span>
-      <h2>Projects in the field</h2>
+      <h2>FACT Alliance Research Collaborations</h2>
       <p>Excellence in convergence research and scholarly publications advancing food system solutions globally.</p>
     </div>
 
