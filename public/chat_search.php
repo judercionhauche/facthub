@@ -385,8 +385,8 @@ function getPlatformStats(mysqli $conn): array {
     $res = $conn->query("SELECT COUNT(*) as cnt FROM funding_calls WHERE deleted_at IS NULL");
     $stats['open_funding_calls'] = $res->fetch_assoc()['cnt'] ?? 0;
 
-    // Total institutions
-    $res = $conn->query("SELECT COUNT(DISTINCT institution) as cnt FROM researchers WHERE deleted_at IS NULL AND institution IS NOT NULL");
+    // Total institutions (from trusted_domains, same source as landing page)
+    $res = $conn->query("SELECT COUNT(DISTINCT institution_name) as cnt FROM trusted_domains");
     $stats['institutions'] = $res->fetch_assoc()['cnt'] ?? 0;
 
     // Total funders
