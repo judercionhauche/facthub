@@ -1097,41 +1097,49 @@ function apply_newsletter_schema(mysqli $conn): void {
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
             ");
         } else {
-            // Fix collation mismatch (utf8mb4_unicode_ci → utf8mb4_general_ci to match users/researchers)
-            @$conn->query("ALTER TABLE newsletter_subscribers CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
-
-            // Migration: Backfill NULL user_ids, then enforce NOT NULL
-            @$conn->query("
-                UPDATE newsletter_subscribers ns
-                LEFT JOIN researchers r ON ns.email = r.email
-                LEFT JOIN users u ON r.user_id = u.id
-                SET ns.user_id = u.id
-                WHERE ns.user_id IS NULL AND u.id IS NOT NULL
-            ");
-
-            // Remove rows with still-NULL user_id (orphaned test entries)
-            @$conn->query("DELETE FROM newsletter_subscribers WHERE user_id IS NULL");
-
-            // Drop old email column and add constraints
-            $emailColExists = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='newsletter_subscribers' AND COLUMN_NAME='email' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
-            if ($emailColExists && $emailColExists->num_rows > 0) {
-                // Drop old unique constraint on email
-                @$conn->query("ALTER TABLE newsletter_subscribers DROP INDEX unique_email");
-                @$conn->query("ALTER TABLE newsletter_subscribers DROP COLUMN email");
+            // Fast path: if already migrated (no email column + unique_user present),
+            // do nothing. Prevents this idempotent migration from running — and
+            // logging errors — on every single request.
+            $emailCol = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='newsletter_subscribers' AND COLUMN_NAME='email' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            $emailExists = $emailCol && $emailCol->num_rows > 0;
+            $uniqUser = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='newsletter_subscribers' AND INDEX_NAME='unique_user' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            $uniqUserExists = $uniqUser && $uniqUser->num_rows > 0;
+            if (!$emailExists && $uniqUserExists) {
+                return; // migration complete — no work, no log noise
             }
 
-            // Add NOT NULL constraint to user_id
-            @$conn->query("ALTER TABLE newsletter_subscribers MODIFY COLUMN user_id INT NOT NULL");
+            // Each step is best-effort and idempotent: swallow its own errors so a
+            // re-run against an already-partly-migrated table never hits error_log.
+            $silent = static function (string $sql) use ($conn): void {
+                try { @$conn->query($sql); } catch (\Throwable $e) { /* idempotent retry — ignore */ }
+            };
 
-            // Add UNIQUE constraint on user_id if it doesn't exist
-            $uniqueExists = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='newsletter_subscribers' AND INDEX_NAME='unique_user' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
-            if (!$uniqueExists || $uniqueExists->num_rows === 0) {
-                @$conn->query("ALTER TABLE newsletter_subscribers ADD UNIQUE KEY unique_user (user_id)");
+            $silent("ALTER TABLE newsletter_subscribers CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
+            $silent("UPDATE newsletter_subscribers ns
+                     LEFT JOIN researchers r ON ns.email = r.email
+                     LEFT JOIN users u ON r.user_id = u.id
+                     SET ns.user_id = u.id
+                     WHERE ns.user_id IS NULL AND u.id IS NOT NULL");
+            $silent("DELETE FROM newsletter_subscribers WHERE user_id IS NULL");
+
+            if ($emailExists) {
+                // drop the unique_email index only if it actually exists
+                $idx = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='newsletter_subscribers' AND INDEX_NAME='unique_email' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+                if ($idx && $idx->num_rows > 0) $silent("ALTER TABLE newsletter_subscribers DROP INDEX unique_email");
+                $silent("ALTER TABLE newsletter_subscribers DROP COLUMN email");
             }
 
-            // Update FK to CASCADE on delete
-            @$conn->query("ALTER TABLE newsletter_subscribers DROP FOREIGN KEY newsletter_subscribers_ibfk_1");
-            @$conn->query("ALTER TABLE newsletter_subscribers ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE");
+            $silent("ALTER TABLE newsletter_subscribers MODIFY COLUMN user_id INT NOT NULL");
+
+            if (!$uniqUserExists) {
+                $silent("ALTER TABLE newsletter_subscribers ADD UNIQUE KEY unique_user (user_id)");
+            }
+
+            // Ensure the CASCADE foreign key exists — add only if none is present.
+            $fk = @$conn->query("SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_NAME='newsletter_subscribers' AND COLUMN_NAME='user_id' AND REFERENCED_TABLE_NAME='users' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            if (!$fk || $fk->num_rows === 0) {
+                $silent("ALTER TABLE newsletter_subscribers ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE");
+            }
         }
 
     } catch (Throwable $e) {
