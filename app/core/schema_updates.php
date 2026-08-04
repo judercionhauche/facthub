@@ -1094,9 +1094,12 @@ function apply_newsletter_schema(mysqli $conn): void {
                     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
                     UNIQUE KEY unique_user (user_id),
                     INDEX idx_status (status)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
             ");
         } else {
+            // Fix collation mismatch (utf8mb4_unicode_ci → utf8mb4_general_ci to match users/researchers)
+            @$conn->query("ALTER TABLE newsletter_subscribers CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
+
             // Migration: Backfill NULL user_ids, then enforce NOT NULL
             @$conn->query("
                 UPDATE newsletter_subscribers ns
