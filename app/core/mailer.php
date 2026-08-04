@@ -207,12 +207,14 @@ function _smtp_send_bulk(array $cfg, array $messages): void {
     $user      = $cfg['smtp_user'] ?? '';
     $pass      = $cfg['smtp_pass'] ?? '';
     try {
-        $fromEmail = validate_email_for_headers($cfg['from_email'] ?? 'noreply@localhost');
+        // Prefer smtp_from/smtp_from_name (the keys mail.php actually defines);
+        // keep from_email/from_name as legacy fallbacks.
+        $fromEmail = validate_email_for_headers($cfg['smtp_from'] ?? $cfg['from_email'] ?? 'noreply@localhost');
     } catch (Exception $e) {
-        error_log('[FACT Mailer] Bulk: Invalid from_email — ' . $e->getMessage());
+        error_log('[FACT Mailer] Bulk: Invalid from address — ' . $e->getMessage());
         return;
     }
-    $fromName  = $cfg['from_name']  ?? 'FACT Alliance Hub';
+    $fromName  = $cfg['smtp_from_name'] ?? $cfg['from_name'] ?? 'FACT Alliance Hub';
 
     $prefix = ($enc === 'ssl') ? 'ssl://' : '';
     $sock   = @fsockopen($prefix . $host, $port, $errno, $errstr, 15);
