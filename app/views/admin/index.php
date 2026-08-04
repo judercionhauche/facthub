@@ -20,23 +20,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $rid = (int)($_POST['researcher_id'] ?? 0);
         $reason = trim($_POST['reason'] ?? '');
         if ($rid) {
-            $dataQ = $conn->prepare('SELECT CONCAT(first_name," ",last_name) n, email, user_id, status FROM researchers WHERE id = ? LIMIT 1');
-            $dataQ->bind_param('i', $rid); $dataQ->execute();
-            $rRow = $dataQ->get_result()->fetch_assoc();
-            if ($rRow) {
-                // Soft-delete the researcher profile
-                $d = $conn->prepare("UPDATE researchers SET status='deleted', deleted_at=NOW() WHERE id = ?");
-                $d->bind_param('i', $rid); $d->execute();
-                // If there's a linked user account, mark it as inactive and revoke session
-                if ($rRow['user_id']) {
-                    $u = $conn->prepare("UPDATE users SET status='inactive', deactivated_at=NOW(), session_token=NULL, status_changed_by=?, last_status_change_at=NOW() WHERE id = ?");
-                    $u->bind_param('si', $adminUser['email'], $rRow['user_id']); $u->execute();
+            try {
+                $dataQ = $conn->prepare('SELECT CONCAT(first_name," ",last_name) n, email, user_id, status FROM researchers WHERE id = ? LIMIT 1');
+                $dataQ->bind_param('i', $rid); $dataQ->execute();
+                $rRow = $dataQ->get_result()->fetch_assoc();
+                if ($rRow) {
+                    // Soft-delete the researcher profile
+                    $d = $conn->prepare("UPDATE researchers SET status='deleted', deleted_at=NOW() WHERE id = ?");
+                    $d->bind_param('i', $rid); $d->execute();
+                    // If there's a linked user account, mark it as inactive and revoke session
+                    if ($rRow['user_id']) {
+                        $u = $conn->prepare("UPDATE users SET status='inactive', deactivated_at=NOW(), session_token=NULL, status_changed_by=?, last_status_change_at=NOW() WHERE id = ?");
+                        $u->bind_param('si', $adminUser['email'], $rRow['user_id']); $u->execute();
+                    }
+                    audit($conn, 'soft_delete_researcher', [
+                        'type' => 'researcher', 'id' => $rid, 'email' => $rRow['email'],
+                        'detail' => $rRow['n'] . ($reason ? ' | Reason: ' . $reason : '')
+                    ]);
+                    set_flash('success', 'Researcher profile moved to Trash.');
+                } else {
+                    set_flash('error', 'Researcher not found.');
                 }
-                audit($conn, 'soft_delete_researcher', [
-                    'type' => 'researcher', 'id' => $rid, 'email' => $rRow['email'],
-                    'detail' => $rRow['n'] . ($reason ? ' | Reason: ' . $reason : '')
-                ]);
-                set_flash('success', 'Researcher profile moved to Trash.');
+            } catch (Throwable $e) {
+                error_log('[Soft Delete Researcher] ' . $e->getMessage());
+                set_flash('error', 'Could not move researcher to Trash: ' . $e->getMessage());
             }
         }
         redirect_to('admin', ['section' => 'researchers']);
@@ -47,23 +54,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fid = (int)($_POST['funder_id'] ?? 0);
         $reason = trim($_POST['reason'] ?? '');
         if ($fid) {
-            $dataQ = $conn->prepare('SELECT CONCAT(first_name," ",last_name) n, email, user_id, status FROM funders WHERE id = ? LIMIT 1');
-            $dataQ->bind_param('i', $fid); $dataQ->execute();
-            $fRow = $dataQ->get_result()->fetch_assoc();
-            if ($fRow) {
-                // Soft-delete the funder profile
-                $d = $conn->prepare("UPDATE funders SET status='deleted', deleted_at=NOW() WHERE id = ?");
-                $d->bind_param('i', $fid); $d->execute();
-                // If there's a linked user account, mark it as inactive and revoke session
-                if ($fRow['user_id']) {
-                    $u = $conn->prepare("UPDATE users SET status='inactive', deactivated_at=NOW(), session_token=NULL, status_changed_by=?, last_status_change_at=NOW() WHERE id = ?");
-                    $u->bind_param('si', $adminUser['email'], $fRow['user_id']); $u->execute();
+            try {
+                $dataQ = $conn->prepare('SELECT CONCAT(first_name," ",last_name) n, email, user_id, status FROM funders WHERE id = ? LIMIT 1');
+                $dataQ->bind_param('i', $fid); $dataQ->execute();
+                $fRow = $dataQ->get_result()->fetch_assoc();
+                if ($fRow) {
+                    // Soft-delete the funder profile
+                    $d = $conn->prepare("UPDATE funders SET status='deleted', deleted_at=NOW() WHERE id = ?");
+                    $d->bind_param('i', $fid); $d->execute();
+                    // If there's a linked user account, mark it as inactive and revoke session
+                    if ($fRow['user_id']) {
+                        $u = $conn->prepare("UPDATE users SET status='inactive', deactivated_at=NOW(), session_token=NULL, status_changed_by=?, last_status_change_at=NOW() WHERE id = ?");
+                        $u->bind_param('si', $adminUser['email'], $fRow['user_id']); $u->execute();
+                    }
+                    audit($conn, 'soft_delete_funder', [
+                        'type' => 'funder', 'id' => $fid, 'email' => $fRow['email'],
+                        'detail' => $fRow['n'] . ($reason ? ' | Reason: ' . $reason : '')
+                    ]);
+                    set_flash('success', 'Funder profile moved to Trash.');
+                } else {
+                    set_flash('error', 'Funder not found.');
                 }
-                audit($conn, 'soft_delete_funder', [
-                    'type' => 'funder', 'id' => $fid, 'email' => $fRow['email'],
-                    'detail' => $fRow['n'] . ($reason ? ' | Reason: ' . $reason : '')
-                ]);
-                set_flash('success', 'Funder profile moved to Trash.');
+            } catch (Throwable $e) {
+                error_log('[Soft Delete Funder] ' . $e->getMessage());
+                set_flash('error', 'Could not move funder to Trash: ' . $e->getMessage());
             }
         }
         redirect_to('admin', ['section' => 'funders']);
@@ -113,6 +127,113 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         redirect_to('admin', ['section' => 'funders', 'ftab' => 'trash']);
+    }
+
+    /* Permanently delete researcher from Trash — hard delete, frees the email for fresh registration */
+    if ($action === 'permanent_delete_researcher') {
+        $rid = (int)($_POST['researcher_id'] ?? 0);
+        if ($rid) {
+            try {
+                $dataQ = $conn->prepare("SELECT CONCAT(first_name,' ',last_name) n, email, user_id FROM researchers WHERE id = ? AND status = 'deleted' LIMIT 1");
+                $dataQ->bind_param('i', $rid); $dataQ->execute();
+                $rRow = $dataQ->get_result()->fetch_assoc();
+                if (!$rRow) {
+                    set_flash('error', 'Only profiles already in Trash can be permanently deleted.');
+                    redirect_to('admin', ['section' => 'researchers', 'rtab' => 'trash']);
+                }
+                $conn->begin_transaction();
+                // Clear rows that have no cascading FK (each guarded so a missing table can't abort the purge)
+                foreach (['match_scores', 'researcher_orcid_cache'] as $tbl) {
+                    try { $q = $conn->prepare("DELETE FROM `{$tbl}` WHERE researcher_id = ?"); if ($q) { $q->bind_param('i', $rid); $q->execute(); } }
+                    catch (Throwable $e) { /* table may not exist in this environment */ }
+                }
+                // researcher_embeddings & researcher_publications cascade on delete
+                $del = $conn->prepare("DELETE FROM researchers WHERE id = ? AND status = 'deleted'");
+                $del->bind_param('i', $rid); $del->execute();
+                // Remove the linked user account so the email is freed
+                if ($rRow['user_id']) {
+                    $du = $conn->prepare("DELETE FROM users WHERE id = ?");
+                    $du->bind_param('i', $rRow['user_id']); $du->execute();
+                }
+                $conn->commit();
+                audit($conn, 'permanent_delete_researcher', ['type' => 'researcher', 'id' => $rid, 'email' => $rRow['email'], 'detail' => $rRow['n'] . ' (permanently deleted)']);
+                set_flash('success', 'Researcher permanently deleted. The email is now free for a fresh registration.');
+            } catch (Throwable $e) {
+                @$conn->rollback();
+                error_log('[Permanent Delete Researcher] ' . $e->getMessage());
+                set_flash('error', 'Could not permanently delete this researcher: ' . $e->getMessage());
+            }
+        }
+        redirect_to('admin', ['section' => 'researchers', 'rtab' => 'trash']);
+    }
+
+    /* Permanently delete funder from Trash — hard delete, frees the email */
+    if ($action === 'permanent_delete_funder') {
+        $fid = (int)($_POST['funder_id'] ?? 0);
+        if ($fid) {
+            try {
+                $dataQ = $conn->prepare("SELECT CONCAT(first_name,' ',last_name) n, email, user_id FROM funders WHERE id = ? AND status = 'deleted' LIMIT 1");
+                $dataQ->bind_param('i', $fid); $dataQ->execute();
+                $fRow = $dataQ->get_result()->fetch_assoc();
+                if (!$fRow) {
+                    set_flash('error', 'Only profiles already in Trash can be permanently deleted.');
+                    redirect_to('admin', ['section' => 'funders', 'ftab' => 'trash']);
+                }
+                $conn->begin_transaction();
+                $del = $conn->prepare("DELETE FROM funders WHERE id = ? AND status = 'deleted'");
+                $del->bind_param('i', $fid); $del->execute();
+                if ($fRow['user_id']) {
+                    $du = $conn->prepare("DELETE FROM users WHERE id = ?");
+                    $du->bind_param('i', $fRow['user_id']); $du->execute();
+                }
+                $conn->commit();
+                audit($conn, 'permanent_delete_funder', ['type' => 'funder', 'id' => $fid, 'email' => $fRow['email'], 'detail' => $fRow['n'] . ' (permanently deleted)']);
+                set_flash('success', 'Funder permanently deleted. The email is now free for a fresh registration.');
+            } catch (Throwable $e) {
+                @$conn->rollback();
+                error_log('[Permanent Delete Funder] ' . $e->getMessage());
+                set_flash('error', 'Could not permanently delete this funder: ' . $e->getMessage());
+            }
+        }
+        redirect_to('admin', ['section' => 'funders', 'ftab' => 'trash']);
+    }
+
+    /* Permanently delete user from Trash — hard delete of the account + any linked profiles, frees the email */
+    if ($action === 'permanent_delete_user') {
+        $uid = (int)($_POST['user_id'] ?? 0);
+        if ($uid) {
+            try {
+                $q = $conn->prepare("SELECT email, status FROM users WHERE id = ? LIMIT 1");
+                $q->bind_param('i', $uid); $q->execute();
+                $uRow = $q->get_result()->fetch_assoc();
+                if (!$uRow || $uRow['status'] !== 'deleted') {
+                    set_flash('error', 'Only users already in Trash can be permanently deleted.');
+                    redirect_to('admin', ['section' => 'users', 'utab' => 'trash']);
+                }
+                $conn->begin_transaction();
+                // Clear non-cascading children of any linked researcher profiles
+                $rq = $conn->prepare("SELECT id FROM researchers WHERE user_id = ?");
+                $rq->bind_param('i', $uid); $rq->execute();
+                foreach ($rq->get_result()->fetch_all(MYSQLI_ASSOC) as $rr) {
+                    foreach (['match_scores', 'researcher_orcid_cache'] as $tbl) {
+                        try { $d = $conn->prepare("DELETE FROM `{$tbl}` WHERE researcher_id = ?"); if ($d) { $d->bind_param('i', $rr['id']); $d->execute(); } }
+                        catch (Throwable $e) { /* table may not exist */ }
+                    }
+                }
+                // Delete linked profiles (embeddings/publications cascade), then the user (tokens/sessions cascade)
+                $dr = $conn->prepare("DELETE FROM researchers WHERE user_id = ?"); $dr->bind_param('i', $uid); $dr->execute();
+                $df = $conn->prepare("DELETE FROM funders WHERE user_id = ?"); $df->bind_param('i', $uid); $df->execute();
+                $du = $conn->prepare("DELETE FROM users WHERE id = ?"); $du->bind_param('i', $uid); $du->execute();
+                $conn->commit();
+                audit($conn, 'permanent_delete_user', ['type' => 'user', 'id' => $uid, 'email' => $uRow['email'], 'detail' => 'Permanently deleted']);
+                set_flash('success', 'User permanently deleted. The email is now free for a fresh registration.');
+            } catch (Throwable $e) {
+                @$conn->rollback();
+                error_log('[Permanent Delete User] ' . $e->getMessage());
+                set_flash('error', 'Could not permanently delete this user: ' . $e->getMessage());
+            }
+        }
+        redirect_to('admin', ['section' => 'users', 'utab' => 'trash']);
     }
 
     /* Manually verify or unverify an account */
@@ -1491,6 +1612,12 @@ $recentAudit = $conn->query(
                     <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
                     <button class="primary-btn" type="submit" style="font-size:13px;padding:8px 14px">Restore</button>
                 </form>
+                <form method="post" style="display:inline" onsubmit="return confirm('Permanently delete this user? This CANNOT be undone. It removes the account and any linked researcher/funder profile entirely, and frees the email for a fresh registration.')">
+                    <?= csrf_input() ?>
+                    <input type="hidden" name="action" value="permanent_delete_user">
+                    <input type="hidden" name="user_id" value="<?= $editUser['id'] ?>">
+                    <button class="danger-btn" type="submit" style="font-size:13px;padding:8px 14px">Delete permanently</button>
+                </form>
             <?php endif; ?>
         </div>
     </div>
@@ -1667,6 +1794,12 @@ $rTotal = $rTab === 'trash' ? $rTrash : $rActive;
                             <input type="hidden" name="researcher_id" value="<?= (int)$r['id'] ?>">
                             <button class="primary-btn" type="submit" style="padding:6px 10px;font-size:12px">Restore</button>
                         </form>
+                        <form method="post" onsubmit="return confirm('Permanently delete this researcher? This CANNOT be undone. It removes the account entirely and frees the email for a fresh registration.')">
+                            <?= csrf_input() ?>
+                            <input type="hidden" name="action" value="permanent_delete_researcher">
+                            <input type="hidden" name="researcher_id" value="<?= (int)$r['id'] ?>">
+                            <button class="danger-btn" type="submit" style="padding:6px 10px;font-size:12px">Delete permanently</button>
+                        </form>
                     <?php else: ?>
                         <a class="ghost-btn" href="index.php?page=researchers&view=<?= (int)$r['id'] ?>" style="padding:6px 10px;font-size:12px">View</a>
                         <a class="ghost-btn" href="index.php?page=researchers&edit=<?= (int)$r['id'] ?>" style="padding:6px 10px;font-size:12px">Edit</a>
@@ -1762,6 +1895,12 @@ $fTotal = $fTab === 'trash' ? $fTrash : $fActive;
                         <input type="hidden" name="action" value="restore_funder"><input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                         <input type="hidden" name="funder_id" value="<?= (int)$f['id'] ?>">
                         <button class="primary-btn" type="submit" style="padding:6px 10px;font-size:12px">Restore</button>
+                    </form>
+                    <form method="post" onsubmit="return confirm('Permanently delete this funder? This CANNOT be undone. It removes the account entirely and frees the email for a fresh registration.')">
+                        <?= csrf_input() ?>
+                        <input type="hidden" name="action" value="permanent_delete_funder">
+                        <input type="hidden" name="funder_id" value="<?= (int)$f['id'] ?>">
+                        <button class="danger-btn" type="submit" style="padding:6px 10px;font-size:12px">Delete permanently</button>
                     </form>
                 <?php else: ?>
                     <form method="post" onsubmit="return confirm('Delete this funder profile?')">

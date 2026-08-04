@@ -421,12 +421,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ensure_tags($conn, $geography, 'geography');
 
                 // Check if user account exists
-                $checkUser = $conn->prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1');
+                $checkUser = $conn->prepare('SELECT id, status FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1');
                 if (!$checkUser) throw new Exception('Prepare checkUser failed: ' . $conn->error);
                 $checkUser->bind_param('s', $email);
                 if (!$checkUser->execute()) throw new Exception('Error checking user: ' . $checkUser->error);
                 $existingUser = $checkUser->get_result()->fetch_assoc();
                 $userId = null;
+
+                // Refuse to attach a fresh profile to a trashed account — the admin must
+                // permanently delete it from Trash first so the email is freed.
+                if ($existingUser && ($existingUser['status'] ?? '') === 'deleted') {
+                    throw new Exception('This email belongs to a trashed account. Permanently delete it from Admin → Users → Trash first, then re-add.');
+                }
 
                 // Create user account if it doesn't exist
                 if (!$existingUser) {
