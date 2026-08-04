@@ -98,7 +98,7 @@ try {
             exit;
         }
 
-        // Export - Join by email with explicit collation to avoid mismatch errors
+        // Export - email lives on the subscriber row; researcher fields via the optional user link
         $stmt = $conn->prepare("
             SELECT
                 ns.email,
@@ -108,7 +108,8 @@ try {
                 r.source,
                 ns.subscribed_at
             FROM newsletter_subscribers ns
-            LEFT JOIN researchers r ON ns.email COLLATE utf8mb4_unicode_ci = r.email COLLATE utf8mb4_unicode_ci
+            LEFT JOIN users u ON ns.user_id = u.id
+            LEFT JOIN researchers r ON u.id = r.user_id
             WHERE ns.status = 'active'
             ORDER BY ns.subscribed_at DESC
         ");

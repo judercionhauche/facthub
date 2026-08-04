@@ -55,6 +55,8 @@ function email_add_suppression(mysqli $conn, string $email, string $reason, stri
     $stmt->execute();
 
     // Mirror to newsletter subscriber status when present (best-effort).
-    $upd = $conn->prepare("UPDATE newsletter_subscribers SET status='bounced' WHERE email = ?");
-    if ($upd) { $upd->bind_param('s', $norm); @$upd->execute(); }
+    try {
+        $upd = $conn->prepare("UPDATE newsletter_subscribers SET status='bounced' WHERE email = ?");
+        if ($upd) { $upd->bind_param('s', $norm); @$upd->execute(); }
+    } catch (\Throwable $e) { /* email column absent in some variant — ignore */ }
 }

@@ -1078,73 +1078,49 @@ function apply_impact_data_schema(mysqli $conn): void {
  * Minimal schema: just track subscribers and their subscription status
  */
 function apply_newsletter_schema(mysqli $conn): void {
+    // Email-based schema (matches the app: `email` is the key column, `user_id`
+    // is an optional link). Self-healing: if a prior migration dropped `email`,
+    // this re-adds it and backfills from users. Each step is guarded so nothing
+    // runs (or logs) once the table is in the correct shape.
     try {
-        // Newsletter Subscribers Table - Only for authenticated users
-        $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='newsletter_subscribers' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
-        if (!$result || $result->num_rows === 0) {
+        $exists = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='newsletter_subscribers' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+        if (!$exists || $exists->num_rows === 0) {
             @$conn->query("
                 CREATE TABLE IF NOT EXISTS newsletter_subscribers (
                     id INT AUTO_INCREMENT PRIMARY KEY,
-                    user_id INT NOT NULL,
-                    status ENUM('active', 'inactive', 'unsubscribed') NOT NULL DEFAULT 'active',
+                    user_id INT DEFAULT NULL,
+                    email VARCHAR(255) NOT NULL,
+                    status ENUM('active','inactive','unsubscribed','bounced') NOT NULL DEFAULT 'active',
+                    role VARCHAR(32) DEFAULT NULL,
+                    frequency VARCHAR(16) NOT NULL DEFAULT 'weekly',
+                    preferences_json JSON DEFAULT NULL,
                     subscribed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     unsubscribed_at TIMESTAMP NULL DEFAULT NULL,
                     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                    UNIQUE KEY unique_user (user_id),
+                    UNIQUE KEY unique_email (email),
+                    INDEX idx_user_id (user_id),
                     INDEX idx_status (status)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
             ");
-        } else {
-            // Fast path: if already migrated (no email column + unique_user present),
-            // do nothing. Prevents this idempotent migration from running — and
-            // logging errors — on every single request.
-            $emailCol = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='newsletter_subscribers' AND COLUMN_NAME='email' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
-            $emailExists = $emailCol && $emailCol->num_rows > 0;
-            $uniqUser = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='newsletter_subscribers' AND INDEX_NAME='unique_user' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
-            $uniqUserExists = $uniqUser && $uniqUser->num_rows > 0;
-            if (!$emailExists && $uniqUserExists) {
-                return; // migration complete — no work, no log noise
-            }
-
-            // Each step is best-effort and idempotent: swallow its own errors so a
-            // re-run against an already-partly-migrated table never hits error_log.
-            $silent = static function (string $sql) use ($conn): void {
-                try { @$conn->query($sql); } catch (\Throwable $e) { /* idempotent retry — ignore */ }
-            };
-
-            $silent("ALTER TABLE newsletter_subscribers CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci");
-            $silent("UPDATE newsletter_subscribers ns
-                     LEFT JOIN researchers r ON ns.email = r.email
-                     LEFT JOIN users u ON r.user_id = u.id
-                     SET ns.user_id = u.id
-                     WHERE ns.user_id IS NULL AND u.id IS NOT NULL");
-            $silent("DELETE FROM newsletter_subscribers WHERE user_id IS NULL");
-
-            if ($emailExists) {
-                // drop the unique_email index only if it actually exists
-                $idx = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='newsletter_subscribers' AND INDEX_NAME='unique_email' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
-                if ($idx && $idx->num_rows > 0) $silent("ALTER TABLE newsletter_subscribers DROP INDEX unique_email");
-                $silent("ALTER TABLE newsletter_subscribers DROP COLUMN email");
-            }
-
-            $silent("ALTER TABLE newsletter_subscribers MODIFY COLUMN user_id INT NOT NULL");
-
-            if (!$uniqUserExists) {
-                $silent("ALTER TABLE newsletter_subscribers ADD UNIQUE KEY unique_user (user_id)");
-            }
-
-            // Ensure the CASCADE foreign key exists — add only if none is present.
-            $fk = @$conn->query("SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_NAME='newsletter_subscribers' AND COLUMN_NAME='user_id' AND REFERENCED_TABLE_NAME='users' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
-            if (!$fk || $fk->num_rows === 0) {
-                $silent("ALTER TABLE newsletter_subscribers ADD FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE");
-            }
+            return;
         }
 
+        $colExists = function (string $col) use ($conn): bool {
+            $r = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='newsletter_subscribers' AND COLUMN_NAME='$col' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+            return $r && $r->num_rows > 0;
+        };
+
+        // Self-heal: restore the email column if a prior migration dropped it.
+        if (!$colExists('email')) {
+            @$conn->query("ALTER TABLE newsletter_subscribers ADD COLUMN email VARCHAR(255) NULL AFTER user_id");
+            @$conn->query("UPDATE newsletter_subscribers ns JOIN users u ON ns.user_id = u.id SET ns.email = u.email WHERE ns.email IS NULL OR ns.email = ''");
+        }
+        // Optional columns the app expects — add if missing (idempotent).
+        if (!$colExists('role'))      @$conn->query("ALTER TABLE newsletter_subscribers ADD COLUMN role VARCHAR(32) DEFAULT NULL");
+        if (!$colExists('frequency')) @$conn->query("ALTER TABLE newsletter_subscribers ADD COLUMN frequency VARCHAR(16) NOT NULL DEFAULT 'weekly'");
     } catch (Throwable $e) {
-        error_log('[Newsletter Schema Migration] Error: ' . $e->getMessage());
-        // Continue anyway - migration can be retried
+        error_log('[Newsletter Schema] ' . $e->getMessage());
     }
 }
 
