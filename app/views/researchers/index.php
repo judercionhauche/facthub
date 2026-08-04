@@ -531,11 +531,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($action === 'delete') {
+        error_log('[Researcher Delete DEBUG] post_keys=' . implode(',', array_keys($_POST))
+            . ' | id=' . var_export($_POST['id'] ?? null, true)
+            . ' | researcher_id=' . var_export($_POST['researcher_id'] ?? null, true));
         if (!is_admin()) {
             set_flash('error', 'Only admins can delete researchers.');
             redirect_to('researchers');
         }
-        $id   = (int)($_POST['id'] ?? 0);
+        // Accept either field name (browse form posts "id")
+        $id = (int)($_POST['id'] ?? $_POST['researcher_id'] ?? 0);
         if (!$id) {
             set_flash('error', 'Invalid researcher ID.');
             redirect_to('researchers');
