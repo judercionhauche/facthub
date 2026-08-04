@@ -26,3 +26,7 @@ Thumbs.db
 sessions/
 cache/
 tmp/
+
+# Local email test artifacts
+test_ses_cli.php
+email_preview.html

@@ -79,27 +79,7 @@ function _smtp_send(array $cfg, string $to, string $subject, string $html, strin
         $replyTo = $fromEmail;
     }
 
-    $boundary = 'b_' . md5(microtime(true) . random_int(0, 99999));
-    $msgBody  = "--{$boundary}\r\n"
-        . "Content-Type: text/plain; charset=UTF-8\r\n"
-        . "Content-Transfer-Encoding: base64\r\n\r\n"
-        . chunk_split(base64_encode($text)) . "\r\n"
-        . "--{$boundary}\r\n"
-        . "Content-Type: text/html; charset=UTF-8\r\n"
-        . "Content-Transfer-Encoding: base64\r\n\r\n"
-        . chunk_split(base64_encode($html)) . "\r\n"
-        . "--{$boundary}--\r\n";
-
-    $encodedFrom    = '=?UTF-8?B?' . base64_encode($fromName) . '?=';
-    $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-    $fullHeaders    = "Date: " . date('r') . "\r\n"
-        . "From: {$encodedFrom} <{$fromEmail}>\r\n"
-        . "To: <{$to}>\r\n"
-        . "Subject: {$encodedSubject}\r\n"
-        . "MIME-Version: 1.0\r\n"
-        . "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n"
-        . "Reply-To: {$replyTo}\r\n"
-        . "X-Mailer: FACT-Alliance-Hub\r\n";
+    $payload = _compose_mime($subject, $html, $text, $fromEmail, $fromName, $to, $replyTo, _email_inline_images());
 
     $prefix = ($enc === 'ssl') ? 'ssl://' : '';
     $sock   = @fsockopen($prefix . $host, $port, $errno, $errstr, 15);
@@ -167,11 +147,72 @@ function _smtp_send(array $cfg, string $to, string $subject, string $html, strin
 
     $write('DATA');
     $read();
-    $write($fullHeaders . "\r\n" . $msgBody . "\r\n.");
+    $write($payload . "\r\n.");
     $read();
     $write('QUIT');
     fclose($sock);
     return true;
+}
+
+/**
+ * Build a full RFC 822 message (headers + body) ready to send after DATA.
+ * Uses multipart/related (HTML + inline CID images) when images are supplied,
+ * otherwise plain multipart/alternative. Body is base64-encoded, so no SMTP
+ * dot-stuffing is required.
+ */
+function _compose_mime(string $subject, string $html, string $text, string $fromEmail, string $fromName, string $to, string $replyTo, array $inlineImages = []): string {
+    $encodedFrom    = '=?UTF-8?B?' . base64_encode($fromName) . '?=';
+    $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
+    $seed           = md5(microtime(true) . $to . random_int(0, 999999));
+
+    $altBoundary = 'alt_' . $seed;
+    $alt = "--{$altBoundary}\r\n"
+        . "Content-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n"
+        . chunk_split(base64_encode($text)) . "\r\n"
+        . "--{$altBoundary}\r\n"
+        . "Content-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n"
+        . chunk_split(base64_encode($html)) . "\r\n"
+        . "--{$altBoundary}--\r\n";
+
+    $headers = "Date: " . date('r') . "\r\n"
+        . "From: {$encodedFrom} <{$fromEmail}>\r\n"
+        . "To: <{$to}>\r\n"
+        . "Subject: {$encodedSubject}\r\n"
+        . "Reply-To: {$replyTo}\r\n"
+        . "MIME-Version: 1.0\r\n"
+        . "X-Mailer: FACT-Alliance-Hub\r\n";
+
+    // Load image data; drop any that can't be read so we never send broken parts.
+    $parts = [];
+    foreach ($inlineImages as $cid => $img) {
+        $data = @file_get_contents($img['path']);
+        if ($data === false || $data === '') continue;
+        $parts[$cid] = ['type' => $img['type'], 'name' => $img['name'], 'data' => $data];
+    }
+
+    if (empty($parts)) {
+        return $headers
+            . "Content-Type: multipart/alternative; boundary=\"{$altBoundary}\"\r\n"
+            . "\r\n" . $alt;
+    }
+
+    $relBoundary = 'rel_' . $seed;
+    $body = "--{$relBoundary}\r\n"
+        . "Content-Type: multipart/alternative; boundary=\"{$altBoundary}\"\r\n\r\n"
+        . $alt . "\r\n";
+    foreach ($parts as $cid => $p) {
+        $body .= "--{$relBoundary}\r\n"
+            . "Content-Type: {$p['type']}; name=\"{$p['name']}\"\r\n"
+            . "Content-Transfer-Encoding: base64\r\n"
+            . "Content-ID: <{$cid}>\r\n"
+            . "Content-Disposition: inline; filename=\"{$p['name']}\"\r\n\r\n"
+            . chunk_split(base64_encode($p['data'])) . "\r\n";
+    }
+    $body .= "--{$relBoundary}--\r\n";
+
+    return $headers
+        . "Content-Type: multipart/related; boundary=\"{$relBoundary}\"\r\n"
+        . "\r\n" . $body;
 }
 
 /* ── Bulk sender — one SMTP session for many personalised messages ─── */
@@ -264,7 +305,7 @@ function _smtp_send_bulk(array $cfg, array $messages): void {
         }
     }
 
-    $encodedFrom = '=?UTF-8?B?' . base64_encode($fromName) . '?=';
+    $inlineImages = _email_inline_images();
 
     foreach ($messages as $msg) {
         // Validate recipient email to prevent header injection
@@ -282,22 +323,7 @@ function _smtp_send_bulk(array $cfg, array $messages): void {
             "\n", $html
         ));
 
-        $boundary       = 'b_' . md5(microtime(true) . $to . random_int(0, 99999));
-        $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
-        $msgBody        = "--{$boundary}\r\n"
-            . "Content-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n"
-            . chunk_split(base64_encode($text)) . "\r\n"
-            . "--{$boundary}\r\n"
-            . "Content-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n"
-            . chunk_split(base64_encode($html)) . "\r\n"
-            . "--{$boundary}--\r\n";
-        $fullHeaders    = "Date: " . date('r') . "\r\n"
-            . "From: {$encodedFrom} <{$fromEmail}>\r\n"
-            . "To: <{$to}>\r\n"
-            . "Subject: {$encodedSubject}\r\n"
-            . "MIME-Version: 1.0\r\n"
-            . "Content-Type: multipart/alternative; boundary=\"{$boundary}\"\r\n"
-            . "X-Mailer: FACT-Alliance-Hub\r\n";
+        $payload = _compose_mime($subject, $html, $text, $fromEmail, $fromName, $to, $fromEmail, $inlineImages);
 
         $write("MAIL FROM:<{$fromEmail}>"); $read();
         $write("RCPT TO:<{$to}>");
@@ -308,7 +334,7 @@ function _smtp_send_bulk(array $cfg, array $messages): void {
             continue;
         }
         $write('DATA'); $read();
-        $write($fullHeaders . "\r\n" . $msgBody . "\r\n."); $read();
+        $write($payload . "\r\n."); $read();
     }
 
     $write('QUIT');
@@ -317,30 +343,63 @@ function _smtp_send_bulk(array $cfg, array $messages): void {
 
 /* ── HTML email templates ──────────────────────────────────────────── */
 
+/**
+ * Inline images embedded in every branded email via CID (multipart/related).
+ * Keyed by Content-ID; referenced in HTML as <img src="cid:KEY">.
+ * Rendered inline so they display without any public image hosting.
+ */
+function _email_inline_images(): array {
+    $base = __DIR__ . '/../../public/assets/';
+    $imgs = [];
+    if (is_file($base . 'fact-alliance-logo.png')) {
+        $imgs['factLogo'] = ['path' => $base . 'fact-alliance-logo.png', 'type' => 'image/png', 'name' => 'fact-alliance-logo.png'];
+    }
+    if (is_file($base . 'jwafs-logo-email.png')) {
+        $imgs['jwafsLogo'] = ['path' => $base . 'jwafs-logo-email.png', 'type' => 'image/png', 'name' => 'jwafs-logo.png'];
+    }
+    return $imgs;
+}
+
 function _email_layout(string $content): string {
     return <<<HTML
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<style>body{margin:0;padding:0;background:#eef3ef;font-family:'Helvetica Neue',Arial,sans-serif}</style>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light only">
+<title>FACT Alliance Hub</title>
 </head>
-<body style="margin:0;padding:0;background:#eef3ef">
-<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef3ef;padding:32px 16px">
+<body style="margin:0;padding:0;background:#eef3ef;font-family:'Helvetica Neue',Arial,sans-serif">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef3ef;padding:30px 16px">
 <tr><td align="center">
-<table width="580" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;border-radius:10px;border:1px solid #dde6dd;overflow:hidden">
-  <tr><td style="background:#1a6b5a;padding:22px 32px">
-    <span style="color:#fff;font-size:17px;font-weight:700;letter-spacing:-.3px">FACT Alliance Hub</span>
-    <span style="color:rgba(255,255,255,.5);font-size:12px;margin-left:10px">MIT J-WAFS</span>
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #dde6dd;box-shadow:0 12px 32px -14px rgba(17,71,59,.35)">
+
+  <!-- Header · FACT Alliance logo on deep-green gradient -->
+  <tr><td align="center" style="background:#1a6b5a;background:linear-gradient(135deg,#1a6b5a 0%,#11473b 100%);padding:36px 32px 30px">
+    <img src="cid:factLogo" alt="FACT Alliance" width="188" style="width:188px;max-width:58%;height:auto;display:inline-block;border:0;outline:none;text-decoration:none">
+    <div style="margin-top:14px;font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:rgba(255,255,255,.66);font-weight:700">Research &middot; Funding &middot; Collaboration</div>
   </td></tr>
-  <tr><td style="padding:32px 32px 28px;font-size:15px;color:#1c2a24;line-height:1.6">
+
+  <!-- Gold accent rule -->
+  <tr><td style="height:4px;line-height:4px;font-size:0;background:#c8a85a;background:linear-gradient(90deg,#c8a85a 0%,#dcc084 50%,#c8a85a 100%)">&nbsp;</td></tr>
+
+  <!-- Content -->
+  <tr><td style="padding:36px 34px 30px;font-size:15px;color:#1c2a24;line-height:1.6">
     {$content}
   </td></tr>
-  <tr><td style="padding:18px 32px;background:#f7faf8;border-top:1px solid #e8ede8">
-    <p style="margin:0;font-size:12px;color:#60706a;line-height:1.5">
-      Abdul Latif Jameel Water &amp; Food Systems Lab &middot; MIT<br>
-      77 Massachusetts Avenue, E38-325 &middot; Cambridge, MA 02139
+
+  <!-- Footer · MIT J-WAFS logo + lab address -->
+  <tr><td align="center" style="padding:28px 32px 32px;background:#f7faf8;border-top:1px solid #e8ede8">
+    <img src="cid:jwafsLogo" alt="MIT J-WAFS — Abdul Latif Jameel Water & Food Systems Lab" width="238" style="width:238px;max-width:72%;height:auto;display:inline-block;border:0;outline:none;text-decoration:none;margin-bottom:16px">
+    <p style="margin:0;font-size:12px;color:#60706a;line-height:1.65">
+      FACT Alliance Hub is an initiative of the<br>
+      <strong style="color:#4a5a52;font-weight:600">Abdul Latif Jameel Water &amp; Food Systems Lab (J-WAFS)</strong> at MIT<br>
+      <span style="color:#9aaba4">77 Massachusetts Avenue, E38-325 &middot; Cambridge, MA 02139</span>
     </p>
   </td></tr>
+
 </table>
 </td></tr>
 </table>
