@@ -29,6 +29,7 @@ if (file_exists($envFile)) {
 
 require_once __DIR__ . '/../core/helpers.php';
 require_once __DIR__ . '/../core/mailer.php';
+require_once __DIR__ . '/../core/suppression.php';
 require_once __DIR__ . '/../services/ClaudeService.php';
 require_once __DIR__ . '/../services/BalanceMonitor.php';
 
@@ -39,6 +40,7 @@ if ($conn->connect_error) {
     die('Database connection failed: ' . $conn->connect_error . PHP_EOL);
 }
 $conn->set_charset('utf8mb4');
+apply_suppression_schema($conn);
 
 @$mailCfg = require __DIR__ . '/../../config/mail.php';
 if (!is_array($mailCfg)) {
@@ -262,7 +264,11 @@ function dispatch_job(mysqli $conn, array $job, string $appUrl): void {
                 $subject = $payload['subject'] ?? '';
                 $html = $payload['html'] ?? '';
                 if ($to && $subject && $html) {
-                    send_notification_email($to, $subject, $html);
+                    if (email_is_suppressed($conn, $to)) {
+                        echo "[" . date('Y-m-d H:i:s') . "] Skipped suppressed recipient {$to}" . PHP_EOL;
+                    } else {
+                        send_notification_email($to, $subject, $html);
+                    }
                 }
                 mark_job_done($conn, $jobId);
                 echo "[" . date('Y-m-d H:i:s') . "] Job {$jobId} (send_notification) done" . PHP_EOL;
@@ -270,6 +276,8 @@ function dispatch_job(mysqli $conn, array $job, string $appUrl): void {
 
             case 'send_digest':
                 $msgs = $payload['messages'] ?? [];
+                // Drop any recipients that have bounced or complained.
+                $msgs = array_values(array_filter($msgs, fn($m) => !empty($m['to']) && !email_is_suppressed($conn, $m['to'])));
                 if (!empty($msgs)) {
                     send_bulk_notifications($msgs);
                 }
