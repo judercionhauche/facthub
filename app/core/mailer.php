@@ -160,7 +160,7 @@ function _smtp_send(array $cfg, string $to, string $subject, string $html, strin
  * otherwise plain multipart/alternative. Body is base64-encoded, so no SMTP
  * dot-stuffing is required.
  */
-function _compose_mime(string $subject, string $html, string $text, string $fromEmail, string $fromName, string $to, string $replyTo, array $inlineImages = []): string {
+function _compose_mime(string $subject, string $html, string $text, string $fromEmail, string $fromName, string $to, string $replyTo, array $inlineImages = [], string $cc = ''): string {
     $encodedFrom    = '=?UTF-8?B?' . base64_encode($fromName) . '?=';
     $encodedSubject = '=?UTF-8?B?' . base64_encode($subject) . '?=';
     $seed           = md5(microtime(true) . $to . random_int(0, 999999));
@@ -177,6 +177,7 @@ function _compose_mime(string $subject, string $html, string $text, string $from
     $headers = "Date: " . date('r') . "\r\n"
         . "From: {$encodedFrom} <{$fromEmail}>\r\n"
         . "To: <{$to}>\r\n"
+        . ($cc !== '' ? "Cc: <{$cc}>\r\n" : "")
         . "Subject: {$encodedSubject}\r\n"
         . "Reply-To: {$replyTo}\r\n"
         . "MIME-Version: 1.0\r\n"
