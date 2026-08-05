@@ -52,7 +52,8 @@ if (!$invalid && !$expired && $_SERVER['REQUEST_METHOD'] === 'POST') {
     redirect_to('login');
 }
 ?>
-<div class="auth-card panel narrow">
+<div class="auth-wheat-bg">
+<div class="auth-card panel narrow" style="margin:0 auto">
     <?php if ($invalid): ?>
         <div style="text-align:center;padding:8px 0">
             <div style="width:52px;height:52px;border-radius:50%;background:#fff0f0;display:flex;align-items:center;justify-content:center;margin:0 auto 16px">
@@ -99,4 +100,5 @@ if (!$invalid && !$expired && $_SERVER['REQUEST_METHOD'] === 'POST') {
         })();
         </script>
     <?php endif; ?>
+</div>
 </div>
