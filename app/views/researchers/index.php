@@ -410,7 +410,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if (!$stmt) throw new Exception('Prepare update failed: ' . $conn->error);
                 $stmt->bind_param('sssssssssssisssssisissi', $first, $last, $email, $institution, $department, $title, $bio, $focusArea, $focusDetail, $topics, $geography, $coAdvising, $coDetails, $profileUrl, $websiteUrl, $orcidId, $googleScholarUrl, $notifyMatches, $notifyFrequency, $notifyThreshold, $quietHoursStart, $quietHoursEnd, $id);
                 if (!$stmt->execute()) throw new Exception('Error updating profile: ' . $stmt->error);
-                enqueue_job($conn, 'generate_summary', ['entity_type' => 'researcher', 'entity_id' => $id]);
+                // Regenerate the summary synchronously (real Claude, API key present in
+                // the web request) so it updates immediately; embedding stays async.
+                generate_researcher_summary($conn, $id);
                 enqueue_job($conn, 'generate_embedding', ['entity_type' => 'researcher', 'entity_id' => $id]);
                 if ($orcidId) {
                     enqueue_job($conn, 'fetch_orcid_publications', ['researcher_id' => $id, 'orcid_id' => $orcidId]);

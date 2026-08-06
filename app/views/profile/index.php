@@ -138,9 +138,13 @@ try {
                         $stmt2->execute();
                         $profile = $stmt2->get_result()->fetch_assoc();
 
-                        // Regenerate AI summary since profile content changed
+                        // Regenerate the AI summary right now, in this web request,
+                        // where the Anthropic key is available — generate_researcher_summary()
+                        // calls Claude and upserts ai_summaries (template fallback if the
+                        // API is unavailable). Doing it synchronously means the summary
+                        // reflects the edit immediately instead of waiting on the worker.
                         if ($profile && $profile['id']) {
-                            enqueue_job($conn, 'generate_summary', ['entity_type' => 'researcher', 'entity_id' => (int)$profile['id']]);
+                            generate_researcher_summary($conn, (int)$profile['id']);
                         }
                     } else {
                         $error_message = 'Failed to update profile.';
