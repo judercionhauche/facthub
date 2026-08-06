@@ -7,6 +7,23 @@ if (!is_logged_in()) {
     redirect_to('login');
 }
 
+// Account role (users.role) may be 'admin', but a user can ALSO have a researcher
+// or funder profile linked to their email. The profile page should let them view
+// and edit that profile regardless of their account role — so resolve an effective
+// "profile role" from the linked record. A pure admin (no linked profile) keeps 'admin'.
+$profileRole = $user['role'];
+if ($profileRole !== 'researcher' && $profileRole !== 'funder') {
+    $pchk = $conn->prepare("SELECT 1 FROM researchers WHERE email = ? AND status IN ('active','pending_approval') AND deleted_at IS NULL LIMIT 1");
+    $pchk->bind_param('s', $user['email']); $pchk->execute();
+    if ($pchk->get_result()->num_rows) {
+        $profileRole = 'researcher';
+    } else {
+        $pchk = $conn->prepare("SELECT 1 FROM funders WHERE email = ? AND status IN ('active','pending_approval') AND deleted_at IS NULL LIMIT 1");
+        $pchk->bind_param('s', $user['email']); $pchk->execute();
+        if ($pchk->get_result()->num_rows) $profileRole = 'funder';
+    }
+}
+
 $success_message = null;
 $error_message = null;
 $tab = $_GET['tab'] ?? 'overview';
@@ -17,7 +34,7 @@ if (!in_array($tab, $validTabs)) {
 
 try {
     // Fetch detailed profile data based on user role
-    if ($user['role'] === 'researcher') {
+    if ($profileRole === 'researcher') {
         $stmt = $conn->prepare("SELECT * FROM researchers WHERE email = ? AND status IN ('active', 'pending_approval') AND deleted_at IS NULL LIMIT 1");
         $stmt->bind_param('s', $user['email']);
         $stmt->execute();
@@ -26,7 +43,7 @@ try {
             set_flash('error', 'Your researcher profile was not found. Please contact an administrator.');
             redirect_to('researchers');
         }
-    } elseif ($user['role'] === 'funder') {
+    } elseif ($profileRole === 'funder') {
         $stmt = $conn->prepare("SELECT * FROM funders WHERE email = ? AND status IN ('active', 'pending_approval') AND deleted_at IS NULL LIMIT 1");
         $stmt->bind_param('s', $user['email']);
         $stmt->execute();
@@ -46,7 +63,7 @@ try {
             $types = '';
             $params = [];
 
-            if ($user['role'] === 'researcher') {
+            if ($profileRole === 'researcher') {
                 // Update researcher profile
                 $fields = [
                     'first_name' => 's',
@@ -131,7 +148,7 @@ try {
                 } else {
                     $error_message = 'No changes to save.';
                 }
-            } elseif ($user['role'] === 'funder') {
+            } elseif ($profileRole === 'funder') {
                 // Update funder profile
                 $fields = [
                     'first_name' => 's',
@@ -278,7 +295,7 @@ $pGrad = $pGrads[abs(crc32(trim($user['name'] ?? ''))) % 5];
             </div>
         </div>
 
-        <?php if ($user['role'] === 'researcher' && $profile): ?>
+        <?php if ($profileRole === 'researcher' && $profile): ?>
         <div class="profile-section">
             <h2>Research Profile</h2>
             <div class="form-row">
@@ -296,7 +313,7 @@ $pGrad = $pGrads[abs(crc32(trim($user['name'] ?? ''))) % 5];
             <div style="margin-top: 16px"><strong>Geographic Focus:</strong><br><?= h($profile['geography']) ?></div>
             <?php endif; ?>
         </div>
-        <?php elseif ($user['role'] === 'funder' && $profile): ?>
+        <?php elseif ($profileRole === 'funder' && $profile): ?>
         <div class="profile-section">
             <h2>Funder Profile</h2>
             <div class="form-row">
@@ -323,7 +340,7 @@ $pGrad = $pGrads[abs(crc32(trim($user['name'] ?? ''))) % 5];
                 <input type="hidden" name="update_profile" value="1">
                 <input type="hidden" name="_csrf" value="<?= csrf_token() ?>"
 
-                <?php if ($user['role'] === 'researcher'): ?>
+                <?php if ($profileRole === 'researcher'): ?>
                 <div class="form-row">
                     <div class="form-field">
                         <label>First Name</label>
@@ -369,7 +386,7 @@ $pGrad = $pGrads[abs(crc32(trim($user['name'] ?? ''))) % 5];
                     </div>
                 </div>
 
-                <?php elseif ($user['role'] === 'funder'): ?>
+                <?php elseif ($profileRole === 'funder'): ?>
                 <div class="form-row">
                     <div class="form-field">
                         <label>First Name</label>
@@ -429,7 +446,7 @@ $pGrad = $pGrads[abs(crc32(trim($user['name'] ?? ''))) % 5];
             </form>
         </div>
 
-        <?php elseif ($tab === 'links' && $profile && $user['role'] === 'researcher'): ?>
+        <?php elseif ($tab === 'links' && $profile && $profileRole === 'researcher'): ?>
         <!-- Links Tab (Researcher only) -->
         <div class="profile-section">
             <h2>Links & Social</h2>
@@ -461,7 +478,7 @@ $pGrad = $pGrads[abs(crc32(trim($user['name'] ?? ''))) % 5];
             </form>
         </div>
 
-        <?php elseif ($tab === 'links' && $profile && $user['role'] === 'funder'): ?>
+        <?php elseif ($tab === 'links' && $profile && $profileRole === 'funder'): ?>
         <!-- Links Tab (Funder) -->
         <div class="profile-section">
             <h2>Links</h2>
@@ -481,7 +498,7 @@ $pGrad = $pGrads[abs(crc32(trim($user['name'] ?? ''))) % 5];
         <?php elseif ($tab === 'preferences'): ?>
         <!-- Preferences Tab -->
         <div class="profile-section">
-            <?php if ($user['role'] === 'researcher' && $profile): ?>
+            <?php if ($profileRole === 'researcher' && $profile): ?>
             <!-- Notification Preferences for Researchers -->
             <h2 style="margin-bottom: 8px">Funding Call Notifications</h2>
             <p style="color: var(--muted); margin-bottom: 20px">Customize how you receive funding opportunities that match your profile</p>
