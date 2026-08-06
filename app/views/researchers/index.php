@@ -616,10 +616,8 @@ $itemsPerPage = 24;
 // Count total active researchers for public browse
 $countRes = @$conn->query("SELECT COUNT(*) c FROM researchers WHERE status = 'active' AND deleted_at IS NULL");
 if (!$countRes) {
-    $countRes = @$conn->query("SELECT COUNT(*) c FROM researchers WHERE status = 'active'");
-}
-if (!$countRes) {
-    $countRes = @$conn->query("SELECT COUNT(*) c FROM researchers");
+    // Fallbacks always keep the trash filter — a trashed researcher must never leak into the directory.
+    $countRes = @$conn->query("SELECT COUNT(*) c FROM researchers WHERE deleted_at IS NULL");
 }
 $totalCount = 0;
 if ($countRes) {
@@ -632,10 +630,8 @@ $paginator = new Paginator($totalCount, $itemsPerPage, $page);
 // Load current page of researchers (public browse: only active)
 $res = @$conn->query("SELECT * FROM researchers WHERE status = 'active' AND deleted_at IS NULL ORDER BY first_name ASC, last_name ASC " . $paginator->getSQLLimit());
 if (!$res) {
-    $res = @$conn->query("SELECT * FROM researchers WHERE status = 'active' ORDER BY first_name ASC, last_name ASC " . $paginator->getSQLLimit());
-}
-if (!$res) {
-    $res = @$conn->query("SELECT * FROM researchers ORDER BY first_name ASC, last_name ASC " . $paginator->getSQLLimit());
+    // Fallback still excludes trashed rows — never SELECT * with no filter here.
+    $res = @$conn->query("SELECT * FROM researchers WHERE deleted_at IS NULL ORDER BY first_name ASC, last_name ASC " . $paginator->getSQLLimit());
 }
 if ($res) {
     while ($row = $res->fetch_assoc()) $researchers[] = $row;
