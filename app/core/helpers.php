@@ -248,19 +248,37 @@ function revoke_user_session(mysqli $conn, int $userId): void {
 
 function generate_researcher_summary(mysqli $conn, int $researcherId): void {
     // Get researcher profile data
-    $q = $conn->prepare('SELECT first_name, last_name, title, institution, bio, focus_area, focus_area_detail, topics, geography FROM researchers WHERE id = ?');
+    $q = $conn->prepare('SELECT * FROM researchers WHERE id = ?');
     $q->bind_param('i', $researcherId);
     $q->execute();
     $researcher = $q->get_result()->fetch_assoc();
 
     if (!$researcher) return;
 
-    // Build summary from profile
+    // Prefer a real Claude-generated summary. ClaudeService::summarizeResearcher
+    // writes straight into ai_summaries (upsert), so on success we're done.
+    // Falls through to the plain template below if the API key isn't available
+    // in this context (e.g. a CLI run without it) or the call fails.
+    try {
+        require_once __DIR__ . '/../services/ClaudeService.php';
+        $claude = new ClaudeService($conn, 'auto:researcher_summary');
+        if ($claude->isAvailable()) {
+            $aiSummary = $claude->summarizeResearcher($researcherId, $researcher);
+            if (is_string($aiSummary) && trim($aiSummary) !== '') {
+                return;
+            }
+        }
+    } catch (\Throwable $e) {
+        error_log('[generate_researcher_summary] Claude path failed, using template: ' . $e->getMessage());
+    }
+
+    // Fallback: build a plain template summary from profile fields
     $name = trim($researcher['first_name'] . ' ' . $researcher['last_name']);
     $summary = "{$name}";
 
     if ($researcher['title']) {
-        $summary .= " is a {$researcher['title']}";
+        $article = (preg_match('/^[aeiou]/i', trim($researcher['title'])) ? 'an' : 'a');
+        $summary .= " is {$article} {$researcher['title']}";
         if ($researcher['institution']) {
             $summary .= " at {$researcher['institution']}";
         }
