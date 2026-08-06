@@ -300,6 +300,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (!$stmt->execute()) {
                         throw new Exception('Error creating researcher profile: ' . $stmt->error);
                     }
+                    // Capture the researcher id NOW — a later INSERT (e.g. newsletter)
+                    // would otherwise clobber $conn->insert_id and mis-target the summary.
+                    $newResearcherId = $conn->insert_id;
 
                     // Subscribe to newsletter if user opted in
                     if ($newsletterSubscribed) {
@@ -313,7 +316,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
 
                     // Generate AI summary and semantic embedding
-                    $newResearcherId = $conn->insert_id;
                     generate_researcher_summary($conn, $newResearcherId);
 
                     // Generate embedding for semantic search (async via job queue)
