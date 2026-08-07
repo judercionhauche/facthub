@@ -324,6 +324,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         'entity_id' => $newResearcherId
                     ]);
 
+                    // Score this researcher against every existing funding call, so
+                    // "Top matching funding calls" is populated for them right away.
+                    enqueue_job($conn, 'compute_matches_researcher', ['researcher_id' => $newResearcherId]);
+
                     // Enqueue ORCID publication fetch if provided
                     if ($orcidId) {
                         enqueue_job($conn, 'fetch_orcid_publications', ['researcher_id' => $newResearcherId, 'orcid_id' => $orcidId]);
@@ -490,6 +494,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     'entity_type' => 'researcher',
                     'entity_id' => $newResearcherId
                 ]);
+
+                // Score against every existing funding call so their matches show immediately.
+                enqueue_job($conn, 'compute_matches_researcher', ['researcher_id' => $newResearcherId]);
 
                 audit($conn, 'add_researcher', ['type' => 'researcher', 'id' => $newResearcherId, 'email' => $email]);
                 set_flash('success', 'Researcher added.' . ($userId ? ' A verification email has been sent.' : ''));

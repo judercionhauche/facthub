@@ -229,6 +229,31 @@ function dispatch_job(mysqli $conn, array $job, string $appUrl): void {
                 echo "[" . date('Y-m-d H:i:s') . "] Job {$jobId} (compute_matches) done" . PHP_EOL;
                 break;
 
+            // Inverse of compute_matches: score ONE researcher against every active
+            // funding call. compute_matches is keyed by funding_call_id, so a newly
+            // added researcher would otherwise have no match scores at all until a
+            // funding call happened to be created/updated. Enqueued on researcher
+            // creation. Scores only — no notifications, so a new signup isn't blasted
+            // with one email per existing call.
+            case 'compute_matches_researcher':
+                $rId = (int)($payload['researcher_id'] ?? 0);
+                if (!$rId) throw new RuntimeException('Missing researcher_id');
+
+                $rStmt = $conn->prepare('SELECT * FROM researchers WHERE id = ? AND status = "active" AND deleted_at IS NULL LIMIT 1');
+                $rStmt->bind_param('i', $rId); $rStmt->execute();
+                $researcher = $rStmt->get_result()->fetch_assoc();
+                if (!$researcher) throw new RuntimeException("Researcher {$rId} not found or not active");
+
+                $fcAll = $conn->query('SELECT * FROM funding_calls WHERE deleted_at IS NULL');
+                $fcRows = $fcAll ? $fcAll->fetch_all(MYSQLI_ASSOC) : [];
+                foreach ($fcRows as $fcRow) {
+                    $claude->scoreMatch((int)$fcRow['id'], $fcRow, $rId, $researcher);
+                    usleep(200000); // 200ms throttle, same as compute_matches
+                }
+                mark_job_done($conn, $jobId);
+                echo "[" . date('Y-m-d H:i:s') . "] Job {$jobId} (compute_matches_researcher) scored researcher {$rId} against " . count($fcRows) . " calls" . PHP_EOL;
+                break;
+
             case 'generate_summary':
                 $type = $payload['entity_type'] ?? '';
                 $eid = (int)($payload['entity_id'] ?? 0);
