@@ -7,6 +7,7 @@
 class ClaudeService {
     const MODEL_HAIKU  = 'claude-haiku-4-5-20251001';   // bulk scoring, search parsing
     const MODEL_SONNET = 'claude-sonnet-4-6';            // quality summaries
+    const EMBEDDING_DIMENSIONS = 256; // see getEmbedding() — must fit comfortably in max_tokens
 
     // Pricing per million tokens (USD)
     const PRICING = [
@@ -524,16 +525,22 @@ PROMPT,
         $startMs = (int)(microtime(true) * 1000);
 
         // Call Anthropic Embeddings API
+        // NOTE: Claude has no native embeddings endpoint — this asks the chat model to
+        // produce a JSON array of numbers as text, which we treat as a pseudo-embedding.
+        // 256 dimensions (was 1000) so the array reliably finishes within max_tokens;
+        // 1000 numbers needed ~2000+ output tokens and was silently truncating mid-array
+        // on every call, which is why embedding generation was failing 100% of the time.
+        $dims = self::EMBEDDING_DIMENSIONS;
         $ch = curl_init('https://api.anthropic.com/v1/messages');
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST           => true,
             CURLOPT_POSTFIELDS     => json_encode([
                 'model'      => self::MODEL_HAIKU,
-                'max_tokens' => 1024,
+                'max_tokens' => 3000,
                 'messages'   => [[
                     'role' => 'user',
-                    'content' => "Generate a semantic embedding vector for this text. Return ONLY a valid JSON array of 1000 numbers between -1 and 1 representing the semantic meaning:\n\n$text"
+                    'content' => "Generate a semantic embedding vector for this text. Return ONLY a valid JSON array of exactly {$dims} numbers between -1 and 1 representing the semantic meaning:\n\n$text"
                 ]],
                 'system' => 'You are an embedding generator. Your sole purpose is to convert text into semantic vectors. Always respond with ONLY a valid JSON array of numbers, nothing else.'
             ]),
@@ -576,12 +583,13 @@ PROMPT,
         $embedding = @json_decode($response, true);
 
         if (!is_array($embedding) || empty($embedding)) {
-            error_log("[ClaudeService] Invalid embedding format: " . substr($response, 0, 200));
+            $stopReason = $data['stop_reason'] ?? 'unknown';
+            error_log("[ClaudeService] Invalid embedding format (stop_reason=$stopReason): " . substr($response, 0, 200));
             return null;
         }
 
         // Normalize embedding to standard dimension
-        return array_slice($embedding, 0, 1000) ?: null;
+        return array_slice($embedding, 0, self::EMBEDDING_DIMENSIONS) ?: null;
     }
 }
 ?>
