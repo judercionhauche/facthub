@@ -36,7 +36,7 @@ switch ($action) {
                     CONCAT(r.first_name," ",r.last_name) AS name, r.institution, r.email
              FROM match_scores ms
              JOIN researchers r ON r.id = ms.researcher_id
-             WHERE ms.funding_call_id = ? AND r.status = 'active' AND r.deleted_at IS NULL
+             WHERE ms.funding_call_id = ? AND r.status = \'active\' AND r.deleted_at IS NULL
              ORDER BY COALESCE(ms.score_ai, ms.score_keyword) DESC'
         );
         $stmt->bind_param('i', $fcId); $stmt->execute();
