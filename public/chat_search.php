@@ -241,6 +241,49 @@ function fetchCandidates(mysqli $conn, string $table, array $allTerms, string $s
     return $results;
 }
 
+/**
+ * Build the set of researchers Claude will judge.
+ *
+ * On a platform this size we hand Claude EVERY active researcher, so no keyword
+ * pre-filter can hide someone before the AI ever sees them — that pre-filtering
+ * is exactly what caused "markets and trade" to return nobody. Above the cap we
+ * fall back to the keyword-narrowed candidates purely to bound context and cost.
+ * ORCID keywords are attached (LEFT-join semantics) so published work is weighed
+ * alongside the profile, without excluding the many researchers who have no ORCID.
+ */
+function fetchResearcherPool(mysqli $conn, array $fallbackCandidates, int $cap = 250): array {
+    $rows = [];
+    $cnt = 0;
+    $c = @$conn->query("SELECT COUNT(*) c FROM researchers WHERE status = 'active' AND deleted_at IS NULL");
+    if ($c) $cnt = (int)($c->fetch_assoc()['c'] ?? 0);
+
+    if ($cnt > 0 && $cnt <= $cap) {
+        $res = @$conn->query("SELECT * FROM researchers WHERE status = 'active' AND deleted_at IS NULL");
+        if ($res) $rows = $res->fetch_all(MYSQLI_ASSOC);
+    }
+    if (empty($rows)) $rows = $fallbackCandidates;   // large platform, or query failed
+    if (empty($rows)) return [];
+
+    $ids = array_values(array_unique(array_filter(array_map(fn($r) => (int)($r['id'] ?? 0), $rows))));
+    if ($ids) {
+        $in = implode(',', $ids); // ints only — safe to inline
+        $kres = @$conn->query("SELECT researcher_id, keywords FROM researcher_orcid_cache WHERE researcher_id IN ($in)");
+        if ($kres) {
+            $kw = [];
+            while ($k = $kres->fetch_assoc()) {
+                $decoded = json_decode((string)($k['keywords'] ?? ''), true);
+                if (is_array($decoded) && $decoded) $kw[(int)$k['researcher_id']] = $decoded;
+            }
+            foreach ($rows as &$row) {
+                $rid = (int)($row['id'] ?? 0);
+                if (isset($kw[$rid])) $row['orcid_keywords'] = $kw[$rid];
+            }
+            unset($row);
+        }
+    }
+    return $rows;
+}
+
 function fetchCandidatesFromOrcidKeywords(mysqli $conn, array $allTerms, $orcidService = null): array {
     if (empty($allTerms)) return [];
     $results = [];
@@ -531,8 +574,11 @@ if ($filterType !== 'funding' && $filterType !== 'institution' && !empty($allSea
 }
 
 // Step 4b: Semantic search for researchers (enhanced matching)
+// Only needed for the keyword fallback path below — when Claude is available it reads
+// the profiles directly (see matchResearchers), which supersedes this. Skipping it then
+// keeps the number of API calls per search the same as before this feature.
 $semanticResults = [];
-if ($filterType !== 'funding' && $filterType !== 'institution' && !empty($q)) {
+if ($filterType !== 'funding' && $filterType !== 'institution' && !empty($q) && !$claude->isAvailable()) {
     try {
         $claudeService = new ClaudeService($conn, $_SESSION['email'] ?? 'guest');
         $semanticService = new SemanticSearchService($conn, $claudeService);
@@ -597,25 +643,55 @@ if (!is_approved()) {
 }
 
 $rResults = [];
-foreach ($rCandidates as $r) {
-    $keywordScore = scoreResearcher($r, $topicFilters, $geoFilters, $keywords, $expandedTopics, $expandedGeos, $synonyms, $orcid);
 
-    // If semantic search found this researcher, use hybrid scoring
-    $finalScore = $keywordScore;
-    $explanation = null;
-    if (isset($semanticResults[$r['id']])) {
-        $sem = $semanticResults[$r['id']];
-        // Hybrid score: 60% keyword + 40% semantic (semantic has richer understanding)
-        $finalScore = ($keywordScore * 0.6) + ($sem['semantic_score'] * 0.4);
-        $explanation = $sem['explanation'];
+// ── Primary path: let Claude read the profiles and decide who matches ──────────
+// Rather than scoring with hand-written keyword rules, hand Claude the actual
+// researcher records (category, subcategory, topics, geography, bio, title,
+// department, ORCID keywords) and let it judge relevance semantically. The
+// keyword scorer below is kept only as a fallback for when the API is
+// unavailable, so search degrades instead of breaking.
+$aiMatches = null;
+if ($filterType !== 'funding' && $filterType !== 'institution' && trim($q) !== '') {
+    $pool = fetchResearcherPool($conn, $rCandidates);
+    if (!empty($pool)) {
+        $aiMatches = $claude->matchResearchers($corrected ?: $q, $pool);
+        if ($aiMatches !== null) {
+            $poolById = [];
+            foreach ($pool as $p) $poolById[(int)$p['id']] = $p;
+            foreach ($aiMatches as $rid => $m) {
+                if (!isset($poolById[$rid])) continue;
+                $rResults[] = [
+                    'score' => $m['relevance'] / 10,   // 0-100 → same rough band as keyword scores
+                    'r' => $poolById[$rid],
+                    'semantic_explanation' => $m['reason'] !== '' ? $m['reason'] : null,
+                ];
+            }
+        }
     }
+}
 
-    if ($finalScore >= 0.5) {
-        $rResults[] = [
-            'score' => $finalScore,
-            'r' => $r,
-            'semantic_explanation' => $explanation
-        ];
+// ── Fallback path: keyword/tag scoring (only when Claude gave us nothing) ──────
+if ($aiMatches === null) {
+    foreach ($rCandidates as $r) {
+        $keywordScore = scoreResearcher($r, $topicFilters, $geoFilters, $keywords, $expandedTopics, $expandedGeos, $synonyms, $orcid);
+
+        // If semantic search found this researcher, use hybrid scoring
+        $finalScore = $keywordScore;
+        $explanation = null;
+        if (isset($semanticResults[$r['id']])) {
+            $sem = $semanticResults[$r['id']];
+            // Hybrid score: 60% keyword + 40% semantic (semantic has richer understanding)
+            $finalScore = ($keywordScore * 0.6) + ($sem['semantic_score'] * 0.4);
+            $explanation = $sem['explanation'];
+        }
+
+        if ($finalScore >= 0.5) {
+            $rResults[] = [
+                'score' => $finalScore,
+                'r' => $r,
+                'semantic_explanation' => $explanation
+            ];
+        }
     }
 }
 usort($rResults, fn($a, $b) => $b['score'] <=> $a['score']);

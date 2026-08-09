@@ -294,6 +294,102 @@ Respond with valid JSON only, no markdown:
     }
 
     /**
+     * Let Claude read the actual researcher profiles and decide who matches.
+     *
+     * This replaces keyword/point-based guessing: instead of the PHP side inventing
+     * rules ("+4 if the category substring matches"), Claude sees each profile — the
+     * registration form's Category/Subcategory, topics, geography, bio, title,
+     * department and any ORCID keywords — and judges relevance by meaning. So
+     * "markets and trade" finds someone whose Category is "Markets & Trade", and
+     * "supply chain resilience" finds them too, without anyone writing that rule.
+     *
+     * @param array $researchers Rows from the researchers table (optionally with
+     *                           an 'orcid_keywords' array attached).
+     * @return array<int,array{relevance:float,reason:string}>|null  Keyed by researcher id.
+     *                           null means Claude was unavailable — caller should fall back.
+     */
+    public function matchResearchers(string $query, array $researchers, int $minRelevance = 30): ?array {
+        if (!$this->isAvailable() || empty($researchers)) return null;
+
+        try {
+            $queryJson = $this->escapePromptInput($query);
+        } catch (Exception $e) {
+            error_log('[ClaudeService] Invalid match query: ' . $e->getMessage());
+            return null;
+        }
+
+        // Compact profile records — everything a human would look at to judge relevance.
+        $profiles = [];
+        foreach ($researchers as $r) {
+            $bio = trim((string)($r['bio'] ?? ''));
+            if (mb_strlen($bio) > 400) $bio = mb_substr($bio, 0, 400) . '…';
+            $profile = [
+                'id'          => (int)($r['id'] ?? 0),
+                'name'        => trim(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? '')),
+                'title'       => (string)($r['title'] ?? ''),
+                'institution' => (string)($r['institution'] ?? ''),
+                'department'  => (string)($r['department'] ?? ''),
+                // Category / Subcategory as chosen on the registration form
+                'category'    => array_values(array_filter(array_map('trim', explode('|', (string)($r['focus_area'] ?? ''))))),
+                'subcategory' => array_values(array_filter(array_map('trim', explode(',', (string)($r['focus_area_detail'] ?? ''))))),
+                'topics'      => array_values(array_filter(array_map('trim', explode(',', (string)($r['topics'] ?? ''))))),
+                'geography'   => array_values(array_filter(array_map('trim', explode(',', (string)($r['geography'] ?? ''))))),
+                'bio'         => $bio,
+            ];
+            if (!empty($r['orcid_keywords']) && is_array($r['orcid_keywords'])) {
+                $profile['orcid_keywords'] = array_slice($r['orcid_keywords'], 0, 25);
+            }
+            $profiles[] = $profile;
+        }
+
+        $profileJson = json_encode($profiles, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        $prompt = "You are matching researchers to a search query on the FACT Alliance research platform (food, agriculture, climate, water, nutrition, markets and trade).
+
+Search query: {$queryJson}
+
+Researcher profiles (JSON array):
+{$profileJson}
+
+Decide which researchers genuinely match the intent of the query. Judge by meaning, not string overlap:
+- Treat the registration form's category and subcategory as first-class evidence of what someone works on — they are often filled in when topics and bio are empty.
+- Match related concepts, not just identical words: a query about trade should surface supply chains, value chains and market systems; a query about a region should surface researchers whose geography covers it, including broader regions that contain it.
+- Consider category, subcategory, topics, geography, bio, title, department, institution and any orcid_keywords together.
+- A person is a match if a knowledgeable colleague would forward this query to them.
+- Do not invent matches. If nobody is genuinely relevant, return an empty array.
+
+Respond with valid JSON only, no markdown:
+{\"matches\":[{\"id\":123,\"relevance\":85,\"reason\":\"one short specific sentence\"}]}
+relevance is 0-100. Include only researchers scoring {$minRelevance} or above. Order by relevance descending.";
+
+        $response = $this->call(self::MODEL_SONNET, $prompt, 'search_match_researchers', 2000);
+        if (!$response) return null;
+
+        $parsed = $this->extractJson($response['content']);
+        if (!is_array($parsed) || !isset($parsed['matches']) || !is_array($parsed['matches'])) {
+            error_log('[ClaudeService] Invalid researcher match response: ' . mb_substr((string)$response['content'], 0, 300));
+            return null;
+        }
+
+        // Only trust ids we actually sent, so a hallucinated id can never reach the UI.
+        $validIds = [];
+        foreach ($profiles as $p) $validIds[$p['id']] = true;
+
+        $out = [];
+        foreach ($parsed['matches'] as $m) {
+            $id = (int)($m['id'] ?? 0);
+            if (!$id || !isset($validIds[$id])) continue;
+            $rel = (float)($m['relevance'] ?? 0);
+            if ($rel < $minRelevance) continue;
+            $out[$id] = [
+                'relevance' => max(0.0, min(100.0, $rel)),
+                'reason'    => trim((string)($m['reason'] ?? '')),
+            ];
+        }
+        return $out;
+    }
+
+    /**
      * Multi-turn conversational search — maintains context across query refinements.
      * Returns ['response'=>string, 'topics'=>[], 'geographies'=>[], ...] or null.
      */
