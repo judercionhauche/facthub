@@ -272,6 +272,17 @@ function apply_security_schema_updates(mysqli $conn): void {
         @$conn->query("ALTER TABLE funding_calls ADD FULLTEXT INDEX ft_funding_search (title, description, topics, geography)");
     }
 
+    // Expanded researcher search index. The original ft_r_search covers only
+    // (first_name,last_name,institution,bio,topics,geography), which meant the
+    // registration form's Category (focus_area), Subcategory (focus_area_detail),
+    // department and title were never searchable — a query like "markets and trade"
+    // could not find anyone. MySQL requires MATCH()'s column list to exactly match
+    // an existing FULLTEXT index, so the wider column set needs its own index.
+    $ftR = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='researchers' AND INDEX_NAME='ft_r_search_ext' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$ftR || $ftR->num_rows === 0) {
+        @$conn->query("ALTER TABLE researchers ADD FULLTEXT INDEX ft_r_search_ext (first_name, last_name, institution, department, title, bio, focus_area, focus_area_detail, topics, geography, co_advising_details)");
+    }
+
     $idxCheck = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='funding_calls' AND INDEX_NAME='idx_deleted_at' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
     if (!$idxCheck || $idxCheck->num_rows === 0) {
         @$conn->query("ALTER TABLE funding_calls ADD INDEX idx_deleted_at (deleted_at)");

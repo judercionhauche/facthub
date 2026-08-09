@@ -206,9 +206,23 @@ function fetchCandidates(mysqli $conn, string $table, array $allTerms, string $s
         try {
             $orClauses = []; $params = []; $types = '';
             $cols = explode(',', $ftField);
+            // Match the whole phrase AND each significant word within it. A stored value
+            // like "Markets & Trade" would never match a literal LIKE '%markets and trade%',
+            // so word-level needles are what make category/subcategory queries actually hit.
+            $stop = ['and','the','for','with','from','that','this','are','was','who','how','all','any','into','over','under','about','their','them','its','research','researcher','researchers','working','work','who\'s','find','show'];
+            $needles = [];
             foreach ($allTerms as $term) {
+                $term = trim($term);
+                if ($term === '') continue;
+                $needles[strtolower($term)] = true;
+                foreach (preg_split('/[^a-z0-9]+/i', $term) as $w) {
+                    $w = strtolower(trim($w));
+                    if (strlen($w) >= 3 && !in_array($w, $stop, true)) $needles[$w] = true;
+                }
+            }
+            foreach (array_keys($needles) as $needle) {
                 $sub = [];
-                foreach ($cols as $col) { $sub[] = trim($col) . ' LIKE ?'; $params[] = '%' . $term . '%'; $types .= 's'; }
+                foreach ($cols as $col) { $sub[] = trim($col) . ' LIKE ?'; $params[] = '%' . $needle . '%'; $types .= 's'; }
                 $orClauses[] = '(' . implode(' OR ', $sub) . ')';
             }
             $sql = "SELECT *, 0.0 AS ft_relevance FROM {$table} WHERE (" . implode(' OR ', $orClauses) . ") AND deleted_at IS NULL";
@@ -336,15 +350,40 @@ function scoreFC(array $fc, array $topicFilters, array $geoFilters, array $keywo
 function scoreResearcher(array $r, array $topicFilters, array $geoFilters, array $keywords, array $expandedTopics, array $expandedGeos, array $synonyms, ?OrcidService $orcid = null): float {
     $score = (float)($r['ft_relevance'] ?? 0) * 5;
     $name = strtolower(($r['first_name'] ?? '') . ' ' . ($r['last_name'] ?? ''));
-    $body = strtolower(($r['bio'] ?? '') . ' ' . ($r['institution'] ?? '') . ' ' . ($r['title'] ?? ''));
+    $body = strtolower(($r['bio'] ?? '') . ' ' . ($r['institution'] ?? '') . ' ' . ($r['title'] ?? '')
+                       . ' ' . ($r['department'] ?? '') . ' ' . ($r['co_advising_details'] ?? ''));
     $tags = parse_tags($r['topics'] ?? '');
     $geos = parse_tags($r['geography'] ?? '');
-    foreach ($keywords as $kw) { $kw = strtolower($kw); if (strpos($name, $kw) !== false) $score += 3; elseif (strpos($body, $kw) !== false) $score += 1; }
-    foreach ($topicFilters as $t) { if (in_array($t, $tags, true)) $score += 4; }
+
+    // Research areas declared on the registration form. Category (focus_area) is stored
+    // pipe-separated; Subcategory (focus_area_detail) comma-separated. These are the
+    // fields most registrants actually fill in (ORCID is usually blank), so a hit here
+    // is a strong relevance signal — weighted like an exact topic-tag match.
+    $cats     = array_values(array_filter(array_map(fn($t) => strtolower(trim($t)), explode('|', (string)($r['focus_area'] ?? '')))));
+    $subcats  = parse_tags($r['focus_area_detail'] ?? '');
+    $areaText = strtolower(($r['focus_area'] ?? '') . ' ' . ($r['focus_area_detail'] ?? ''));
+
+    foreach ($keywords as $kw) {
+        $kw = strtolower($kw);
+        if ($kw === '') continue;
+        if (strpos($name, $kw) !== false) $score += 3;
+        elseif (strpos($areaText, $kw) !== false) $score += 4;
+        elseif (strpos($body, $kw) !== false) $score += 1;
+    }
+    // Word-level pass over declared areas: "markets and trade" must still hit "Markets & Trade".
+    $areaStop = ['and','the','for','with','from','that','this','are'];
+    foreach ($keywords as $kw) {
+        foreach (preg_split('/[^a-z0-9]+/i', strtolower($kw)) as $w) {
+            if (strlen($w) < 3 || in_array($w, $areaStop, true)) continue;
+            if (strpos($areaText, $w) !== false) $score += 2;
+        }
+    }
+
+    foreach ($topicFilters as $t) { if (in_array($t, $tags, true) || in_array($t, $cats, true) || in_array($t, $subcats, true)) $score += 4; }
     foreach ($geoFilters as $g) { if (in_array($g, $geos, true)) $score += 3; }
-    foreach ($expandedTopics as $t) { if (in_array($t, $tags, true)) $score += 1; }
+    foreach ($expandedTopics as $t) { if (in_array($t, $tags, true) || in_array($t, $cats, true) || in_array($t, $subcats, true)) $score += 1; }
     foreach ($expandedGeos as $g) { if (in_array($g, $geos, true)) $score += 0.5; }
-    foreach ($synonyms as $syn) { if (in_array($syn, $tags, true) || strpos($name, $syn) !== false) $score += 0.5; }
+    foreach ($synonyms as $syn) { if (in_array($syn, $tags, true) || in_array($syn, $cats, true) || in_array($syn, $subcats, true) || strpos($name, $syn) !== false) $score += 0.5; }
 
     // ORCID boost: comprehensive data (publications + affiliations + education + fundings + peer reviews)
     if ($orcid && !empty($r['orcid_id'])) {
@@ -471,7 +510,11 @@ $allSearchTerms = array_unique(array_merge($expandedTopics, $expandedGeos, $keyw
 // Step 4: Fetch candidates (keyword + semantic search)
 // Funding calls are access-controlled: pending users cannot fetch them at all
 $fcCandidates = (is_approved() && $filterType !== 'researcher' && $filterType !== 'institution' && !empty($allSearchTerms)) ? fetchCandidates($conn, 'funding_calls', $allSearchTerms, $filterStatus, 'title,description,topics,geography') : [];
-$rCandidates = ($filterType !== 'funding' && $filterType !== 'institution' && !empty($allSearchTerms)) ? fetchCandidates($conn, 'researchers', $allSearchTerms, '', 'first_name,last_name,institution,bio,topics,geography') : [];
+// Search the whole researcher profile, not just name/institution/bio/topics/geography.
+// Most registrations have no ORCID but DO fill in Category (focus_area), Subcategory
+// (focus_area_detail), department and title — those must be searchable too.
+// Column list must stay in sync with the ft_r_search_ext index in schema_updates.php.
+$rCandidates = ($filterType !== 'funding' && $filterType !== 'institution' && !empty($allSearchTerms)) ? fetchCandidates($conn, 'researchers', $allSearchTerms, '', 'first_name,last_name,institution,department,title,bio,focus_area,focus_area_detail,topics,geography,co_advising_details') : [];
 
 // Also search ORCID keywords for researchers (finds researchers by their publication topics)
 if ($filterType !== 'funding' && $filterType !== 'institution' && !empty($allSearchTerms)) {

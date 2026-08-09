@@ -308,9 +308,12 @@ PROMPT;
                     r.first_name LIKE ? OR r.last_name LIKE ?
                     OR r.bio LIKE ? OR r.topics LIKE ?
                     OR r.focus_area LIKE ? OR r.institution LIKE ?
+                    OR r.focus_area_detail LIKE ? OR r.geography LIKE ?
+                    OR r.department LIKE ? OR r.title LIKE ?
                 )";
 
-        $params = [$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm];
+        $params = [$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm,
+                   $searchTerm, $searchTerm, $searchTerm, $searchTerm];
 
         if (!empty($topics)) {
             $topicConditions = array_map(fn($t) => "r.topics LIKE ?", $topics);
@@ -373,17 +376,18 @@ PROMPT;
                 AND r.status IN ('active', 'pending_approval')
                 AND (
                   r.topics LIKE ? OR r.geography LIKE ? OR r.focus_area LIKE ? OR r.bio LIKE ?
+                  OR r.focus_area_detail LIKE ? OR r.department LIKE ? OR r.institution LIKE ?
                 )
                 ORDER BY semantic_boost DESC, r.created_at DESC
                 LIMIT ?";
 
-        $params = [$query, $query, '%' . addslashes($query) . '%', '%' . addslashes($query) . '%',
-                   '%' . addslashes($query) . '%', '%' . addslashes($query) . '%', $limit];
+        $like = '%' . addslashes($query) . '%';
+        $params = [$query, $query, $like, $like, $like, $like, $like, $like, $like, $limit];
 
         $stmt = $this->conn->prepare($sql);
         if (!$stmt) return [];
 
-        $stmt->bind_param('ssssssi', ...$params);
+        $stmt->bind_param('sssssssssi', ...$params);
         $stmt->execute();
         $results = $stmt->get_result()->fetch_all(MYSQLI_ASSOC) ?: [];
 
@@ -416,6 +420,21 @@ PROMPT;
         // Topic match
         if (stripos($topicsLower, $queryLower) !== false) {
             $score += 15;
+        }
+
+        // Declared research areas from the registration form (Category / Subcategory).
+        // Most profiles have these filled in even when topics/ORCID are empty.
+        $areaLower = strtolower(($researcher['focus_area'] ?? '') . ' ' . ($researcher['focus_area_detail'] ?? ''));
+        if ($areaLower !== ' ' && stripos($areaLower, $queryLower) !== false) {
+            $score += 15;
+        } else {
+            // Word-level: "markets and trade" should still match "Markets & Trade"
+            foreach (array_filter(preg_split('/[^a-z0-9]+/i', $queryLower)) as $w) {
+                if (strlen($w) >= 3 && !in_array($w, ['and','the','for','with','from'], true)
+                    && stripos($areaLower, $w) !== false) {
+                    $score += 5;
+                }
+            }
         }
 
         // Bio mention
