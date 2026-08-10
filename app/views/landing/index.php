@@ -128,7 +128,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
     display:inline-flex;align-items:center;gap:8px;
   }
   .l-btn:hover{transform:translateY(-1px)}
-  .l-btn-primary{background:var(--pine);color:#fff}
+  .landing a.l-btn-primary{background:var(--pine);color:#fff}
   .l-btn-primary:hover{background:var(--pine-deep);color:#fff}
   .l-btn-gold{background:var(--gold);color:#231c0d}
   .l-btn-gold:hover{background:#d8bc74;color:#231c0d}
