@@ -27,6 +27,23 @@ if (file_exists($envFile)) {
     }
 }
 
+// Fallback: on prod, some vars (e.g. ANTHROPIC_API_KEY) are only exported via
+// /etc/apache2/envvars for the web server, which this CLI process doesn't inherit.
+// Parse that file too so cron-run jobs (like the balance check) see the same key.
+$apacheEnvFile = '/etc/apache2/envvars';
+if (@is_readable($apacheEnvFile)) {
+    $lines = @file($apacheEnvFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if (strpos($line, 'export ') === 0) $line = substr($line, 7);
+        if (strpos($line, '=') === false || strpos($line, '#') === 0) continue;
+        list($key, $val) = explode('=', $line, 2);
+        $key = trim($key);
+        $val = trim($val, '\'" ');
+        if (!getenv($key)) putenv("$key=$val");
+    }
+}
+
 require_once __DIR__ . '/../core/helpers.php';
 require_once __DIR__ . '/../core/mailer.php';
 require_once __DIR__ . '/../core/suppression.php';
