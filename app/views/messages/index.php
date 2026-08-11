@@ -33,6 +33,13 @@ if (!is_approved()) {
 
 $user = current_user();
 
+// Get user's timezone from session (detected by browser)
+$userTimezone = $_SESSION['user_timezone'] ?? null;
+if (!$userTimezone && !empty($_POST['browser_timezone'])) {
+    $userTimezone = trim($_POST['browser_timezone']);
+    $_SESSION['user_timezone'] = $userTimezone;
+}
+
 // Check if user accessed via email link for wrong account — log out and redirect to login
 if ($emailLinkWrongUser) {
     session_unset();
@@ -527,11 +534,19 @@ function msg_format_time(string $ts): string {
     if ($t > $now - 604800) return date('D', $t);
     return date('M j', $t);
 }
-function msg_format_full_time(string $ts): string {
-    // Parse as UTC, then convert to EDT
-    $dt = new DateTime($ts, new DateTimeZone('UTC'));
-    $dt->setTimezone(new DateTimeZone('America/New_York'));
-    return $dt->format('M j, Y \a\t g:i A T');
+function msg_format_full_time(string $ts, ?string $userTz = null): string {
+    // Use user's timezone if available, otherwise default to EDT
+    $tz = $userTz ?: 'America/New_York';
+    try {
+        $dt = new DateTime($ts, new DateTimeZone('UTC'));
+        $dt->setTimezone(new DateTimeZone($tz));
+        return $dt->format('M j, Y \a\t g:i A T');
+    } catch (Exception $e) {
+        // Fallback if timezone is invalid
+        $dt = new DateTime($ts, new DateTimeZone('UTC'));
+        $dt->setTimezone(new DateTimeZone('America/New_York'));
+        return $dt->format('M j, Y \a\t g:i A T');
+    }
 }
 
 /* Trash threads — root messages soft-deleted within last 30 days */
@@ -787,7 +802,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
                 </div>
                 <div>
                     <div class="thread-msg-name"><?= h($isMine ? 'You' : $sName) ?></div>
-                    <div class="thread-msg-time"><?= msg_format_full_time($tm['created_at']) ?></div>
+                    <div class="thread-msg-time"><?= msg_format_full_time($tm['created_at'], $userTimezone) ?></div>
                 </div>
                 <?php if ($tm['recipient_type'] === 'network'): ?>
                     <span class="badge badge-outline" style="font-size:11px;margin-left:auto">Network broadcast</span>
@@ -1317,5 +1332,24 @@ function undoTrashDelete(threadId) {
     }
 
     setInterval(refreshInbox, 2000); // Poll every 2 seconds for instant badge updates
+})();
+
+/* Detect and send user's browser timezone to server (via AJAX, only once per session) */
+(function() {
+    if (!sessionStorage.getItem('tz_sent')) {
+        var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (tz) {
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'browser_timezone=' + encodeURIComponent(tz)
+            }).then(function() {
+                sessionStorage.setItem('tz_sent', 'true');
+                location.reload(); // Refresh to use the new timezone
+            }).catch(function() {
+                sessionStorage.setItem('tz_sent', 'true');
+            });
+        }
+    }
 })();
 </script>
