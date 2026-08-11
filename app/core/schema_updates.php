@@ -488,7 +488,7 @@ function apply_security_schema_updates(mysqli $conn): void {
                 provider VARCHAR(50) NOT NULL UNIQUE,
                 total_budget DECIMAL(12,2) DEFAULT 0,
                 remaining_balance DECIMAL(12,2) DEFAULT 0,
-                status ENUM('active','paused','emergency','suspended') DEFAULT 'active',
+                status VARCHAR(20) NOT NULL DEFAULT 'error',
                 last_checked_at TIMESTAMP NULL DEFAULT NULL,
                 last_check_error TEXT NULL DEFAULT NULL,
                 checked_by VARCHAR(100) DEFAULT 'system',
@@ -499,7 +499,14 @@ function apply_security_schema_updates(mysqli $conn): void {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
     } else {
-        @$conn->query("ALTER TABLE api_balances MODIFY COLUMN status ENUM('active','paused','emergency','suspended') DEFAULT 'active'");
+        // status used to be ENUM('active','paused','emergency','suspended'), which doesn't
+        // include the values BalanceMonitor actually writes ('healthy','warning','critical',
+        // 'emergency','error') — MySQL silently stores those as '' on an ENUM mismatch,
+        // which is why the dashboard showed a blank status. Widen to VARCHAR and repair
+        // any rows already corrupted by the mismatch.
+        @$conn->query("ALTER TABLE api_balances MODIFY COLUMN status VARCHAR(20) NOT NULL DEFAULT 'error'");
+        @$conn->query("UPDATE api_balances SET status = 'error' WHERE status = '' OR status IS NULL");
+
         // Add missing columns if they don't exist
         $balancesCols = [
             'provider' => 'VARCHAR(50) NOT NULL UNIQUE',
@@ -514,6 +521,21 @@ function apply_security_schema_updates(mysqli $conn): void {
             if (!$colCheck || $colCheck->num_rows === 0) {
                 @$conn->query("ALTER TABLE api_balances ADD COLUMN $col $type");
             }
+        }
+
+        // provider may predate the UNIQUE constraint above, letting duplicate rows pile up
+        // (each check inserting a new row instead of updating, since ON DUPLICATE KEY UPDATE
+        // has no key to match on). Deduplicate, keeping the most recently checked row, then
+        // add the missing unique index.
+        $uniqCheck = @$conn->query("SELECT 1 FROM information_schema.STATISTICS WHERE TABLE_NAME='api_balances' AND TABLE_SCHEMA=DATABASE() AND NON_UNIQUE=0 AND COLUMN_NAME='provider' LIMIT 1");
+        if (!$uniqCheck || $uniqCheck->num_rows === 0) {
+            @$conn->query("
+                DELETE b1 FROM api_balances b1
+                INNER JOIN api_balances b2
+                ON b1.provider = b2.provider
+                AND (b1.last_checked_at < b2.last_checked_at OR (b1.last_checked_at = b2.last_checked_at AND b1.id < b2.id))
+            ");
+            @$conn->query("ALTER TABLE api_balances ADD UNIQUE KEY uniq_provider (provider)");
         }
     }
 
