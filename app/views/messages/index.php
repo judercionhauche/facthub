@@ -981,7 +981,9 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
         <?php foreach ($activeList as $i => $m):
             $isActive  = ($threadId === (int)$m['id']);
             $isUnread  = $tab === 'inbox' && (int)$m['unread_count'] > 0;
-            $sName     = $m['sender_name'] ?: $m['sender_email'];
+            $sName     = ($m['sender_email'] === $user['email'])
+                ? ($m['recipient_name'] ?: $m['recipient_email'] ?: $m['sender_name'])
+                : ($m['sender_name'] ?: $m['sender_email']);
             $isNetwork = ($m['recipient_type'] === 'network');
             $preview   = mb_substr(str_replace(["\n","\r"], ' ', $m['body']), 0, 80);
             $replies   = (int)($m['reply_count'] ?? 0);
