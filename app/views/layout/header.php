@@ -1,5 +1,6 @@
 <?php
 $user = current_user();
+$_isAuthPage = in_array($page, ['login', 'register', 'forgot', 'verify']);
 $_msgUnread = 0;
 if (is_logged_in()) {
     $_em = $user['email'];
@@ -146,7 +147,7 @@ if (is_logged_in()) {
     <header class="topbar">
         <div class="topbar-inner">
             <div class="brand-wrap">
-                <?php if (is_logged_in()): ?>
+                <?php if (is_logged_in() && !$_isAuthPage): ?>
                 <button id="hamburger" onclick="document.getElementById('nav-drawer').style.display='flex'"
                         style="display:none;background:none;border:none;font-size:24px;cursor:pointer;padding:8px;margin-right:8px">☰</button>
                 <?php endif; ?>
@@ -154,7 +155,7 @@ if (is_logged_in()) {
                     <img src="assets/fact-alliance-logo.png" alt="FACT Alliance" class="brand-logo" style="height: 36px; width: auto;">
                 </a>
             </div>
-            <?php if (is_logged_in()): ?>
+            <?php if (is_logged_in() && !$_isAuthPage): ?>
             <nav class="topnav">
                 <a href="index.php?page=researchers"  class="<?= $page === 'researchers'  ? 'active' : '' ?>">Researchers</a>
                 <a href="index.php?page=funding"      class="<?= $page === 'funding'      ? 'active' : '' ?>">Funding</a>
@@ -179,7 +180,6 @@ if (is_logged_in()) {
         </div>
     </header>
 
-    <?php $_isAuthPage = in_array($page, ['login', 'register', 'forgot', 'verify']); ?>
     <div class="page-wrap <?= (!is_logged_in() || $_isAuthPage) ? 'auth-wrap' : '' ?>">
         <?php if (is_logged_in() && !$_isAuthPage): ?>
         <aside class="sidebar">
