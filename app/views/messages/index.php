@@ -528,8 +528,10 @@ function msg_format_time(string $ts): string {
     return date('M j', $t);
 }
 function msg_format_full_time(string $ts): string {
-    date_default_timezone_set('America/New_York');
-    return date('M j, Y \a\t g:i A', strtotime($ts)) . ' EDT';
+    // Parse as UTC, then convert to EDT
+    $dt = new DateTime($ts, new DateTimeZone('UTC'));
+    $dt->setTimezone(new DateTimeZone('America/New_York'));
+    return $dt->format('M j, Y \a\t g:i A T');
 }
 
 /* Trash threads — root messages soft-deleted within last 30 days */
