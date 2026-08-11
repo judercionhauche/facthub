@@ -631,6 +631,12 @@ function apply_security_schema_updates(mysqli $conn): void {
         @$conn->query("ALTER TABLE messages ADD COLUMN funding_call_title VARCHAR(255) DEFAULT NULL");
     }
 
+    // Add edited_at column to messages table for tracking edits
+    $result = @$conn->query("SELECT 1 FROM information_schema.COLUMNS WHERE TABLE_NAME='messages' AND COLUMN_NAME='edited_at' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
+    if (!$result || $result->num_rows === 0) {
+        @$conn->query("ALTER TABLE messages ADD COLUMN edited_at TIMESTAMP NULL DEFAULT NULL");
+    }
+
     // Create researcher_publications table for ORCID publications
     $result = @$conn->query("SELECT 1 FROM information_schema.TABLES WHERE TABLE_NAME='researcher_publications' AND TABLE_SCHEMA=DATABASE() LIMIT 1");
     if (!$result || $result->num_rows === 0) {

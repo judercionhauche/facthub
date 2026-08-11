@@ -217,6 +217,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect_to('messages', ['thread' => $threadId]);
     }
 
+    /* Edit a message (only sender, only the message body) */
+    if ($action === 'edit_message') {
+        $msgId = (int)($_POST['message_id'] ?? 0);
+        $newBody = trim($_POST['body'] ?? '');
+        $threadId = (int)($_POST['thread_id'] ?? 0);
+
+        if (!$msgId || !$newBody) {
+            set_flash('error', 'Message body is required.');
+            redirect_to('messages', $threadId ? ['tab' => 'inbox', 'thread' => $threadId] : ['tab' => 'inbox']);
+        }
+
+        // Fetch the message to check ownership
+        $msgStmt = $conn->prepare('SELECT sender_email, id FROM messages WHERE id = ? LIMIT 1');
+        $msgStmt->bind_param('i', $msgId); $msgStmt->execute();
+        $msg = $msgStmt->get_result()->fetch_assoc();
+
+        if (!$msg) {
+            set_flash('error', 'Message not found.');
+            redirect_to('messages', $threadId ? ['tab' => 'inbox', 'thread' => $threadId] : ['tab' => 'inbox']);
+        }
+
+        // Only the sender can edit
+        if ($msg['sender_email'] !== $user['email']) {
+            set_flash('error', 'You can only edit your own messages.');
+            redirect_to('messages', $threadId ? ['tab' => 'inbox', 'thread' => $threadId] : ['tab' => 'inbox']);
+        }
+
+        // Update the message
+        $editStmt = $conn->prepare('UPDATE messages SET body = ?, edited_at = NOW() WHERE id = ?');
+        $editStmt->bind_param('si', $newBody, $msgId);
+        $editStmt->execute();
+
+        set_flash('success', 'Message updated.');
+        redirect_to('messages', $threadId ? ['tab' => 'inbox', 'thread' => $threadId] : ['tab' => 'inbox']);
+    }
+
     /* Delete a single message (soft → Trash) */
     if ($action === 'delete') {
         $msgId    = (int)($_POST['message_id'] ?? 0);
@@ -752,8 +788,11 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
                     <span class="badge badge-outline" style="font-size:11px;margin-left:auto">Network broadcast</span>
                 <?php endif; ?>
             </div>
-            <div class="thread-body"><?= h($tm['body']) ?></div>
+            <div class="thread-body"><?= h($tm['body']) ?><?php if ($tm['edited_at']): ?> <span style="font-size:11px;color:#999">(edited)</span><?php endif; ?></div>
             <div class="thread-msg-actions">
+                <?php if ($isMine): ?>
+                <button class="ghost-btn" type="button" style="padding:5px 12px;font-size:12px;cursor:pointer" onclick="editMessageToggle(<?= (int)$tm['id'] ?>)">Edit</button>
+                <?php endif; ?>
                 <form method="post" style="display:inline" onsubmit="return confirm('Delete this message?')">
                     <input type="hidden" name="action" value="delete">
                     <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
@@ -762,6 +801,21 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
                     <button class="danger-btn" type="submit" style="padding:5px 12px;font-size:12px">Delete</button>
                 </form>
             </div>
+            <?php if ($isMine): ?>
+            <div id="edit-form-<?= (int)$tm['id'] ?>" style="display:none;margin-top:12px;padding:12px;background:#f9f9f9;border-radius:8px;border:1px solid var(--line)">
+                <form method="post">
+                    <input type="hidden" name="action" value="edit_message">
+                    <input type="hidden" name="_csrf" value="<?= csrf_token() ?>">
+                    <input type="hidden" name="message_id" value="<?= (int)$tm['id'] ?>">
+                    <input type="hidden" name="thread_id" value="<?= $threadId ?>">
+                    <textarea name="body" style="width:100%;min-height:60px;padding:8px;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:14px;resize:vertical" required><?= h($tm['body']) ?></textarea>
+                    <div style="margin-top:8px;display:flex;gap:8px">
+                        <button class="primary-btn" type="submit" style="padding:6px 12px;font-size:12px">Save</button>
+                        <button type="button" class="ghost-btn" style="padding:6px 12px;font-size:12px" onclick="editMessageToggle(<?= (int)$tm['id'] ?>)">Cancel</button>
+                    </div>
+                </form>
+            </div>
+            <?php endif; ?>
         </div>
         <?php endforeach; ?>
     </div>
@@ -1159,6 +1213,19 @@ function selectRecipient(type, email, name) {
     /* Auto-focus reply textarea */
     var rb = document.getElementById('reply-body');
     if (rb) rb.focus();
+
+    /* Toggle edit form visibility */
+    window.editMessageToggle = function(messageId) {
+        var form = document.getElementById('edit-form-' + messageId);
+        if (form) {
+            var isHidden = form.style.display === 'none';
+            form.style.display = isHidden ? 'block' : 'none';
+            if (isHidden) {
+                var textarea = form.querySelector('textarea');
+                if (textarea) textarea.focus();
+            }
+        }
+    };
 
     /* Deleted-in-thread toggle */
     var dithHd   = document.getElementById('del-in-thread-hd');
