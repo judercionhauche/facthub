@@ -774,6 +774,8 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
         <?php foreach ($threadMessages as $tm):
             $isMine = ($tm['sender_email'] === $user['email']);
             $sName  = $tm['sender_name'] ?: $tm['sender_email'];
+            $createdAt = strtotime($tm['created_at']);
+            $canEdit = $isMine && (time() - $createdAt < 600); // 10 minutes
         ?>
         <div class="thread-msg">
             <div class="thread-msg-header">
@@ -790,7 +792,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
             </div>
             <div class="thread-body"><?= h($tm['body']) ?><?php if ($tm['edited_at']): ?> <span style="font-size:11px;color:#999">(edited)</span><?php endif; ?></div>
             <div class="thread-msg-actions">
-                <?php if ($isMine): ?>
+                <?php if ($canEdit): ?>
                 <button class="ghost-btn" type="button" style="padding:5px 12px;font-size:12px;cursor:pointer" onclick="editMessageToggle(<?= (int)$tm['id'] ?>)">Edit</button>
                 <?php endif; ?>
                 <form method="post" style="display:inline" onsubmit="return confirm('Delete this message?')">
@@ -801,7 +803,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
                     <button class="danger-btn" type="submit" style="padding:5px 12px;font-size:12px">Delete</button>
                 </form>
             </div>
-            <?php if ($isMine): ?>
+            <?php if ($canEdit): ?>
             <div id="edit-form-<?= (int)$tm['id'] ?>" style="display:none;margin-top:12px;padding:12px;background:#f9f9f9;border-radius:8px;border:1px solid var(--line)">
                 <form method="post">
                     <input type="hidden" name="action" value="edit_message">
