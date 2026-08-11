@@ -752,7 +752,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
                     <span class="badge badge-outline" style="font-size:11px;margin-left:auto">Network broadcast</span>
                 <?php endif; ?>
             </div>
-            <div class="thread-body"><?= nl2br(h($tm['body'])) ?></div>
+            <div class="thread-body"><?= h($tm['body']) ?></div>
             <div class="thread-msg-actions">
                 <form method="post" style="display:inline" onsubmit="return confirm('Delete this message?')">
                     <input type="hidden" name="action" value="delete">
@@ -788,7 +788,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
                         <div class="thread-msg-time"><?= msg_format_full_time($dm['created_at']) ?> &mdash; <em>deleted</em></div>
                     </div>
                 </div>
-                <div class="thread-body"><?= nl2br(h($dm['body'])) ?></div>
+                <div class="thread-body"><?= h($dm['body']) ?></div>
                 <div class="thread-msg-actions">
                     <form method="post" style="display:inline">
                         <input type="hidden" name="action" value="restore_thread">
