@@ -380,6 +380,7 @@ $inboxSql = "
             (SELECT MAX(r.created_at) FROM messages r WHERE r.thread_id = m.id AND r.is_deleted = 0),
             m.created_at
         ) AS last_at,
+        (SELECT r.body FROM messages r WHERE r.thread_id = m.id AND r.is_deleted = 0 ORDER BY r.created_at DESC LIMIT 1) AS last_body,
         (SELECT COUNT(*) FROM messages r WHERE r.thread_id = m.id AND r.id != m.id AND r.is_deleted = 0) AS reply_count,
         (SELECT COUNT(*) FROM messages r WHERE r.thread_id = m.id AND r.sender_email != ? AND r.is_read = 0 AND r.is_deleted = 0) AS unread_count
     FROM messages m
@@ -420,6 +421,7 @@ $sentSql = "
             (SELECT MAX(r.created_at) FROM messages r WHERE r.thread_id = m.id AND r.is_deleted = 0),
             m.created_at
         ) AS last_at,
+        (SELECT r.body FROM messages r WHERE r.thread_id = m.id AND r.is_deleted = 0 ORDER BY r.created_at DESC LIMIT 1) AS last_body,
         (SELECT COUNT(*) FROM messages r WHERE r.thread_id = m.id AND r.id != m.id AND r.is_deleted = 0) AS reply_count
     FROM messages m
     WHERE (m.thread_id = m.id OR m.thread_id IS NULL)
@@ -985,7 +987,7 @@ $activeList = $tab === 'sent' ? $sentThreads : $inboxThreads;
                 ? ($m['recipient_name'] ?: $m['recipient_email'] ?: $m['sender_name'])
                 : ($m['sender_name'] ?: $m['sender_email']);
             $isNetwork = ($m['recipient_type'] === 'network');
-            $preview   = mb_substr(str_replace(["\n","\r"], ' ', $m['body']), 0, 80);
+            $preview   = mb_substr(str_replace(["\n","\r"], ' ', $m['last_body'] ?? $m['body']), 0, 80);
             $replies   = (int)($m['reply_count'] ?? 0);
             $timeStr   = msg_format_time($m['last_at'] ?? $m['created_at']);
         ?>
