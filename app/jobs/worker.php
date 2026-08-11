@@ -51,6 +51,7 @@ $appUrl  = rtrim($mailCfg['app_url'] ?? 'http://localhost/public', '/');
 define('WORKER_ID', gethostname() . ':' . getmypid());
 define('LOCK_TIMEOUT_MINUTES', 10);
 define('BATCH_SIZE', 5);
+define('BALANCE_CHECK_INTERVAL_SECONDS', 3600);
 
 $running = true;
 if (function_exists('pcntl_signal')) {
@@ -79,6 +80,17 @@ while ($running) {
          WHERE status='processing'
          AND locked_at < DATE_SUB(NOW(), INTERVAL " . LOCK_TIMEOUT_MINUTES . " MINUTE)"
     );
+
+    // Self-scheduling hourly balance check — durable across worker restarts since it's
+    // keyed off the job's own created_at rather than an in-memory timer.
+    $lastBalanceCheck = $conn->query(
+        "SELECT MAX(created_at) AS last_run FROM job_queue WHERE job_type = 'check_balance'"
+    )->fetch_assoc();
+    $lastBalanceCheckAt = $lastBalanceCheck['last_run'] ? strtotime($lastBalanceCheck['last_run']) : 0;
+    if (time() - $lastBalanceCheckAt >= BALANCE_CHECK_INTERVAL_SECONDS) {
+        enqueue_job($conn, 'check_balance', []);
+        echo "[" . date('Y-m-d H:i:s') . "] Enqueued automatic hourly balance check" . PHP_EOL;
+    }
 
     // Claim next batch atomically
     try {
