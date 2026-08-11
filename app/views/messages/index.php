@@ -528,7 +528,16 @@ function msg_format_time(string $ts): string {
     return date('M j', $t);
 }
 function msg_format_full_time(string $ts): string {
-    return date('M j, Y \a\t g:i A', strtotime($ts));
+    // Set timezone to EDT (America/New_York) if not already set
+    $oldTz = date_default_timezone_get();
+    if ($oldTz !== 'America/New_York') {
+        date_default_timezone_set('America/New_York');
+    }
+    $formatted = date('M j, Y \a\t g:i A T', strtotime($ts));
+    if ($oldTz !== 'America/New_York') {
+        date_default_timezone_set($oldTz);
+    }
+    return $formatted;
 }
 
 /* Trash threads — root messages soft-deleted within last 30 days */
