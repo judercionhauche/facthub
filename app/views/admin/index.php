@@ -608,6 +608,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect_to('admin', ['section' => 'dashboard']);
     }
 
+    /* Manually update API balance (for when estimation is wrong) */
+    if ($action === 'update_balance') {
+        $provider = trim($_POST['provider'] ?? 'claude');
+        $remaining = (float)($_POST['remaining_balance'] ?? 0);
+        $budget = (float)($_POST['total_budget'] ?? 0);
+
+        if ($provider && $remaining >= 0 && $budget > 0) {
+            $status = $remaining <= 5 ? 'emergency' : ($remaining <= 10 ? 'critical' : ($remaining <= 25 ? 'warning' : 'healthy'));
+            $stmt = $conn->prepare(
+                'INSERT INTO api_balances (provider, total_budget, remaining_balance, status, last_checked_at, checked_by)
+                 VALUES (?, ?, ?, ?, NOW(), ?)
+                 ON DUPLICATE KEY UPDATE
+                    total_budget = VALUES(total_budget),
+                    remaining_balance = VALUES(remaining_balance),
+                    status = VALUES(status),
+                    last_checked_at = NOW(),
+                    checked_by = VALUES(checked_by)'
+            );
+            $checkedBy = $user['email'];
+            $stmt->bind_param('ddsss', $budget, $remaining, $status, $provider, $checkedBy);
+            $stmt->execute();
+            audit($conn, 'update_balance', ['detail' => "Updated {$provider} balance to \${$remaining}/{$budget}"]);
+            set_flash('success', "Updated {$provider} balance to \${$remaining} / \${$budget}");
+        } else {
+            set_flash('error', 'Invalid balance data.');
+        }
+        redirect_to('admin', ['section' => 'dashboard']);
+    }
+
     /* Approve pending user */
     if ($action === 'approve_user') {
         $uid = (int)($_POST['user_id'] ?? 0);
@@ -1305,11 +1334,51 @@ $recentAudit = $conn->query(
                         Error: <?= h(substr($b['last_check_error'], 0, 60)) ?>
                     </div>
                     <?php endif; ?>
+                    <button class="ghost-btn" type="button" style="font-size:11px;padding:4px 8px;margin-top:8px;cursor:pointer" onclick="editBalanceForm('<?= h($b['provider']) ?>', <?= (float)$b['remaining_balance'] ?>, <?= (float)$b['total_budget'] ?>)">Edit Balance</button>
                 </div>
                 <?php endforeach; ?>
             <?php endif; ?>
         </div>
     </div>
+
+    <!-- Edit Balance Modal -->
+    <div id="edit-balance-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+        <div class="panel" style="max-width:400px;padding:24px">
+            <h3 style="margin:0 0 16px">Edit API Balance</h3>
+            <form method="post" style="display:flex;flex-direction:column;gap:12px">
+                <input type="hidden" name="action" value="update_balance">
+                <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                <div>
+                    <label style="font-weight:600;display:block;margin-bottom:4px">Provider</label>
+                    <input type="text" id="edit-provider" name="provider" readonly style="background:#f0f0f0;padding:8px;border-radius:4px;border:1px solid var(--line)">
+                </div>
+                <div>
+                    <label style="font-weight:600;display:block;margin-bottom:4px">Remaining Balance ($)</label>
+                    <input type="number" id="edit-remaining" name="remaining_balance" step="0.01" min="0" required style="width:100%;padding:8px;border-radius:4px;border:1px solid var(--line)">
+                </div>
+                <div>
+                    <label style="font-weight:600;display:block;margin-bottom:4px">Total Budget ($)</label>
+                    <input type="number" id="edit-budget" name="total_budget" step="0.01" min="0" required style="width:100%;padding:8px;border-radius:4px;border:1px solid var(--line)">
+                </div>
+                <div style="display:flex;gap:8px;margin-top:8px">
+                    <button class="primary-btn" type="submit" style="flex:1;padding:10px">Update</button>
+                    <button class="ghost-btn" type="button" style="flex:1;padding:10px" onclick="closeEditBalance()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    function editBalanceForm(provider, remaining, budget) {
+        document.getElementById('edit-provider').value = provider;
+        document.getElementById('edit-remaining').value = remaining;
+        document.getElementById('edit-budget').value = budget;
+        document.getElementById('edit-balance-modal').style.display = 'flex';
+    }
+    function closeEditBalance() {
+        document.getElementById('edit-balance-modal').style.display = 'none';
+    }
+    </script>
 
     <div style="display:grid;grid-template-columns:60% 40%;gap:20px;margin-bottom:20px">
         <!-- Top AI Matches -->
