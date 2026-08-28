@@ -1195,7 +1195,7 @@ $aiCoverage     = $kpiMatches > 0 ? round(($kpiAiMatches / $kpiMatches) * 100) :
 
 <?php if ($adminSection === 'dashboard'): ?>
 <!-- ── Dashboard section ── -->
-
+<?php
 // Try with deleted_at columns first, fall back if they don't exist
 $res = @$conn->query(
     "SELECT r.first_name, r.last_name, fc.title, fc.funder, ms.score_ai, ms.explanation
