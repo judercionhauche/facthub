@@ -15,3 +15,22 @@ Options -Indexes
     Order Allow,Deny
     Deny from all
 </FilesMatch>
+
+# Media types. XAMPP's bundled mime.types has no mapping for the .mp4
+# extension, so Apache falls back to application/octet-stream — and because we
+# send X-Content-Type-Options: nosniff above, the browser then refuses to play
+# the file. Declaring it here makes playback deterministic on every host.
+<IfModule mod_mime.c>
+    AddType video/mp4 .mp4
+    AddType video/webm .webm
+</IfModule>
+
+# The tutorial video and its poster are cache-busted with ?v=<mtime> in the URL,
+# so they can be cached hard. Accept-Ranges is deliberately NOT forced here —
+# Apache core emits it on its own for byte-range-capable responses and withholds
+# it when the response can't be ranged; overriding it would let the header lie.
+<IfModule mod_headers.c>
+    <FilesMatch "^tutorial[-.].*\.(mp4|webm|jpg)$">
+        Header always set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>

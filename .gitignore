@@ -30,3 +30,10 @@ tmp/
 # Local email test artifacts
 test_ses_cli.php
 email_preview.html
+
+# Raw video masters — keep them local. Only the web-optimised derivative
+# (public/assets/tutorial.mp4) is committed; regenerate it with:
+#   ffmpeg -i recording.mov -c:v libx264 -profile:v main -level 4.0 \
+#     -vf "scale=1440:-2,fps=30" -crf 24 -preset slow -pix_fmt yuv420p \
+#     -an -movflags +faststart tutorial.mp4
+*.mov

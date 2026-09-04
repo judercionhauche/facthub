@@ -69,6 +69,26 @@ function land_money(int $v): string {
 }
 $fundingSecuredNum = round($fundingSecured / 1000000, 1); // for count-up (in $M)
 $pipelineNum       = round($pipelineAmt / 1000000, 1);
+
+// Tutorial video. Prefer a web-optimised MP4 when one exists — the raw QuickTime
+// capture is a `qt` brand file with its moov atom at the end, which Firefox often
+// refuses and which forces a full download before the first frame can paint.
+// Dropping a tutorial.mp4 in public/assets is all it takes to upgrade.
+// Only this metadata is emitted; the file itself is fetched on first open (see JS).
+$tutorialAssets = dirname(__DIR__, 3) . '/public/assets/';
+$tutorialSources = [];
+foreach ([['tutorial.mp4', 'video/mp4'], ['recording.mov', 'video/quicktime']] as $cand) {
+    if (is_file($tutorialAssets . $cand[0])) {
+        $tutorialSources[] = [
+            'src'  => 'assets/' . $cand[0] . '?v=' . filemtime($tutorialAssets . $cand[0]),
+            'type' => $cand[1],
+        ];
+        break; // first match wins — never ship the 52 MB master as a fallback
+    }
+}
+$tutorialPoster = is_file($tutorialAssets . 'tutorial-poster.jpg')
+    ? 'assets/tutorial-poster.jpg?v=' . filemtime($tutorialAssets . 'tutorial-poster.jpg')
+    : '';
 ?>
 <style>
   /* Break out of the app shell: full-bleed page, no topbar/sidebar */
@@ -343,10 +363,160 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
     .l-section{padding:64px 0}
     .donut-wrap{flex-direction:column;align-items:flex-start}
   }
+  /* ===================== VIDEO TUTORIAL ===================== */
+  /* Trigger — sits in the hero CTA row on the dark pine backdrop */
+  .vt-trigger{
+    position:relative;
+    display:inline-flex;align-items:center;gap:12px;
+    font-family:inherit;font-size:15px;font-weight:600;line-height:1;
+    padding:11px 22px 11px 12px;
+    border-radius:999px;
+    border:1px solid rgba(255,255,255,.32);
+    background:rgba(255,255,255,.07);
+    color:#fff;cursor:pointer;
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    transition:transform .18s cubic-bezier(.22,1,.36,1),background .22s,border-color .22s,box-shadow .22s;
+  }
+  .vt-trigger:hover{
+    transform:translateY(-1px);
+    background:rgba(255,255,255,.13);
+    border-color:var(--mint);
+    box-shadow:0 14px 34px -18px rgba(0,0,0,.75);
+  }
+  .vt-trigger:focus-visible{outline:2px solid var(--mint);outline-offset:3px}
+  .vt-play{
+    display:grid;place-items:center;flex:0 0 34px;
+    width:34px;height:34px;border-radius:50%;
+    background:var(--gold);color:#231c0d;
+    transition:transform .24s cubic-bezier(.22,1,.36,1);
+  }
+  .vt-trigger:hover .vt-play{transform:scale(1.09)}
+  .vt-play svg{margin-left:2px}          /* optically centre the triangle */
+  .vt-meta{
+    font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:rgba(255,255,255,.6);
+    padding-left:12px;border-left:1px solid rgba(255,255,255,.22);
+  }
+  /* Attention ring — hover only, transform/opacity only so it stays off the main thread */
+  .vt-trigger::after{
+    content:'';position:absolute;inset:-1px;border-radius:inherit;
+    border:1px solid var(--mint);opacity:0;pointer-events:none;
+  }
+  .vt-trigger:hover::after{animation:vt-ring 1.6s cubic-bezier(.22,1,.36,1) infinite}
+  @keyframes vt-ring{0%{opacity:.5;transform:scale(1)}100%{opacity:0;transform:scale(1.14)}}
+
+  /* Overlay */
+  .vt-overlay{
+    position:fixed;inset:0;z-index:10050;
+    display:flex;align-items:center;justify-content:center;
+    align-items:safe center;      /* plain `center` would push overflow out of reach */
+    overflow-y:auto;              /* short/landscape viewports must stay scrollable */
+    padding:clamp(16px,4vw,44px);
+    background:radial-gradient(circle at 50% 38%,rgba(17,71,59,.80),rgba(7,18,15,.95));
+    -webkit-backdrop-filter:blur(16px) saturate(115%);backdrop-filter:blur(16px) saturate(115%);
+    opacity:0;transition:opacity .3s ease;
+  }
+  .vt-overlay[hidden]{display:none}
+  .vt-overlay.is-open{opacity:1}
+  /* Don't swallow clicks during the fade-out, before [hidden] is reapplied */
+  .vt-overlay:not(.is-open){pointer-events:none}
+
+  .vt-dialog{
+    position:relative;width:100%;max-width:min(1120px,100%);
+    /* Flex items default to min-width:auto, which floors the dialog at the
+       <video>'s intrinsic 1440px and pushes the close button off narrow
+       screens. min-width:0 lets it actually shrink to the viewport. */
+    min-width:0;
+    border-radius:20px;overflow:hidden;background:#0b1512;
+    box-shadow:0 40px 90px -30px rgba(0,0,0,.85),0 0 0 1px rgba(255,255,255,.09);
+    transform:translateY(16px) scale(.965);opacity:0;
+    transition:transform .44s cubic-bezier(.22,1,.36,1),opacity .3s ease;
+  }
+  .vt-overlay.is-open .vt-dialog{transform:none;opacity:1}
+
+  .vt-bar{
+    display:flex;align-items:center;gap:14px;
+    padding:13px 15px 13px 20px;
+    background:linear-gradient(180deg,rgba(255,255,255,.07),rgba(255,255,255,.02));
+    border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  .vt-title{margin:0;font-size:15px;font-weight:700;color:#fff;letter-spacing:.01em;line-height:1.3}
+  .vt-sub{display:block;margin-top:2px;font-size:12px;font-weight:500;color:rgba(255,255,255,.55)}
+  .vt-close{
+    margin-left:auto;flex:0 0 34px;width:34px;height:34px;padding:0;
+    display:grid;place-items:center;border-radius:50%;
+    background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);
+    color:#fff;cursor:pointer;
+    transition:background .2s,transform .25s cubic-bezier(.22,1,.36,1),border-color .2s;
+  }
+  .vt-close:hover{background:rgba(255,255,255,.19);border-color:var(--mint);transform:rotate(90deg)}
+  .vt-close:focus-visible{outline:2px solid var(--mint);outline-offset:2px}
+
+  /* Height is capped so the chrome above and below stays reachable on short
+     viewports; object-fit:contain pillarboxes whatever's left over. */
+  .vt-frame{
+    position:relative;width:100%;background:#000;
+    aspect-ratio:1440/882;
+    max-height:calc(100vh - 160px);
+    max-height:calc(100dvh - 160px);   /* dvh tracks iOS's collapsing URL bar */
+  }
+  .vt-frame video{display:block;width:100%;max-width:100%;height:100%;object-fit:contain;background:#000}
+
+  /* Loading / error overlays inside the frame */
+  .vt-state{
+    position:absolute;inset:0;display:grid;place-content:center;justify-items:center;gap:14px;
+    text-align:center;padding:24px;color:rgba(255,255,255,.82);font-size:13.5px;line-height:1.6;
+  }
+  .vt-state[hidden]{display:none}
+  /* The buffering overlay must never intercept clicks aimed at the play button.
+     The error state keeps pointer events — it contains a download link. */
+  #vt-loading{pointer-events:none;background:rgba(0,0,0,.45)}
+  .vt-spinner{
+    width:38px;height:38px;border-radius:50%;
+    border:2px solid rgba(255,255,255,.16);border-top-color:var(--mint);
+    animation:vt-spin .85s linear infinite;
+  }
+  @keyframes vt-spin{to{transform:rotate(360deg)}}
+  .vt-state a{color:var(--mint);text-decoration:underline;text-underline-offset:3px}
+
+  .vt-note{
+    margin:0;padding:11px 20px;
+    font-size:12.5px;line-height:1.6;color:rgba(255,255,255,.58);
+    background:rgba(0,0,0,.32);border-top:1px solid rgba(255,255,255,.07);
+  }
+  .vt-note strong{color:rgba(255,255,255,.8);font-weight:600}
+
+  /* Focus sentinels — let the browser tab through the video's own shadow-DOM
+     controls instead of trapping on the <video> host. */
+  .vt-sentinel{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);opacity:0}
+
+  @media(max-width:640px){
+    .vt-trigger{width:100%;justify-content:center;font-size:14px}
+    .vt-meta{display:none}
+    .vt-overlay{padding:0}
+    .vt-dialog{max-width:100%;border-radius:0}
+  }
+
+  /* Landscape phones: reclaim every vertical pixel so the close button and the
+     native controls both stay on screen. */
+  @media(orientation:landscape) and (max-height:520px){
+    .vt-sub,.vt-note{display:none}
+    .vt-bar{padding:8px 10px 8px 14px}
+    .vt-title{font-size:14px}
+    .vt-frame{max-height:calc(100dvh - 52px)}
+  }
+
   @media(prefers-reduced-motion:reduce){
     .landing *{animation:none!important;transition:none!important}
     .reveal{opacity:1;transform:none}
     .bar-fill,.pipe-fill{transition:none}
+    /* Modal lives outside .landing, so it needs its own opt-out.
+       The spinner is kept (it communicates progress) but slowed right down. */
+    .vt-overlay,.vt-dialog,.vt-close,.vt-trigger,.vt-play{transition:none!important}
+    .vt-dialog{transform:none!important}
+    .vt-trigger:hover::after{animation:none}
+    .vt-trigger:hover .vt-play,.vt-close:hover{transform:none}
+    .vt-spinner{animation-duration:2s}
   }
 </style>
 
@@ -376,6 +546,19 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
     <div class="hero-cta">
       <a href="index.php?page=register" class="l-btn l-btn-gold l-btn-lg">Explore the network</a>
       <a href="#impact" class="l-btn l-btn-ghost l-btn-lg">See the impact</a>
+      <?php if ($tutorialSources): ?>
+      <?php /* aria-label must contain the visible text verbatim (WCAG 2.5.3 Label in Name) */ ?>
+      <button type="button" class="vt-trigger" id="vt-open" aria-haspopup="dialog"
+              aria-label="Watch Registration &amp; Login Tutorial — 1 minute, silent video">
+        <span class="vt-play" aria-hidden="true">
+          <svg width="12" height="14" viewBox="0 0 12 14" fill="currentColor" focusable="false">
+            <path d="M11.3 6.13 1.85.24A1 1 0 0 0 .35 1.1v11.8a1 1 0 0 0 1.5.87l9.45-5.9a1 1 0 0 0 0-1.74Z"/>
+          </svg>
+        </span>
+        <span aria-hidden="true">Watch Registration &amp; Login Tutorial</span>
+        <span class="vt-meta" aria-hidden="true">1 min</span>
+      </button>
+      <?php endif; ?>
     </div>
     <div class="hero-strip">
     </div>
@@ -519,6 +702,60 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
 </section>
 
 </div><!-- /.landing -->
+
+<?php if ($tutorialSources): ?>
+<!-- ===================== VIDEO TUTORIAL MODAL =====================
+     Deliberately outside .landing: that scope carries a blanket
+     `*{transition:none!important}` under prefers-reduced-motion, and a
+     transformed ancestor there would break position:fixed. The video carries
+     no src — sources are injected on first open so the page costs 0 bytes
+     of video until the visitor asks for it. -->
+<div class="vt-overlay" id="vt-modal" hidden role="dialog" aria-modal="true" aria-labelledby="vt-title">
+  <div class="vt-dialog">
+    <div class="vt-sentinel" tabindex="0" data-vt-sentinel="start"></div>
+    <div class="vt-bar">
+      <div>
+        <h2 class="vt-title" id="vt-title">Registration &amp; Login Tutorial</h2>
+        <span class="vt-sub">1 minute · silent screen recording</span>
+      </div>
+      <button type="button" class="vt-close" id="vt-close" aria-label="Close tutorial">
+        <svg width="15" height="15" viewBox="0 0 15 15" fill="none" stroke="currentColor"
+             stroke-width="1.9" stroke-linecap="round" focusable="false" aria-hidden="true">
+          <path d="M2 2l11 11M13 2L2 13"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="vt-frame">
+      <video id="vt-video" controls playsinline preload="none"
+             <?= $tutorialPoster ? 'poster="' . h($tutorialPoster) . '"' : '' ?>
+             data-sources="<?= h(json_encode($tutorialSources)) ?>"></video>
+
+      <div class="vt-state" id="vt-loading" hidden>
+        <div class="vt-spinner" aria-hidden="true"></div>
+        <span>Buffering…</span>
+      </div>
+
+      <div class="vt-state" id="vt-error" hidden>
+        <span>
+          This video could not be played in your browser.<br>
+          <a href="<?= h($tutorialSources[0]['src']) ?>" download>Download the tutorial instead</a>
+        </span>
+      </div>
+    </div>
+
+    <p class="vt-note">
+      <strong>No audio</strong> — this is a silent screen recording. Follow the on-screen steps to
+      create your account and sign in. Press <strong>Esc</strong> to close.
+    </p>
+
+    <?php /* Persistent live region: announcements made from a container that was
+             hidden at the time aren't reliably read by NVDA/JAWS/VoiceOver. */ ?>
+    <div class="vt-sentinel" id="vt-live" aria-live="polite" role="status"></div>
+    <div class="vt-sentinel" tabindex="0" data-vt-sentinel="end"></div>
+  </div>
+</div>
+<?php endif; ?>
 
 <script>
 (function(){
@@ -703,5 +940,135 @@ const chartIO=new IntersectionObserver((entries)=>{
   });
 },{threshold:.3});
 document.querySelectorAll('.landing .l-panel,.landing .donut-panel').forEach(p=>chartIO.observe(p));
+
+/* ---------- VIDEO TUTORIAL MODAL ---------- */
+(function(){
+  const openBtn = document.getElementById('vt-open');
+  const modal   = document.getElementById('vt-modal');
+  if(!openBtn || !modal) return;
+
+  const dialog  = modal.querySelector('.vt-dialog');
+  const video   = document.getElementById('vt-video');
+  const closeBtn= document.getElementById('vt-close');
+  const loading = document.getElementById('vt-loading');
+  const errBox  = document.getElementById('vt-error');
+  const live    = document.getElementById('vt-live');
+  const sentinels = modal.querySelectorAll('[data-vt-sentinel]');
+  const reduce  = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const EXIT_MS = 460;   // covers the slowest transition (.vt-dialog transform, .44s)
+
+  let lastFocus = null;
+  let fetched   = false;
+  let exitTimer = null;
+  let downOnBackdrop = false;
+
+  /* Sources are attached on first open only, so the landing page never pays for
+     the video unless it's actually wanted. preload is lifted to "metadata" at the
+     same moment: with faststart the moov atom is at the head of the file, so this
+     costs a few KB and gets us a duration + a seekable timeline immediately. */
+  function attachSources(){
+    if(fetched) return;
+    fetched = true;
+    let list = [];
+    try { list = JSON.parse(video.getAttribute('data-sources') || '[]'); } catch(e){}
+    if(!list.length){ fail(); return; }
+    list.forEach(s => {
+      const el = document.createElement('source');
+      el.src = s.src; el.type = s.type;
+      video.appendChild(el);
+    });
+    video.preload = 'metadata';
+    video.load();
+  }
+
+  function fail(){
+    loading.hidden = true;
+    errBox.hidden = false;
+    live.textContent = 'The tutorial video could not be played. A download link is available.';
+  }
+
+  /* The spinner is a buffering indicator only. It must never be shown just
+     because the video hasn't been fetched yet — the poster is doing that job,
+     and an overlay sitting on top would block the native play button. */
+  const stopBuffering = () => { loading.hidden = true; };
+  ['playing','canplay','canplaythrough','loadeddata','suspend','abort','ended','pause']
+    .forEach(ev => video.addEventListener(ev, stopBuffering));
+  video.addEventListener('waiting', () => { if(errBox.hidden) loading.hidden = false; });
+  // Source-level errors don't bubble, so listen on the capture phase.
+  video.addEventListener('error', fail, true);
+
+  /* Focus containment via sentinels. Tab is deliberately NOT intercepted, so the
+     browser can still walk the video's shadow-DOM controls (timeline, mute,
+     fullscreen); focus simply wraps when it reaches either sentinel. */
+  function realFocusables(){
+    return [...dialog.querySelectorAll('button:not([disabled]), a[href], video[controls]')]
+             .filter(el => el.offsetParent !== null);
+  }
+  sentinels.forEach(s => s.addEventListener('focus', () => {
+    const f = realFocusables();
+    if(!f.length) return;
+    (s.dataset.vtSentinel === 'start' ? f[f.length - 1] : f[0]).focus();
+  }));
+
+  function isFullscreen(){
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || video.webkitDisplayingFullscreen);
+  }
+
+  function onKeydown(e){
+    if(e.key !== 'Escape') return;
+    // Let the UA handle the first Escape when it means "leave fullscreen".
+    if(isFullscreen()) return;
+    e.preventDefault();
+    close();
+  }
+
+  function open(){
+    if(!modal.hidden) return;                  // ignore repeat activations (Enter auto-repeat)
+    clearTimeout(exitTimer);
+    const active = document.activeElement;
+    lastFocus = (active && !modal.contains(active)) ? active : openBtn;
+
+    modal.hidden = false;
+    // Lock page scroll, compensating for the scrollbar so the page behind
+    // doesn't shift sideways under the blurred backdrop.
+    const gap = window.innerWidth - document.documentElement.clientWidth;
+    if(gap > 0) document.body.style.paddingRight = gap + 'px';
+    document.body.style.overflow = 'hidden';
+
+    attachSources();
+    void modal.offsetWidth;                    // flush layout so the transition has a start state
+    modal.classList.add('is-open');
+    closeBtn.focus();
+    document.addEventListener('keydown', onKeydown);
+  }
+
+  function close(){
+    if(modal.hidden) return;
+    document.removeEventListener('keydown', onKeydown);
+    video.pause();
+    if(document.fullscreenElement) document.exitFullscreen?.().catch(()=>{});
+    else if(video.webkitDisplayingFullscreen) video.webkitExitFullscreen?.();
+
+    modal.classList.remove('is-open');
+    document.body.style.overflow = '';
+    document.body.style.paddingRight = '';
+
+    const finish = () => { modal.hidden = true; };
+    if(reduce.matches) finish(); else exitTimer = setTimeout(finish, EXIT_MS);
+
+    const target = (lastFocus && document.contains(lastFocus) && lastFocus.offsetParent !== null)
+      ? lastFocus : openBtn;
+    target.focus();
+  }
+
+  openBtn.addEventListener('click', open);
+  closeBtn.addEventListener('click', close);
+
+  /* Backdrop dismiss. A plain click check would also fire when a timeline scrub
+     starts on the video and finishes over the backdrop, because click retargets
+     to the common ancestor — so require the press to have started there too. */
+  modal.addEventListener('pointerdown', e => { downOnBackdrop = (e.target === modal); });
+  modal.addEventListener('click', e => { if(downOnBackdrop && e.target === modal) close(); });
+})();
 })();
 </script>
