@@ -125,7 +125,6 @@ $tutorialPoster = is_file($tutorialAssets . 'tutorial-poster.jpg')
     font-size:12px;letter-spacing:.2em;text-transform:uppercase;font-weight:700;
     color:var(--pine);display:inline-flex;align-items:center;gap:10px;
   }
-  .landing .eyebrow::before{content:"";width:20px;height:1px;background:currentColor;display:inline-block}
 
   /* ---------- NAV ---------- */
   .l-nav{
@@ -344,6 +343,26 @@ $tutorialPoster = is_file($tutorialAssets . 'tutorial-poster.jpg')
   /* ---------- REVEAL ---------- */
   .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s ease,transform .7s cubic-bezier(.22,1,.36,1)}
   .reveal.in{opacity:1;transform:none}
+
+  /* Cascade siblings in a grid so cards arrive one after another rather than
+     as a single block. Base styles stay visible, so the reduced-motion
+     override below simply lands everything in place. */
+  .reveal:nth-child(2){transition-delay:.08s}
+  .reveal:nth-child(3){transition-delay:.16s}
+  .reveal:nth-child(4){transition-delay:.24s}
+  .reveal:nth-child(5){transition-delay:.32s}
+
+  /* Hero settles in on load (no observer needed — it's above the fold) */
+  .l-hero-inner>*{animation:heroUp .8s cubic-bezier(.22,1,.36,1) both}
+  .l-hero-inner>*:nth-child(2){animation-delay:.09s}
+  .l-hero-inner>*:nth-child(3){animation-delay:.18s}
+  .l-hero-inner>*:nth-child(4){animation-delay:.27s}
+  .l-hero-inner>*:nth-child(5){animation-delay:.36s}
+  @keyframes heroUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+
+  /* Quiet lift on the content cards */
+  .kpi,.feat{transition:transform .35s cubic-bezier(.22,1,.36,1),box-shadow .35s ease}
+  .kpi:hover,.feat:hover{transform:translateY(-4px);box-shadow:0 18px 38px -24px rgba(17,71,59,.42)}
 
   /* ---------- RESPONSIVE ---------- */
   @media(max-width:960px){
