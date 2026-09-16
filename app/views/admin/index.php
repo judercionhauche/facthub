@@ -700,6 +700,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect_to('admin', ['section' => 'settings']);
     }
 
+    // Edit trusted domain
+    if ($action === 'edit_domain') {
+        $domainId    = (int)($_POST['domain_id'] ?? 0);
+        $domain      = strtolower(trim($_POST['domain'] ?? ''));
+        $institution = trim($_POST['institution'] ?? '');
+        $country     = trim($_POST['country'] ?? '');
+        $tier        = in_array($_POST['tier'] ?? '', ['tier1', 'tier2', 'tier3']) ? $_POST['tier'] : 'tier2';
+
+        if ($domainId && $domain && $institution) {
+            // Another row already using this domain? (excluding the one being edited)
+            $check = $conn->prepare('SELECT 1 FROM trusted_domains WHERE domain = ? AND id <> ? LIMIT 1');
+            $check->bind_param('si', $domain, $domainId);
+            $check->execute();
+            if ($check->get_result()->num_rows === 0) {
+                $upd = $conn->prepare('UPDATE trusted_domains SET domain = ?, institution_name = ?, country = ?, tier = ? WHERE id = ?');
+                $upd->bind_param('ssssi', $domain, $institution, $country, $tier, $domainId);
+                $upd->execute();
+                set_flash('success', 'Domain updated.');
+            } else {
+                set_flash('error', 'Another entry already uses that domain.');
+            }
+        } else {
+            set_flash('error', 'Domain and institution name are required.');
+        }
+        redirect_to('admin', ['section' => 'settings']);
+    }
+
     // Remove trusted domain
     if ($action === 'remove_domain') {
         $domainId = (int)($_POST['domain_id'] ?? 0);
@@ -2376,16 +2403,48 @@ $recentJobRows = $recentJobStmt->get_result()->fetch_all(MYSQLI_ASSOC);
                             </thead>
                             <tbody>
                                 <?php foreach ($domainsByTier[$tier] as $d): ?>
-                                    <tr style="border-bottom:1px solid #eee;hover:background:#fafafa">
+                                    <tr id="dom-view-<?= (int)$d['id'] ?>" style="border-bottom:1px solid #eee">
                                         <td style="padding:10px 14px;font-family:monospace;font-size:13px;color:#1a6b5a"><?= h($d['domain']) ?></td>
                                         <td style="padding:10px 14px;font-size:13px;color:#374151"><?= h($d['institution_name']) ?></td>
                                         <td style="padding:10px 14px;font-size:13px;color:#666"><?= $d['country'] ? h($d['country']) : '—' ?></td>
-                                        <td style="padding:10px 14px;text-align:right">
+                                        <td style="padding:10px 14px;text-align:right;white-space:nowrap">
+                                            <button type="button" class="ghost-btn" style="font-size:12px;color:#1a6b5a;padding:4px 8px;border:1px solid #bfdbd3;border-radius:4px;background:#eef5f2;cursor:pointer;margin-right:4px" onclick="toggleDomainEdit(<?= (int)$d['id'] ?>, true)">Edit</button>
                                             <form method="post" style="display:inline">
                                                 <input type="hidden" name="action" value="remove_domain">
                                                 <input type="hidden" name="domain_id" value="<?= (int)$d['id'] ?>">
                                                 <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
                                                 <button type="submit" class="ghost-btn" style="font-size:12px;color:#d97706;padding:4px 8px;border:1px solid #fed7aa;border-radius:4px;background:#fef3c7;cursor:pointer" onclick="return confirm('Remove this domain from trusted list?')">Remove</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    <tr id="dom-edit-<?= (int)$d['id'] ?>" style="display:none;border-bottom:1px solid #eee;background:#f9fbfa">
+                                        <td colspan="4" style="padding:12px 14px">
+                                            <form method="post" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+                                                <input type="hidden" name="action" value="edit_domain">
+                                                <input type="hidden" name="domain_id" value="<?= (int)$d['id'] ?>">
+                                                <input type="hidden" name="_csrf" value="<?= h(csrf_token()) ?>">
+                                                <div style="flex:1 1 180px">
+                                                    <label style="display:block;font-size:11px;color:#6b7280;margin-bottom:3px">Domain</label>
+                                                    <input type="text" name="domain" value="<?= h($d['domain']) ?>" required style="width:100%;padding:7px 9px;border:1px solid #dde6dd;border-radius:4px;font-size:13px;font-family:monospace">
+                                                </div>
+                                                <div style="flex:1 1 180px">
+                                                    <label style="display:block;font-size:11px;color:#6b7280;margin-bottom:3px">Institution</label>
+                                                    <input type="text" name="institution" value="<?= h($d['institution_name']) ?>" required style="width:100%;padding:7px 9px;border:1px solid #dde6dd;border-radius:4px;font-size:13px">
+                                                </div>
+                                                <div style="flex:1 1 120px">
+                                                    <label style="display:block;font-size:11px;color:#6b7280;margin-bottom:3px">Country</label>
+                                                    <input type="text" name="country" value="<?= h($d['country']) ?>" style="width:100%;padding:7px 9px;border:1px solid #dde6dd;border-radius:4px;font-size:13px">
+                                                </div>
+                                                <div style="flex:0 1 110px">
+                                                    <label style="display:block;font-size:11px;color:#6b7280;margin-bottom:3px">Tier</label>
+                                                    <select name="tier" style="width:100%;padding:7px 9px;border:1px solid #dde6dd;border-radius:4px;font-size:13px">
+                                                        <option value="tier1" <?= $d['tier'] === 'tier1' ? 'selected' : '' ?>>Tier 1</option>
+                                                        <option value="tier2" <?= $d['tier'] === 'tier2' ? 'selected' : '' ?>>Tier 2</option>
+                                                        <option value="tier3" <?= $d['tier'] === 'tier3' ? 'selected' : '' ?>>Tier 3</option>
+                                                    </select>
+                                                </div>
+                                                <button type="submit" class="primary-btn" style="font-size:12px;padding:7px 14px;white-space:nowrap">Save</button>
+                                                <button type="button" class="ghost-btn" style="font-size:12px;padding:7px 12px;border:1px solid #dde6dd;border-radius:4px;background:#fff;cursor:pointer;white-space:nowrap" onclick="toggleDomainEdit(<?= (int)$d['id'] ?>, false)">Cancel</button>
                                             </form>
                                         </td>
                                     </tr>
@@ -2397,6 +2456,17 @@ $recentJobRows = $recentJobStmt->get_result()->fetch_all(MYSQLI_ASSOC);
                     <?php endif; ?>
                 </div>
             <?php endforeach; ?>
+
+            <script>
+            function toggleDomainEdit(id, editing) {
+                var view = document.getElementById('dom-view-' + id);
+                var edit = document.getElementById('dom-edit-' + id);
+                if (!view || !edit) return;
+                view.style.display = editing ? 'none' : '';
+                edit.style.display = editing ? '' : 'none';
+                if (editing) edit.querySelector('input[name="domain"]').focus();
+            }
+            </script>
         </div>
     </div>
 
