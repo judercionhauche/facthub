@@ -433,6 +433,271 @@ function count_member_institutions(mysqli $conn): array {
     return $out;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+ * INSTITUTION NAME NORMALISATION
+ *
+ * The researchers.institution column is free text, and it gets filled from
+ * three places that disagree: the registration form, the ORCID sync (which
+ * writes whatever an author put on a paper) and bulk imports. The result is
+ * that one university shows up on the Institutions page several times over —
+ * as a bare domain, as a faculty-qualified name, or as an abbreviation — so
+ * colleagues end up in separate groups.
+ *
+ * These helpers resolve a raw value to one canonical name. The domain map in
+ * trusted_domains is the authoritative source (admins can edit it in
+ * Settings); the built-in table below only fills gaps.
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Built-in domain → canonical institution name. Supplements trusted_domains
+ * for institutions that aren't in the auto-approval list.
+ */
+function institution_builtin_domains(): array {
+    return [
+        'mcgill.ca'      => 'McGill University',
+        'umontreal.ca'   => 'Université de Montréal',
+        'utoronto.ca'    => 'University of Toronto',
+        'ubc.ca'         => 'University of British Columbia',
+        'uoguelph.ca'    => 'University of Guelph',
+        'usask.ca'       => 'University of Saskatchewan',
+        'ualberta.ca'    => 'University of Alberta',
+        'uwaterloo.ca'   => 'University of Waterloo',
+        'concordia.ca'   => 'Concordia University',
+        'mit.edu'        => 'Massachusetts Institute of Technology',
+        'wur.nl'         => 'Wageningen University & Research',
+        'cgiar.org'      => 'CGIAR',
+        'ifpri.org'      => 'IFPRI',
+        'irri.org'       => 'International Rice Research Institute',
+        'cimmyt.org'     => 'CIMMYT',
+        'icrisat.org'    => 'ICRISAT',
+        'fao.org'        => 'Food and Agriculture Organization',
+        'ug.edu.gh'      => 'University of Ghana',
+        'knust.edu.gh'   => 'Kwame Nkrumah University of Science and Technology',
+        'uds.edu.gh'     => 'University for Development Studies',
+        'ucc.edu.gh'     => 'University of Cape Coast',
+        'uonbi.ac.ke'    => 'University of Nairobi',
+        'ku.ac.ke'       => 'Kenyatta University',
+        'makerere.ac.ug' => 'Makerere University',
+        'up.ac.za'       => 'University of Pretoria',
+        'uct.ac.za'      => 'University of Cape Town',
+        'sun.ac.za'      => 'Stellenbosch University',
+        'wits.ac.za'     => 'University of the Witwatersrand',
+        'iisc.ac.in'     => 'Indian Institute of Science',
+        'iitd.ac.in'     => 'Indian Institute of Technology Delhi',
+        'iitb.ac.in'     => 'Indian Institute of Technology Bombay',
+        'tsinghua.edu.cn'=> 'Tsinghua University',
+        'pku.edu.cn'     => 'Peking University',
+        'cau.edu.cn'     => 'China Agricultural University',
+        'nus.edu.sg'     => 'National University of Singapore',
+        'ntu.edu.sg'     => 'Nanyang Technological University',
+        'u-tokyo.ac.jp'  => 'University of Tokyo',
+        'kyoto-u.ac.jp'  => 'Kyoto University',
+        'unimelb.edu.au' => 'University of Melbourne',
+        'sydney.edu.au'  => 'University of Sydney',
+        'anu.edu.au'     => 'Australian National University',
+        'uq.edu.au'      => 'University of Queensland',
+        'ed.ac.uk'       => 'University of Edinburgh',
+        'leeds.ac.uk'    => 'University of Leeds',
+        'reading.ac.uk'  => 'University of Reading',
+        'sussex.ac.uk'   => 'University of Sussex',
+        'wgtn.ac.nz'     => 'Victoria University of Wellington',
+        'massey.ac.nz'   => 'Massey University',
+        'usp.br'         => 'Universidade de São Paulo',
+        'unicamp.br'     => 'Universidade Estadual de Campinas',
+        'embrapa.br'     => 'Embrapa',
+        'chapingo.mx'    => 'Universidad Autónoma Chapingo',
+        'unam.mx'        => 'Universidad Nacional Autónoma de México',
+    ];
+}
+
+/**
+ * Abbreviation → canonical name. Without this, researchers who wrote "MIT"
+ * and those whose record resolved to "Massachusetts Institute of Technology"
+ * stay in two separate groups, which is the very thing we're fixing.
+ */
+function institution_aliases(): array {
+    return [
+        'MIT'      => 'Massachusetts Institute of Technology',
+        'M.I.T.'   => 'Massachusetts Institute of Technology',
+        'UBC'      => 'University of British Columbia',
+        'U of T'   => 'University of Toronto',
+        'UofT'     => 'University of Toronto',
+        'UdeM'     => 'Université de Montréal',
+        'UQAM'     => 'Université du Québec à Montréal',
+        'WUR'      => 'Wageningen University & Research',
+        'Wageningen University' => 'Wageningen University & Research',
+        'Wageningen UR'         => 'Wageningen University & Research',
+        'KNUST'    => 'Kwame Nkrumah University of Science and Technology',
+        'UG'       => 'University of Ghana',
+        'Legon'    => 'University of Ghana',
+        'UCT'      => 'University of Cape Town',
+        'Wits'     => 'University of the Witwatersrand',
+        'IISc'     => 'Indian Institute of Science',
+        'NUS'      => 'National University of Singapore',
+        'NTU'      => 'Nanyang Technological University',
+        'ANU'      => 'Australian National University',
+        'UNAM'     => 'Universidad Nacional Autónoma de México',
+        'USP'      => 'Universidade de São Paulo',
+        'Oxford'   => 'University of Oxford',
+        'Cambridge'=> 'University of Cambridge',
+    ];
+}
+
+/**
+ * Domain → canonical name, trusted_domains first (admin-editable) then the
+ * built-in table. Cached per request; this is called once per researcher.
+ */
+function institution_domain_map(mysqli $conn): array {
+    static $map = null;
+    if ($map !== null) return $map;
+
+    $map = institution_builtin_domains();
+    try {
+        $r = @$conn->query("SELECT domain, institution_name FROM trusted_domains WHERE TRIM(institution_name) <> ''");
+        if ($r) {
+            while ($row = $r->fetch_assoc()) {
+                $d = strtolower(trim($row['domain']));
+                if ($d !== '') $map[$d] = trim($row['institution_name']);
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('[Institutions] domain map load error: ' . $e->getMessage());
+    }
+    return $map;
+}
+
+/** Comparison key: lowercase, accents folded, punctuation and noise words dropped. */
+function institution_key(string $name): string {
+    $s = strtolower(trim($name));
+    if (function_exists('iconv')) {
+        $t = @iconv('UTF-8', 'ASCII//TRANSLIT', $s);
+        if ($t !== false) $s = $t;
+    }
+    $s = preg_replace('~[^a-z0-9]+~', ' ', $s);
+    // "univ."/"u" → "university" so abbreviations collapse onto the full name
+    $s = preg_replace('~\buniv\b~', 'university', $s);
+    $s = preg_replace('~\b(the|of|at|de|del|la|le|les|and)\b~', ' ', $s);
+    return trim(preg_replace('~\s+~', ' ', $s));
+}
+
+/**
+ * Resolve a hostname to a canonical institution, walking up the labels so
+ * that faculty subdomains land on the parent. agr.mcgill.ca is not in the
+ * map, but mcgill.ca is — and that is precisely the case that was splitting
+ * colleagues at one university into separate groups.
+ */
+function institution_from_host(string $host, array $domainMap): string {
+    $host = strtolower(trim($host));
+    $host = preg_replace('~^https?://~', '', $host);
+    $host = preg_replace('~^www\.~', '', $host);
+    $host = explode('/', $host)[0];
+    $host = explode('?', $host)[0];
+    if ($host === '') return '';
+
+    $labels = explode('.', $host);
+    // Walk up: agr.mcgill.ca → mcgill.ca → ca. Stop before a bare public
+    // suffix so "ac.uk" or "edu.gh" can never swallow every UK/Ghana address.
+    for ($i = 0; $i < count($labels) - 1; $i++) {
+        $candidate = implode('.', array_slice($labels, $i));
+        if (substr_count($candidate, '.') < 1) break;
+        if (isset($domainMap[$candidate])) return $domainMap[$candidate];
+    }
+    return '';
+}
+
+/** True when the value is a bare domain or URL rather than a written-out name. */
+function institution_looks_like_domain(string $v): bool {
+    $v = trim($v);
+    if ($v === '' || strpos($v, ' ') !== false) return false;
+    return (bool)preg_match('~^(https?://)?[a-z0-9.\-]+\.[a-z]{2,}(/.*)?$~i', $v);
+}
+
+/**
+ * Strip a sub-unit qualifier so faculties, departments and schools fold into
+ * the parent institution: "McGill University, Faculty of Agricultural and
+ * Environmental Sciences" → "McGill University". Only the sub-unit side is
+ * removed; a name that is nothing but a department is left alone.
+ */
+function institution_strip_subunit(string $name): string {
+    $unit = '(faculty|department|dept\.?|school|college|institute|centre|center|division|laboratory|lab|programme|program|unit|chair)\b';
+
+    // "Parent, Faculty of X" / "Parent - School of Y" — keep the parent
+    if (preg_match('~^(.*?)[,\-–—]\s*(?:the\s+)?' . $unit . '.*$~i', $name, $m)) {
+        $head = trim($m[1], " \t,-–—");
+        if ($head !== '' && str_word_count($head) >= 2) return $head;
+    }
+    // "Faculty of X, Parent" — keep the trailing parent
+    if (preg_match('~^(?:the\s+)?' . $unit . '[^,]*,\s*(.+)$~i', $name, $m)) {
+        $tail = trim($m[1], " \t,-–—");
+        if ($tail !== '' && str_word_count($tail) >= 2) return $tail;
+    }
+    return trim($name);
+}
+
+/**
+ * Canonical institution for one researcher.
+ *
+ * Order of trust: an explicit name that matches a known institution, then the
+ * domain embedded in the value, then the researcher's own email domain. The
+ * raw value is returned unchanged when nothing matches, so unknown
+ * institutions are never mangled into something wrong.
+ */
+function canonical_institution(string $raw, string $email, array $domainMap): string {
+    $raw = trim(preg_replace('~\s+~', ' ', $raw));
+
+    // Canonical names, indexed by comparison key, so variants collapse.
+    static $byKey = null;
+    if ($byKey === null || $byKey['_src'] !== count($domainMap)) {
+        $byKey = ['_src' => count($domainMap)];
+        foreach ($domainMap as $name) $byKey[institution_key($name)] = $name;
+        // Aliases last so an abbreviation always wins over a literal match
+        foreach (institution_aliases() as $alias => $name) $byKey[institution_key($alias)] = $name;
+    }
+
+    $emailHost = '';
+    if ($email !== '' && strpos($email, '@') !== false) {
+        $emailHost = strtolower(trim(substr(strrchr($email, '@'), 1)));
+    }
+
+    // 1. Nothing useful written down — fall back to the email domain.
+    if ($raw === '' || strcasecmp($raw, 'Unknown Institution') === 0) {
+        return institution_from_host($emailHost, $domainMap) ?: $raw;
+    }
+
+    // 2. The value is a domain or URL.
+    if (institution_looks_like_domain($raw)) {
+        $hit = institution_from_host($raw, $domainMap);
+        if ($hit !== '') return $hit;
+        $hit = institution_from_host($emailHost, $domainMap);
+        if ($hit !== '') return $hit;
+        // Unmapped domain: at least show the registrable part, not the URL.
+        $host = preg_replace('~^(https?://)?(www\.)?~i', '', $raw);
+        return explode('/', $host)[0];
+    }
+
+    // 3. Written-out name — match whole, then with the sub-unit removed.
+    $key = institution_key($raw);
+    if (isset($byKey[$key])) return $byKey[$key];
+
+    $stripped = institution_strip_subunit($raw);
+    if ($stripped !== $raw) {
+        $sk = institution_key($stripped);
+        if (isset($byKey[$sk])) return $byKey[$sk];
+    }
+
+    // 4. Unrecognised name, but the email domain is known and the written
+    //    name contains it — trust the domain (catches "McGill Univ. - MacDonald
+    //    Campus" style entries that no key match will ever hit).
+    $fromEmail = institution_from_host($emailHost, $domainMap);
+    if ($fromEmail !== '') {
+        $rk = institution_key($fromEmail);
+        if ($rk !== '' && strpos($key, explode(' ', $rk)[0]) !== false) return $fromEmail;
+    }
+
+    // 5. Leave it alone, minus any sub-unit qualifier.
+    return $stripped;
+}
+
 function send_weekly_digest(mysqli $conn): void {
     // Find all researchers with weekly frequency who haven't been sent in the last 7 days
     $weekAgo = date('Y-m-d H:i:s', time() - (7 * 86400));
