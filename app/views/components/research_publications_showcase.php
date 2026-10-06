@@ -220,7 +220,7 @@ if (empty($research) && empty($publications)) {
 }
 </style>
 
-<section class="l-section ed-rail">
+<section class="l-section ed-wide">
   <div class="wrap">
     <div class="section-head reveal">
       <h2>FACT Alliance Research Collaborations</h2>
@@ -241,21 +241,33 @@ if (empty($research) && empty($publications)) {
             $desc = $project['description'] ?? '';
             $desc = preg_replace('/\s*Team:\s*.+$/is', '', $desc);
             $desc = trim($desc);
+            // A few projects carry a dozen partners and a dozen authors. Listed in
+            // full they stack vertically and set the height of every card in the row,
+            // so only the first few are shown and the rest collapse into a count.
+            $insts = array_values(array_filter(array_map('trim', explode(',', $project['institutions'] ?? ''))));
+            $instShown = array_slice($insts, 0, 3);
+            $instMore  = count($insts) - count($instShown);
+            $team = array_values(array_filter(array_map('trim', explode(',', $project['team_members'] ?? ''))));
+            $teamShown = array_slice($team, 0, 3);
+            $teamMore  = count($team) - count($teamShown);
           ?>
           <div class="rp-card reveal">
             <span class="rp-card-badge">Research Project</span>
             <h3 class="rp-card-title"><?= h($project['title']) ?></h3>
 
-            <?php if (!empty($project['institutions'])): ?>
+            <?php if ($instShown): ?>
             <div class="rp-card-institutions">
-              <?php foreach (array_filter(array_map('trim', explode(',', $project['institutions']))) as $inst): ?>
+              <?php foreach ($instShown as $inst): ?>
               <span class="rp-card-inst-chip"><?= h($inst) ?></span>
               <?php endforeach; ?>
+              <?php if ($instMore > 0): ?>
+              <span class="rp-card-inst-chip rp-chip-more" title="<?= h(implode(', ', array_slice($insts, 3))) ?>">+<?= $instMore ?></span>
+              <?php endif; ?>
             </div>
             <?php endif; ?>
 
-            <?php if (!empty($teamDisplay)): ?>
-            <div class="rp-card-team-badge"><?= h($teamDisplay) ?></div>
+            <?php if ($teamShown): ?>
+            <div class="rp-card-team-badge"><?= h(implode(' · ', $teamShown)) ?><?php if ($teamMore > 0): ?><span class="rp-team-more" title="<?= h(implode(', ', array_slice($team, 3))) ?>">+<?= $teamMore ?> more</span><?php endif; ?></div>
             <?php endif; ?>
 
             <?php if (!empty($desc)): ?>
@@ -312,22 +324,30 @@ if (empty($research) && empty($publications)) {
         </div>
         <div class="rp-matrix">
           <?php foreach ($publications as $pub):
-            $teamDisplay = !empty($pub['team_members']) ? str_replace(', ', ' · ', $pub['team_members']) : '';
+            $insts = array_values(array_filter(array_map('trim', explode(',', $pub['institutions'] ?? ''))));
+            $instShown = array_slice($insts, 0, 3);
+            $instMore  = count($insts) - count($instShown);
+            $team = array_values(array_filter(array_map('trim', explode(',', $pub['team_members'] ?? ''))));
+            $teamShown = array_slice($team, 0, 3);
+            $teamMore  = count($team) - count($teamShown);
           ?>
           <div class="rp-card reveal">
             <span class="rp-card-badge">Publication</span>
             <h3 class="rp-card-title"><?= h($pub['title']) ?></h3>
 
-            <?php if (!empty($pub['institutions'])): ?>
+            <?php if ($instShown): ?>
             <div class="rp-card-institutions">
-              <?php foreach (array_filter(array_map('trim', explode(',', $pub['institutions']))) as $inst): ?>
+              <?php foreach ($instShown as $inst): ?>
               <span class="rp-card-inst-chip"><?= h($inst) ?></span>
               <?php endforeach; ?>
+              <?php if ($instMore > 0): ?>
+              <span class="rp-card-inst-chip rp-chip-more" title="<?= h(implode(', ', array_slice($insts, 3))) ?>">+<?= $instMore ?></span>
+              <?php endif; ?>
             </div>
             <?php endif; ?>
 
-            <?php if (!empty($teamDisplay)): ?>
-            <div class="rp-card-team-badge"><?= h($teamDisplay) ?></div>
+            <?php if ($teamShown): ?>
+            <div class="rp-card-team-badge"><?= h(implode(' · ', $teamShown)) ?><?php if ($teamMore > 0): ?><span class="rp-team-more" title="<?= h(implode(', ', array_slice($team, 3))) ?>">+<?= $teamMore ?> more</span><?php endif; ?></div>
             <?php endif; ?>
 
             <?php if (!empty($pub['description'])): ?>

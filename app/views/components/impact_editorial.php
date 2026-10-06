@@ -181,4 +181,64 @@
      the link drifts away from the meta row. */
   .rp-card-link:first-of-type{margin-top:auto}
   .rp-card-meta + .rp-card-link{margin-top:12px}
+
+  /* ---------- SHOWCASE: FULL-WIDTH BAND ---------- */
+  /* The rail suits the students block, which has one short list beside it.
+     The showcase carries a dozen cards, and giving a quarter of the column
+     to a sticky heading left them two-across and narrow. Here the heading
+     spans the full width and the cards get the whole measure. */
+  .ed-wide{counter-increment:edsec;padding:84px 0}
+  .ed-wide > .wrap > .section-head{
+    max-width:none;margin-bottom:34px;
+    display:grid;grid-template-columns:auto 1fr;gap:0 28px;align-items:end;
+    padding-bottom:18px;border-bottom:1px solid var(--rule);
+  }
+  .ed-wide > .wrap > .section-head::before{
+    content:counter(edsec,decimal-leading-zero);
+    font-family:var(--display);font-size:13px;font-weight:600;
+    color:var(--pine);opacity:.5;letter-spacing:.08em;
+    grid-row:1 / span 2;align-self:start;padding-top:10px;
+  }
+  .ed-wide > .wrap > .section-head h2{
+    font-family:var(--display);font-weight:600;
+    font-size:clamp(1.6rem,2.4vw,2.15rem);line-height:1.12;letter-spacing:-.018em;margin:0;
+  }
+  .ed-wide > .wrap > .section-head p{
+    margin:0;font-size:.95rem;line-height:1.55;max-width:62ch;align-self:end;
+  }
+  .ed-wide .rp-showcase > div{margin-bottom:56px!important}
+  .ed-wide .rp-showcase > div:last-child{margin-bottom:0!important}
+  .ed-wide .rp-section-head{
+    margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--rule);
+    display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;
+  }
+  .ed-wide .rp-section-tagline{margin:0;font-size:12.5px}
+
+  /* auto-fill reads the track, not the viewport, so this lands on three
+     columns on the public page and two on the member page — where a 220px
+     sidebar takes its share — without a breakpoint having to know that. */
+  .ed-wide .rp-matrix{grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:22px}
+  @media(max-width:900px){
+    .ed-wide > .wrap > .section-head{grid-template-columns:1fr;gap:10px}
+    .ed-wide > .wrap > .section-head::before{grid-row:auto}
+  }
+
+  /* ---------- OVERFLOW COUNTS ---------- */
+  /* Partners and authors beyond the first three collapse to a count; the
+     full list stays in the title attribute. */
+  .rp-chip-more{
+    background:none!important;
+    border:1px dashed rgba(26,107,90,.35);
+    color:#1a6b5a!important;cursor:default;
+  }
+  .rp-team-more{
+    margin-left:8px;padding-left:8px;
+    border-left:1px solid rgba(26,107,90,.25);
+    opacity:.7;font-weight:600;cursor:default;
+  }
+  .rp-card-team-badge{
+    display:block;letter-spacing:.04em;line-height:1.5;
+    font-size:.72rem;
+  }
+  .rp-card-institutions{margin-bottom:12px}
 </style>
