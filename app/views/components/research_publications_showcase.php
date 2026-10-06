@@ -220,7 +220,7 @@ if (empty($research) && empty($publications)) {
 }
 </style>
 
-<section class="l-section">
+<section class="l-section ed-rail">
   <div class="wrap">
     <div class="section-head reveal">
       <h2>FACT Alliance Research Collaborations</h2>

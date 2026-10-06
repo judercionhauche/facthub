@@ -156,20 +156,6 @@ if (is_logged_in()) {
                 </a>
             </div>
             <?php if (is_logged_in() && !$_isAuthPage): ?>
-            <nav class="topnav">
-                <a href="index.php?page=researchers"  class="<?= $page === 'researchers'  ? 'active' : '' ?>">Researchers</a>
-                <a href="index.php?page=funding"      class="<?= $page === 'funding'      ? 'active' : '' ?>">Funding</a>
-                <a href="index.php?page=matching"     class="<?= $page === 'matching'     ? 'active' : '' ?>">Matching</a>
-                <a href="index.php?page=search"       class="<?= $page === 'search'       ? 'active' : '' ?>">Search</a>
-                <a href="index.php?page=institutions" class="<?= $page === 'institutions' ? 'active' : '' ?>">Institutions</a>
-                <a href="index.php?page=messages" class="<?= $page === 'messages' ? 'active' : '' ?>" style="position:relative">
-                    Messages
-                    <span id="msg-nav-badge" style="display:<?= $_msgUnread > 0 ? 'inline-flex' : 'none' ?>;align-items:center;justify-content:center;min-width:17px;height:17px;background:#b54646;color:#fff;border-radius:999px;font-size:10px;font-weight:800;padding:0 4px;margin-left:4px;vertical-align:middle;line-height:1"><?= min($_msgUnread, 99) ?></span>
-                </a>
-                <?php if (is_admin()): ?>
-                <a href="index.php?page=admin" class="<?= $page === 'admin' ? 'active' : '' ?>" style="color:var(--primary)">⚙ Admin</a>
-                <?php endif; ?>
-            </nav>
             <div class="userbox">
                 <span class="role-badge role-badge-<?= h($user['role']) ?>"><?= h(ucfirst($user['role'])) ?></span>
                 <span><?= h($user['name'] ?: $user['email']) ?></span>
@@ -185,19 +171,19 @@ if (is_logged_in()) {
         <aside class="sidebar">
             <div class="panel sidebar-panel">
                 <div class="sidebar-title">FACT TOOLS</div>
-                <a href="index.php?page=impact"      class="side-link <?= $page === 'impact'      ? 'active' : '' ?>">Impact</a>
-                <a href="index.php?page=researchers"  class="side-link <?= $page === 'researchers'  ? 'active' : '' ?>">Researchers</a>
-                <a href="index.php?page=funding"      class="side-link <?= $page === 'funding'      ? 'active' : '' ?>">Funding</a>
-                <a href="index.php?page=matching"     class="side-link <?= $page === 'matching'     ? 'active' : '' ?>">Matching</a>
-                <a href="index.php?page=search"       class="side-link <?= $page === 'search'       ? 'active' : '' ?>">Search</a>
-                <a href="index.php?page=institutions" class="side-link <?= $page === 'institutions' ? 'active' : '' ?>">Institutions</a>
-                <a href="index.php?page=messages" class="side-link <?= $page === 'messages' ? 'active' : '' ?>" style="display:flex;align-items:center;justify-content:space-between">
-                    <span>Messages</span>
-                    <span id="msg-side-badge" style="display:<?= $_msgUnread > 0 ? 'inline-flex' : 'none' ?>;align-items:center;justify-content:center;min-width:18px;height:18px;background:#b54646;color:#fff;border-radius:999px;font-size:10px;font-weight:800;padding:0 4px;line-height:1"><?= min($_msgUnread, 99) ?></span>
+                <a href="index.php?page=impact"      class="side-link <?= $page === 'impact'      ? 'active' : '' ?>"><span class="side-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M2 13.5h12"/><rect x="3" y="8" width="2.6" height="4"/><rect x="6.7" y="5" width="2.6" height="7"/><rect x="10.4" y="2.5" width="2.6" height="9.5"/></svg></span><span>Impact</span></a>
+                <a href="index.php?page=researchers"  class="side-link <?= $page === 'researchers'  ? 'active' : '' ?>"><span class="side-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><circle cx="6" cy="5.4" r="2.3"/><path d="M1.9 13.2c0-2.2 1.8-3.6 4.1-3.6s4.1 1.4 4.1 3.6"/><circle cx="11.8" cy="6.1" r="1.8"/><path d="M11.4 9.8c1.8.1 3 1.4 3 3.4"/></svg></span><span>Researchers</span></a>
+                <a href="index.php?page=funding"      class="side-link <?= $page === 'funding'      ? 'active' : '' ?>"><span class="side-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><circle cx="8" cy="8" r="6"/><path d="M8 4.6v6.8M9.9 6.1H7.2a1.3 1.3 0 0 0 0 2.6h1.6a1.3 1.3 0 0 1 0 2.6H6.1"/></svg></span><span>Funding</span></a>
+                <a href="index.php?page=matching"     class="side-link <?= $page === 'matching'     ? 'active' : '' ?>"><span class="side-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M2.5 5.2h7.3l-2-2M13.5 10.8H6.2l2 2"/><circle cx="12.6" cy="5.2" r="1.6"/><circle cx="3.4" cy="10.8" r="1.6"/></svg></span><span>Matching</span></a>
+                <a href="index.php?page=search"       class="side-link <?= $page === 'search'       ? 'active' : '' ?>"><span class="side-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><circle cx="7.2" cy="7.2" r="4.6"/><path d="M10.6 10.6 14 14"/></svg></span><span>Search</span></a>
+                <a href="index.php?page=institutions" class="side-link <?= $page === 'institutions' ? 'active' : '' ?>"><span class="side-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="M1.8 6.4 8 2.6l6.2 3.8"/><path d="M3.3 6.9v6.3M6.4 6.9v6.3M9.6 6.9v6.3M12.7 6.9v6.3"/><path d="M1.8 13.4h12.4"/></svg></span><span>Institutions</span></a>
+                <a href="index.php?page=messages" class="side-link <?= $page === 'messages' ? 'active' : '' ?>">
+                    <span class="side-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><rect x="1.8" y="3.4" width="12.4" height="9.2" rx="1.6"/><path d="m2.4 4.6 5.1 3.7a.9.9 0 0 0 1 0l5.1-3.7"/></svg></span><span>Messages</span>
+                    <span id="msg-side-badge" style="margin-left:auto;display:<?= $_msgUnread > 0 ? 'inline-flex' : 'none' ?>;align-items:center;justify-content:center;min-width:18px;height:18px;background:#b54646;color:#fff;border-radius:999px;font-size:10px;font-weight:800;padding:0 4px;line-height:1"><?= min($_msgUnread, 99) ?></span>
                 </a>
-                <a href="index.php?page=profile" class="side-link <?= $page === 'profile' ? 'active' : '' ?>" style="margin-top:8px;border-top:1px solid var(--line);padding-top:12px">My Profile</a>
+                <a href="index.php?page=profile" class="side-link <?= $page === 'profile' ? 'active' : '' ?>" style="margin-top:8px;border-top:1px solid var(--line);padding-top:12px"><span class="side-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><circle cx="8" cy="5.3" r="2.6"/><path d="M2.9 13.4c0-2.6 2.3-4.3 5.1-4.3s5.1 1.7 5.1 4.3"/></svg></span><span>My Profile</span></a>
                 <?php if (is_admin()): ?>
-                <a href="index.php?page=admin" class="side-link <?= $page === 'admin' ? 'active' : '' ?>" style="margin-top:8px">⚙ Admin Panel</a>
+                <a href="index.php?page=admin" class="side-link <?= $page === 'admin' ? 'active' : '' ?>" style="margin-top:8px"><span class="side-ico" aria-hidden="true"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><circle cx="8" cy="8" r="2.1"/><path d="M12.9 9.4a1.2 1.2 0 0 0 .24 1.32l.05.04a1.4 1.4 0 1 1-2 2l-.04-.05a1.2 1.2 0 0 0-1.32-.24 1.2 1.2 0 0 0-.73 1.1v.12a1.4 1.4 0 1 1-2.8 0v-.06a1.2 1.2 0 0 0-.79-1.1 1.2 1.2 0 0 0-1.32.24l-.04.05a1.4 1.4 0 1 1-2-2l.05-.04a1.2 1.2 0 0 0 .24-1.32 1.2 1.2 0 0 0-1.1-.73h-.12a1.4 1.4 0 1 1 0-2.8h.06a1.2 1.2 0 0 0 1.1-.79 1.2 1.2 0 0 0-.24-1.32l-.05-.04a1.4 1.4 0 1 1 2-2l.04.05a1.2 1.2 0 0 0 1.32.24h.06a1.2 1.2 0 0 0 .73-1.1v-.12a1.4 1.4 0 1 1 2.8 0v.06a1.2 1.2 0 0 0 .73 1.1 1.2 1.2 0 0 0 1.32-.24l.04-.05a1.4 1.4 0 1 1 2 2l-.05.04a1.2 1.2 0 0 0-.24 1.32v.06a1.2 1.2 0 0 0 1.1.73h.12a1.4 1.4 0 1 1 0 2.8h-.06a1.2 1.2 0 0 0-1.1.73Z"/></svg></span><span>Admin Panel</span></a>
                 <?php endif; ?>
                 <div class="sidebar-tip">Use <strong>topic</strong> + <strong>geography</strong> tags to connect researchers to funding calls.</div>
             </div>

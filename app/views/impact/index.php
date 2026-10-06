@@ -195,18 +195,19 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
     .bar-fill,.pipe-fill{transition:none}
   }
 </style>
+<?php require __DIR__ . '/../components/impact_editorial.php'; ?>
 
 <div class="landing" style="background-image:linear-gradient(135deg, rgba(255,255,255,0.60) 0%, rgba(255,255,255,0.55) 100%), url('wheat.avif');background-size:cover;background-position:center;background-attachment:fixed;">
 
 <!-- ===================== IMPACT KPIs ===================== -->
-<section class="l-section">
+<section class="l-section ed-masthead">
   <div class="wrap">
-    <div class="section-head reveal">
-      <span class="eyebrow">Impact at a glance</span>
-      <h2>What the alliance has built together</h2>
-      <p>A live view of the funding won, the researchers supported, and the institutions working side by side across the network.</p>
+    <div class="reveal">
+      <div class="ed-meta">Impact at a glance</div>
+      <h1>What the alliance has <em>built together</em></h1>
+      <p class="ed-lede">A live view of the funding won, the researchers supported, and the institutions working side by side across the network.</p>
     </div>
-    <div class="kpi-grid kpi-grid-4">
+    <div class="kpi-grid kpi-grid-4 ed-strip">
       <?php /* Research funding secured card hidden for now (data still computed above) */ ?>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $projectCount ?>"><?= $projectCount ?></div><div class="lbl">Research projects</div><div class="sub">From smallholder systems to global food-trade modelling.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $pubCount ?>"><?= $pubCount ?></div><div class="lbl">Publications</div><div class="sub">Scholarly work published from the FACT Alliance.</div></div>
@@ -219,7 +220,7 @@ $pipelineNum       = round($pipelineAmt / 1000000, 1);
 
 <!-- ===================== STUDENTS ===================== -->
 <?php if ($landStudents): ?>
-<section class="l-section" id="network" style="padding-top:0">
+<section class="l-section ed-rail" id="network">
   <div class="wrap">
     <div class="section-head reveal">
       <span class="eyebrow">Researchers we support</span>

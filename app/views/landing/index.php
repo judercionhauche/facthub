@@ -538,6 +538,7 @@ $tutorialPoster = is_file($tutorialAssets . 'tutorial-poster.jpg')
     .vt-spinner{animation-duration:2s}
   }
 </style>
+<?php require __DIR__ . '/../components/impact_editorial.php'; ?>
 
 <div class="landing">
 
@@ -585,14 +586,14 @@ $tutorialPoster = is_file($tutorialAssets . 'tutorial-poster.jpg')
 </header>
 
 <!-- ===================== IMPACT KPIs ===================== -->
-<section class="l-section landing-wheat" id="impact">
+<section class="l-section landing-wheat ed-masthead" id="impact">
   <div class="wrap">
-    <div class="section-head reveal">
-      <span class="eyebrow">Impact at a glance</span>
-      <h2>What the alliance has built together</h2>
-      <p>A live view of the funding won, the researchers supported, and the institutions working side by side across the network.</p>
+    <div class="reveal">
+      <div class="ed-meta">Impact at a glance</div>
+      <h1>What the alliance has <em>built together</em></h1>
+      <p class="ed-lede">A live view of the funding won, the researchers supported, and the institutions working side by side across the network.</p>
     </div>
-    <div class="kpi-grid">
+    <div class="kpi-grid ed-strip">
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $landInstitutions ?>"><?= $landInstitutions ?></div><div class="lbl">Member institutions</div><div class="sub">Universities and labs across <?= $landCountries ?> countries.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $projectCount ?>"><?= $projectCount ?></div><div class="lbl">Fact alliance research collaborations</div><div class="sub">From smallholder systems to global food-trade modelling.</div></div>
       <div class="kpi reveal"><div class="tick"></div><div class="num" data-count="<?= $pubCount ?>"><?= $pubCount ?></div><div class="lbl">Publications</div><div class="sub">Scholarly work published from the FACT Alliance.</div></div>
@@ -642,7 +643,7 @@ $tutorialPoster = is_file($tutorialAssets . 'tutorial-poster.jpg')
 
 <!-- ===================== STUDENTS ===================== -->
 <?php if ($landStudents && is_logged_in()): ?>
-<section class="l-section" id="network" style="padding-top:0">
+<section class="l-section ed-rail" id="network">
   <div class="wrap">
     <div class="section-head reveal">
       <span class="eyebrow">Researchers we support</span>
@@ -674,7 +675,7 @@ $tutorialPoster = is_file($tutorialAssets . 'tutorial-poster.jpg')
 <?php require __DIR__ . '/../components/research_publications_showcase.php'; ?>
 
 <!-- ===================== INSIDE THE HUB ===================== -->
-<section class="l-section reach landing-wheat">
+<section class="l-section reach landing-wheat ed-rail">
   <div class="wrap">
     <div class="section-head reveal">
       <span class="eyebrow">Inside the hub</span>
