@@ -147,4 +147,38 @@
   @media(prefers-reduced-motion:reduce){
     .ed-rail > .wrap > .section-head{position:static}
   }
+
+  /* ---------- PROJECT / PUBLICATION CARDS ---------- */
+  /* The blurb was the tallest thing in each card and pushed every other card
+     out of line, for text nobody reads at a glance. Hidden rather than
+     deleted: the markup, the data and the "View" link all stay, so the
+     detail is one click away exactly as before. */
+  .rp-card-description{display:none}
+
+  /* The title now carries the card, set in the display serif. */
+  .rp-card-title{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:1.24rem;
+    line-height:1.28;
+    letter-spacing:-.008em;
+    margin-bottom:12px;
+    text-wrap:balance;
+  }
+  .rp-card{padding:24px 28px 22px}
+  .rp-card-badge{margin-bottom:14px}
+  .rp-card-institutions{margin-bottom:10px}
+  .rp-card-team-badge{margin-bottom:0}
+
+  /* .rp-card-description carried flex-grow:1, so without it the footer rose
+     to meet the title and cards of differing height stopped lining up. The
+     spacer moves to whichever footer the card actually has. */
+  .rp-card-meta{margin-top:auto}
+  /* A card with no meta block pins its link instead. This rule must come
+     first: it ties with the adjacent-sibling rule below on specificity, so
+     source order alone decides, and the sibling rule has to win whenever a
+     meta block is present — otherwise two auto margins split the slack and
+     the link drifts away from the meta row. */
+  .rp-card-link:first-of-type{margin-top:auto}
+  .rp-card-meta + .rp-card-link{margin-top:12px}
 </style>
